@@ -1,0 +1,25 @@
+service:
+
+  identifier: svc
+  label: ACME hotels
+
+  operations:
+
+    - identifier: op1
+      label: getHotelDetails
+      method: GET
+      address: http://example.com/h/{id}
+
+      input_messages:
+
+        - name: id
+          description: The identifier of a particular hotel
+          model: http://example.com/data/onto.owl#Hotel
+          lowering: http://example.com/data/hotel.xsparql
+
+      output_messages:
+
+        - name: theHotel
+          description: The whole description of the hotel
+          model: http://example.com/data/onto.owl#Hotel
+          lifting: http://example.com/data/hotel.xsparql

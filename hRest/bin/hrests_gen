@@ -1,0 +1,91 @@
+#!env ruby
+
+require File.expand_path(File.dirname(__FILE__) + "/../config/environment")
+require File.expand_path(File.dirname(__FILE__) + "/../lib/script/generator")
+
+require 'ruby-debug'
+
+def find_arg name
+  ARGV.each do |arg|
+    return true if arg == name
+  end
+
+  false
+end
+
+def find_next_arg name
+  found = false
+  ARGV.each do |arg|
+    return arg if found
+    found=true if arg == name && !found
+  end
+
+  nil
+end
+
+help = <<__END
+hRESTS service description generator.
+Usage: hrests_gen [options] input_yaml_file output_file
+Options:
+  --help           prints this help
+  -h               equivalent to --help
+  --fragment       generates only a relevant fragment with the service
+  --format <arg>   generates the service description in <arg> format.
+                   Currently 'html' and 'html+rdf' are available.
+                   'html' is selected by default.
+  --compacted      sets indentation to 0 when generating the otuput
+__END
+
+
+minimum_args = 2
+minimum_args += 1 if find_arg("--format")
+counted_args = 0
+ARGV.each do |arg|
+  unless arg.index("-") == 0
+    counted_args += 1
+  end
+end
+
+if counted_args < minimum_args
+  puts "Not input file and output file specified"
+  puts ""
+  puts help
+
+else
+
+  if find_arg("-h") || find_arg("--help")
+    puts help
+  end
+
+  extension = "full"
+  extension = "fragment" if find_arg("--fragment")
+
+
+  format = find_next_arg("--format")
+  if format.nil?
+    format = "html"
+  elsif format != 'html' && format != 'html+rdf'
+    puts "The specified format '#{format}' is not valid. Only 'html' and 'html+rdf' are available"
+    puts ""
+    puts help
+  end
+  format = "rdfa" if format == "html+rdf"
+
+
+  input_path = ARGV[-2]
+  output_path = ARGV[-1]
+
+  generator = Generator.new(input_path)
+
+  text = ""
+  if find_arg("--compacted")
+    text = eval("generator.#{extension}_#{format}")
+  else
+    text = eval("generator.#{extension}_#{format}(:indent => 2)")
+  end
+
+  File.open(output_path,"w") do |f|
+    f << text
+  end
+
+end
