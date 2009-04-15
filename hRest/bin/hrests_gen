@@ -31,7 +31,7 @@ Options:
   -h               equivalent to --help
   --fragment       generates only a relevant fragment with the service
   --format <arg>   generates the service description in <arg> format.
-                   Currently 'html' and 'html+rdf' are available.
+                   Currently 'json','html' and 'html+rdf' are available.
                    'html' is selected by default.
   --compacted      sets indentation to 0 when generating the otuput
 __END
@@ -64,7 +64,7 @@ else
   format = find_next_arg("--format")
   if format.nil?
     format = "html"
-  elsif format != 'html' && format != 'html+rdf'
+  elsif format != 'html' && format != 'html+rdf' && format != 'json'
     puts "The specified format '#{format}' is not valid. Only 'html' and 'html+rdf' are available"
     puts ""
     puts help
@@ -78,11 +78,14 @@ else
   generator = Generator.new(input_path)
 
   text = ""
+=begin
   if find_arg("--compacted")
     text = eval("generator.#{extension}_#{format}")
   else
     text = eval("generator.#{extension}_#{format}(:indent => 2)")
   end
+=end
+  text = generator.full_json
 
   File.open(output_path,"w") do |f|
     f << text

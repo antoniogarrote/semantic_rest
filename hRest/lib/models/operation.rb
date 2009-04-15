@@ -140,4 +140,35 @@ class Operation
     out.string
   end
 
+  def to_json
+    out = StringIO.new
+
+    builder = Builder::XmlMarkup.new(:target=>out, :indent=>0)
+
+    out << " , "
+    out << "\"##{@identifier}\" : { \"http://www.w3.org/2000/01/rdf−schema#label\" : [ { \"value\" : \"#{@label}\", \"type\" : \"literal\" } ] "
+    out <<                        ", \"http://www.w3.org/2000/01/rdf−schema#type\" : [ { \"value\" : \"http://www.wsmo.org/ns/wsmo−lite#Operation\", \"type\" : \"uri\" } ] "
+    out <<                        ", \"http://www.wsmo.org/ns/hrests#hasMethod\" : [ { \"value\" : \"#{@method.to_s.upcase}\", \"type\" : \"literal\" } ] "
+    out <<                        ", \"http://www.wsmo.org/ns/hrests#hasAddress\" : [ { \"value\" : \"#{@address}\", \"type\" : \"literal\", \"datatype\" : \"http://www.wsmo.org/ns/hrests#URITemplate\" } ] "
+    im_out = StringIO.new
+    om_out = StringIO.new
+    input_messages.each do |im|
+      identifier = builder.next_blank_node
+      out <<                      ", \"http://www.wsmo.org/ns/wsmo−lite#hasInputMessage\" : [ { \"value\" : \"#{identifier}\", \"type\" : \"bnode\" } ] "
+      im_out << " , \"#{identifier}\" : { "
+      im_out << im.to_json(identifier,:input)
+      im_out << " } "
+    end
+    output_messages.each do |om|
+      identifier = builder.next_blank_node
+      out <<                      ", \"http://www.wsmo.org/ns/wsmo−lite#hasOutputMessage\" : [ { \"value\" : \"#{identifier}\", \"type\" : \"bnode\" } ] "
+      om_out << " , \"#{identifier}\" : { "
+      om_out << om.to_json(identifier,:output)
+      om_out << " } "
+    end
+    out << " } "
+    out << im_out.string
+    out << om_out.string
+    out.string
+  end
 end

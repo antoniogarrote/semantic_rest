@@ -86,4 +86,20 @@ class Message
     out.string
   end
 
+  def to_json bnode,mode
+    transformation_tag = ""
+    if mode == :input
+      transformation_tag = "http://www.w3.org/ns/sawsdl#loweringSchemaMapping"
+    else
+      transformation_tag = "liftingSchemaMapping"
+    end
+
+
+    out = StringIO.new
+    out <<                        " \"http://www.w3.org/2000/01/rdf−schema#type\" : [ { \"value\" : \"http://www.wsmo.org/ns/wsmo−lite#Message\", \"type\" : \"uri\" } ] "
+    out <<                        ", \"http://www.w3.org/ns/sawsdl#modelReference\" : [ { \"value\" : \"#{@model}\", \"type\" : \"uri\" } ] "
+    out <<                        ", \"#{transformation_tag}\" : [ { \"value\" : \"#{@transformation}\", \"type\" : \"uri\" } ]"
+
+    out.string
+  end
 end

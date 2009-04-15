@@ -78,4 +78,21 @@ class ServiceDescription
     out.string
   end
 
+  def to_json
+    out = StringIO.new
+    builder = Builder::XmlMarkup.new(:target=>out, :indent=>0)
+    builder.reset_blank_node_generator
+
+    out << "{ \"##{@identifier}\" : { \"http://www.w3.org/2000/01/rdf−schema#label\" : [ { \"value\" : \"#{@label}\", \"type\" : \"literal\" } ] "
+    out <<                        ", \"http://www.w3.org/2000/01/rdf−schema#type\" : [ { \"value\" : \"http://www.wsmo.org/ns/wsmo−lite#Service\", \"type\" : \"uri\" } ] "
+    ops_out = StringIO.new
+    operations.each do |op|
+      out <<                      ", \"http://www.wsmo.org/ns/wsmo−lite#hasOperation\" : [ { \"value\" : \"##{op.identifier}\", \"type\" : \"uri\" } ] "
+      ops_out << op.to_json
+    end
+    out << " } "
+    out << ops_out.string
+    out << " }"
+    out.string
+  end
 end

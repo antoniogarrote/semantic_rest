@@ -11,6 +11,14 @@ class Generator
     @service = Parser::Yaml.parse(path).first
   end
 
+  def full_json options = {}
+    @service.to_json
+  end
+
+  def fragment_json options = {}
+    @service.to_json
+  end
+
   def full_html options = {:indent => 0}
     out = StringIO.new
 
