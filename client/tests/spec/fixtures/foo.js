@@ -1,0 +1,3 @@
+function fooWarn() {
+    return "foo";
+};
