@@ -1,0 +1,33 @@
+require 'semantic_resource/base'
+
+class Book < ActiveRecord::Base
+
+  has_many :books
+
+  include SemanticResource
+
+  set_resource_namespace :test, "http://test.com"
+
+  set_resource_mapping do |resource|
+    resource[:title] = {:uri => [:test,"#title"],
+                        :optional => true}
+
+    resource[:published] = {:uri => [:test,"#published"],
+                            :optional => true}
+
+    resource[:category] = {:uri => [:test,"#category"],
+                           :optional => true}
+
+    resource[:pages] = {:uri => [:test,"#numberOfPages"],
+                        :optional => true}
+
+    resource[:isbn] = {:uri => [:test,"#isbn"],
+                       :optional => true}
+
+    resource[:editorial] = {:uri => [:test,"#editorial"],
+                            :optional => true}
+  end
+
+  define_show_operation(:controller => 'books', :action => 'show')
+  define_create_operation(:controller => 'books', :action => 'create')
+end

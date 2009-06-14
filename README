@@ -1,0 +1,9 @@
+Semantic RESTful web services using hRESTS and MicroWSMO standard proposal: see http://cms-wg.sti2.org/TR/d12/v0.1/
+
+This is a work in progress.
+
+Currently there are rough implementations of the following components:
+ 
+  - YAML based service description generation tool
+  - Sample Rails application hRESTS/MicroWSMO enabled (extraction of the library to a gem is necessary)
+  - JavaScript client and model layer implementation library.
