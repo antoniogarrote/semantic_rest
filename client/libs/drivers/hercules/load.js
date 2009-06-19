@@ -1010,7 +1010,8 @@ Arielworks.Parser.RecursiveDescentParser.OrExpression.prototype.__doDescend = fu
     if (found) {
         return r;
     } else {
-        throw "Or";
+//        throw "Or";
+        throw new Error("Or");
     }
 };
 

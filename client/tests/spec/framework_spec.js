@@ -6,7 +6,7 @@ Screw.Unit(function() {
 
 	    it("should return true if the symbol in the provided lambda function is defined",
                function() {
-		   expect(Siesta.defined(function(){ 
+		   expect(Siesta.defined(function(){
 		       Siesta.defined })).to(equal,true);
 	       });
 
@@ -23,7 +23,7 @@ Screw.Unit(function() {
 	describe('#load',function() {
 
 	    it("should load the required script from the server",
-               function() {                   
+               function() {
                    Siesta.load(Siesta.currentPath(), "fixtures", "foo.js");
 		   expect(fooWarn()).to(equal,"foo");
 	       });
@@ -216,22 +216,22 @@ Screw.Unit(function() {
 	});
 
         describe('#isValid',function() {
-            
+
             it("should return true if all the components have value",
                function() {
-                   var test = new Siesta.Framework.Triple("a","b","c");                   
+                   var test = new Siesta.Framework.Triple("a","b","c");
                    expect(test.isValid() == true).to(equal,true);
                });
 
             it("should return false if some component in triple is null",
                function() {
-                   var test = new Siesta.Framework.Triple("a","b");                   
+                   var test = new Siesta.Framework.Triple("a","b");
                    expect(test.isValid() == false).to(equal,true);
 
-                   test = new Siesta.Framework.Triple("a");                   
+                   test = new Siesta.Framework.Triple("a");
                    expect(test.isValid() == false).to(equal,true);
 
-                   test = new Siesta.Framework.Triple();                   
+                   test = new Siesta.Framework.Triple();
                    expect(test.isValid() == false).to(equal,true);
                });
         });
@@ -249,7 +249,7 @@ Screw.Unit(function() {
 	    it("should register a new Siesta.Framework.Namespace to this graph",
                function() {
                    var g = new Siesta.Framework.Graph();
-                   
+
                    var ns = new Siesta.Framework.Namespace("a","b");
                    g.addNamespace(ns);
 
@@ -265,7 +265,7 @@ Screw.Unit(function() {
 	    it("should store a new triple in the graph",
                function() {
                    var g = new Siesta.Framework.Graph();
-                   
+
                    var u = new Siesta.Framework.Uri("a","c");
                    var t = new Siesta.Framework.Triple(u,u,u);
 
@@ -279,7 +279,7 @@ Screw.Unit(function() {
 	    it("should store a new triple in the triplesCache",
                function() {
                    var g = new Siesta.Framework.Graph();
-                   
+
                    var u = new Siesta.Framework.Uri("a","c");
                    var t = new Siesta.Framework.Triple(u,u,u);
 
@@ -295,7 +295,7 @@ Screw.Unit(function() {
 	    it("should not store a new triple in the triplesCache if it was already inserted",
                function() {
                    var g = new Siesta.Framework.Graph();
-                   
+
                    var u = new Siesta.Framework.Uri("a","c");
                    var t = new Siesta.Framework.Triple(u,u,u);
 
@@ -317,7 +317,7 @@ Screw.Unit(function() {
 	    it("should return all the stored triples as an array",
                function() {
                    var g = new Siesta.Framework.Graph();
-                   
+
                    var u = new Siesta.Framework.Uri("a","c");
                    var t = new Siesta.Framework.Triple(u,u,u);
 
@@ -335,7 +335,7 @@ Screw.Unit(function() {
 	    it("should normalize the Literal if the namespace for the literal datatype is registered in the graph",
                function() {
                    var g = new Siesta.Framework.Graph();
-                   
+
                    var ns = new Siesta.Framework.Namespace("a","b");
                    g.addNamespace(ns);
 
@@ -352,7 +352,7 @@ Screw.Unit(function() {
 	    it("should create a new hash for the given normalized key triple subject if the key doesn't exist in the triples array",
                function() {
                    var g = new Siesta.Framework.Graph();
-                   
+
                    var u = new Siesta.Framework.Uri("a","c");
                    var t = new Siesta.Framework.Triple(u,u,u);
 
@@ -366,7 +366,7 @@ Screw.Unit(function() {
 	    it("should return the existent hash for the given normalized key triple subject if the key already exists in the triples array",
                function() {
                    var g = new Siesta.Framework.Graph();
-                   
+
                    var u = new Siesta.Framework.Uri("a","c");
                    var t = new Siesta.Framework.Triple(u,u,u);
 
@@ -386,7 +386,7 @@ Screw.Unit(function() {
 	    it("should create a new hash for the given normalized key triple predicate if the key doesn't exist in the triples array",
                function() {
                    var g = new Siesta.Framework.Graph();
-                   
+
                    var u = new Siesta.Framework.Uri("a","c");
                    var t = new Siesta.Framework.Triple(u,u,u);
 
@@ -400,10 +400,10 @@ Screw.Unit(function() {
 	    it("should return the existent hash for the given normalized key triple predicate if the key already exists in the triples array",
                function() {
                    var g = new Siesta.Framework.Graph();
-                   
+
                    var u = new Siesta.Framework.Uri("a","c");
                    var t = new Siesta.Framework.Triple(u,u,u);
-                   
+
                    var id = g.__normalizeUri(u);
                    var prev = {};
                    prev[id] = "test";
@@ -419,7 +419,7 @@ Screw.Unit(function() {
 	    it("should insert the triple for the given normalized key triple object if the key doesn't exist in the triples array",
                function() {
                    var g = new Siesta.Framework.Graph();
-                   
+
                    var u = new Siesta.Framework.Uri("a","c");
                    var t = new Siesta.Framework.Triple(u,u,u);
 
@@ -437,7 +437,7 @@ Screw.Unit(function() {
 	    it("should return true if the triplet was inserted",
                function() {
                    var g = new Siesta.Framework.Graph();
-                   
+
                    var u = new Siesta.Framework.Uri("a","c");
                    var t = new Siesta.Framework.Triple(u,u,u);
 
@@ -452,7 +452,7 @@ Screw.Unit(function() {
 	    it("should return false if the triplet was already inserted",
                function() {
                    var g = new Siesta.Framework.Graph();
-                   
+
                    var u = new Siesta.Framework.Uri("a","c");
                    var t = new Siesta.Framework.Triple(u,u,u);
 
@@ -514,24 +514,24 @@ Screw.Unit(function() {
 	    it("should check a RDF/XML document correctly",
                function() {
                    var doc = "<rdf:RDF  xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'  xmlns:s='http://www.w3.org/2000/01/rdf-schema#' xmlns:sawsdl='http://www.w3.org/ns/sawsdl#' xmlns:wsl='http://www.wsmo.org/ns/wsmo-lite#' xmlns:hr='http://www.wsmo.org/ns/hrests#'> <rdf:Description rdf:about='http://localhost:3000/schemas/services/BookService'> </rdf:Description> </rdf>";
-                   
+
                    expect(Siesta.Framework.Common.determineFormat(doc)).to(equal,"xml");
 
-                   var doc = "<?xml version='1.0'?><rdf:RDF  xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'  xmlns:s='http://www.w3.org/2000/01/rdf-schema#' xmlns:sawsdl='http://www.w3.org/ns/sawsdl#' xmlns:wsl='http://www.wsmo.org/ns/wsmo-lite#' xmlns:hr='http://www.wsmo.org/ns/hrests#'> <rdf:Description rdf:about='http://localhost:3000/schemas/services/BookService'> </rdf:Description> </rdf>";                   
+                   var doc = "<?xml version='1.0'?><rdf:RDF  xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'  xmlns:s='http://www.w3.org/2000/01/rdf-schema#' xmlns:sawsdl='http://www.w3.org/ns/sawsdl#' xmlns:wsl='http://www.wsmo.org/ns/wsmo-lite#' xmlns:hr='http://www.wsmo.org/ns/hrests#'> <rdf:Description rdf:about='http://localhost:3000/schemas/services/BookService'> </rdf:Description> </rdf>";
                    expect(Siesta.Framework.Common.determineFormat(doc)).to(equal,"xml");
 	       });
 
 	    it("should check a RDF N3/Turtle document correctly",
                function() {
                    var doc = "@prefix sawsdl: <http://www.w3.org/ns/sawsdl#> . <http://localhost:3000/schemas/services/BookService> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> wsl:Service .";
-                   
+
                    expect(Siesta.Framework.Common.determineFormat(doc)).to(equal,"turtle");
 	       });
 
 	    it("should raise an exception if the format cannot be determined",
                function() {
                    var doc = "foo formated";
-                   
+
                    try {
                        Siesta.Framework.Common.determineFormat(doc);
                        expect(true).to(equal,false);
@@ -557,7 +557,7 @@ Screw.Unit(function() {
                    var mockControl = new MockControl();
                    var networkMock = mockControl.createMock(Siesta.Network);
                    networkMock.expect().jsonpRequest("test","callback","Siesta.Services.onRegisteredServiceJsonp");
-                   
+
                    var oldNetwork = Siesta.Network;
                    Siesta.Network = networkMock;
 
@@ -578,7 +578,7 @@ Screw.Unit(function() {
                    var mockControl = new MockControl();
                    var networkMock = mockControl.createMock(Siesta.Network);
                    networkMock.expect().jsonpRequest("test","myCallback","Siesta.Services.onRegisteredServiceJsonp");
-                   
+
                    var oldNetwork = Siesta.Network;
                    Siesta.Network = networkMock;
 
@@ -629,13 +629,13 @@ Screw.Unit(function() {
                       query = query + " ?uri <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> " + "<http://www.wsmo.org/ns/wsmo-lite#Message> }";
 
                       var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
-            
+
                       if(result.length == 0) {
                           expect(true).to(equal,false);
                       } else {
                           var _uri = result[0].uri.toString();
                           var message = new Siesta.Services.RestfulOperationInputMessage(_uri);
-                          expect(message.modelReference() == "http://localhost:3000/schemas/models/Book").to(equal,true);                      
+                          expect(message.modelReference() == "http://localhost:3000/schemas/models/Book").to(equal,true);
                       }
 
                   });
@@ -654,13 +654,67 @@ Screw.Unit(function() {
                       query = query + " ?uri <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> " + "<http://www.wsmo.org/ns/wsmo-lite#Message> }";
 
                       var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
-            
+
                       if(result.length == 0) {
                           expect(true).to(equal,false);
                       } else {
                           var _uri = result[0].uri.toString();
                           var message = new Siesta.Services.RestfulOperationInputMessage(_uri);
-                          expect(message.loweringSchemaMapping() == "http://localhost:3000/schemas/lowering/Book/create.sparql").to(equal,true);                      
+                          expect(message.loweringSchemaMapping() == "http://localhost:3000/schemas/lowering/Book/create.sparql").to(equal,true);
+                      }
+
+                  });
+           });
+
+    });
+
+    describe('Siesta.Services.RestfulOperationOutputMessage',function() {
+
+	   describe('.modelReference',function() {
+               it("should parse the modelReference property of the RestfulOperationOutputMessage element",
+                  function() {
+                      Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
+                      expect(Siesta.Model.Repositories.services.triplesArray().length == 0).to(equal,true);
+                      var graph = Siesta.Formats.Turtle.parseDoc("",fixtureN3Data2);
+                      Siesta.Model.Repositories.services = graph;
+                      expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
+
+                      var query = "SELECT ?uri WHERE { ?x <http://www.wsmo.org/ns/wsmo-lite#hasOutputMessage> ?uri .";
+                      query = query + " ?uri <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> " + "<http://www.wsmo.org/ns/wsmo-lite#Message> }";
+
+                      var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
+
+                      if(result.length == 0) {
+                          expect(true).to(equal,false);
+                      } else {
+                          var _uri = result[0].uri.toString();
+                          var message = new Siesta.Services.RestfulOperationOutputMessage(_uri);
+                          expect(message.modelReference() == "http://localhost:3000/schemas/models/Book").to(equal,true);
+                      }
+
+                  });
+           });
+
+	   describe('.liftingSchemaMapping',function() {
+               it("should parse the liftingSchemaMapping property of the RestfulOperationOutputMessage element",
+                  function() {
+                      Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
+                      expect(Siesta.Model.Repositories.services.triplesArray().length == 0).to(equal,true);
+                      var graph = Siesta.Formats.Turtle.parseDoc("",fixtureN3Data2);
+                      Siesta.Model.Repositories.services = graph;
+                      expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
+
+                      var query = "SELECT ?uri WHERE { ?x <http://www.wsmo.org/ns/wsmo-lite#hasOutputMessage> ?uri .";
+                      query = query + " ?uri <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> " + "<http://www.wsmo.org/ns/wsmo-lite#Message> }";
+
+                      var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
+
+                      if(result.length == 0) {
+                          expect(true).to(equal,false);
+                      } else {
+                          var _uri = result[1].uri.toString();
+                          var message = new Siesta.Services.RestfulOperationOutputMessage(_uri);
+                          expect(message.liftingSchemaMapping() == "http://localhost:3000/schemas/lowering/Book/lifting.xslt").to(equal,true);
                       }
 
                   });
@@ -687,7 +741,7 @@ Screw.Unit(function() {
                       } else {
                           var _uri = result[0].uri.toString();
                           var message = new Siesta.Services.RestfulOperationInputParameter(_uri);
-                          expect(message.type() == "http://semantic_rest.org/ns/hrests_js#JSONPCallback").to(equal,true);                      
+                          expect(message.type() == "http://semantic_rest.org/ns/hrests_js#JSONPCallback").to(equal,true);
                       }
 
                   });
@@ -705,13 +759,13 @@ Screw.Unit(function() {
                       var query = "SELECT ?uri WHERE { ?x <http://www.wsmo.org/ns/hrests#hasInputParameter> ?uri .";
                       query = query + " ?uri <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> " + "<http://semantic_rest.org/ns/hrests_js#JSONPCallback> }";
                       var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
-            
+
                       if(result.length == 0) {
                           expect(true).to(equal,false);
                       } else {
                           var _uri = result[0].uri.toString();
                           var message = new Siesta.Services.RestfulOperationInputParameter(_uri);
-                          expect(message.parameterName() == "callback").to(equal,true);                      
+                          expect(message.parameterName() == "callback").to(equal,true);
                       }
 
                   });
@@ -731,7 +785,7 @@ Screw.Unit(function() {
                       expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
 
                       var operation = new Siesta.Services.RestfulOperation("http://localhost:3000/schemas/services/Book#createBook");
-                      expect(operation.label() == "creates a new Book resource").to(equal,true);                      
+                      expect(operation.label() == "creates a new Book resource").to(equal,true);
                   });
            });
 
@@ -745,7 +799,7 @@ Screw.Unit(function() {
                       expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
 
                       var operation = new Siesta.Services.RestfulOperation("http://localhost:3000/schemas/services/Book#createBook");
-                      expect(operation.method() == "POST").to(equal,true);                      
+                      expect(operation.method() == "POST").to(equal,true);
                   });
            });
 
@@ -759,7 +813,7 @@ Screw.Unit(function() {
                       expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
 
                       var operation = new Siesta.Services.RestfulOperation("http://localhost:3000/schemas/services/Book#createBook");
-                      expect(operation.address() == "http://localhost:3000/books?category={category}&editorial={editorial}&isbn={isbn}&pages={pages}&published={published}&title={title}").to(equal,true);                      
+                      expect(operation.address() == "http://localhost:3000/books?category={category}&editorial={editorial}&isbn={isbn}&pages={pages}&published={published}&title={title}").to(equal,true);
                   });
            });
 
@@ -773,9 +827,24 @@ Screw.Unit(function() {
                       expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
 
                       var operation = new Siesta.Services.RestfulOperation("http://localhost:3000/schemas/services/Book#createBook");
-                      expect(operation.inputMessages().length == 1).to(equal,true);                      
+                      expect(operation.inputMessages().length == 1).to(equal,true);
                       operation.inputMessages()[0].loweringSchemaMapping();
-                      expect(operation.inputMessages()[0].loweringSchemaMapping() == "http://localhost:3000/schemas/lowering/Book/create.sparql").to(equal,true);                      
+                      expect(operation.inputMessages()[0].loweringSchemaMapping() == "http://localhost:3000/schemas/lowering/Book/create.sparql").to(equal,true);
+                  });
+           });
+
+	   describe('.outputMessage',function() {
+               it("should parse the output message if associated to this operations returning a RestfulOperationOutputMessage",
+                  function() {
+                      Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
+                      expect(Siesta.Model.Repositories.services.triplesArray().length == 0).to(equal,true);
+                      var graph = Siesta.Formats.Turtle.parseDoc("",fixtureN3Data2);
+                      Siesta.Model.Repositories.services = graph;
+                      expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
+
+                      var operation = new Siesta.Services.RestfulOperation("http://localhost:3000/schemas/services/Book#showBook");
+                      operation.outputMessage().liftingSchemaMapping();
+                      expect(operation.outputMessage().liftingSchemaMapping() == "http://localhost:3000/schemas/lowering/Book/lifting.xslt").to(equal,true);
                   });
            });
 
@@ -789,13 +858,33 @@ Screw.Unit(function() {
                       expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
 
                       var operation = new Siesta.Services.RestfulOperation("http://localhost:3000/schemas/services/Book#createBook");
-                      expect(operation.inputParameters().length == 1).to(equal,true);                      
+                      expect(operation.inputParameters().length == 1).to(equal,true);
                       operation.inputParameters()[0].parameterName();
-                      expect(operation.inputParameters()[0].parameterName() == "callback").to(equal,true);                      
+                      expect(operation.inputParameters()[0].parameterName() == "callback").to(equal,true);
                   });
            });
 
     });
+
+
+    describe('Siesta.Model.Schema',function() {
+
+	describe('.modelReference',function() {
+
+            it("should retrieve the model reference associated to this service from the repository",
+               function() {
+                   Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
+                   expect(Siesta.Model.Repositories.schemas.triplesArray().length == 0).to(equal,true);
+                   var graph = Siesta.Formats.Turtle.parseDoc("",fixtureN3Data3);
+                   Siesta.Model.Repositories.schemas = graph;
+                   expect(Siesta.Model.Repositories.schemas.triplesArray().length > 0).to(equal,true);
+
+                   var model = new Siesta.Model.Schema("http://localhost:3000/schemas/models/Book");
+                   expect(model.type() == "http://www.w3.org/2000/01/rdf-schema#Class").to(equal,true);
+               });
+
+        });
+    })
 
     describe('Siesta.Services.RestfulService',function() {
 
@@ -849,7 +938,47 @@ Screw.Unit(function() {
 
         });
 
+	   describe('.operations',function() {
+
+            it("should retrieve the operations associated to this service from the repository",
+            function() {
+                Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
+                expect(Siesta.Model.Repositories.services.triplesArray().length == 0).to(equal,true);
+                var graph = Siesta.Formats.Turtle.parseDoc("",fixtureN3Data1);
+                Siesta.Model.Repositories.services = graph;
+                expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
+
+                var service = new Siesta.Services.RestfulService("http://localhost:3000/schemas/services/BookService");
+                expect(service.operations()[0].uri == "http://localhost:3000/schemas/services/Book#createBook").to(equal,true);
+                expect(service.operations()[1].uri == "http://localhost:3000/schemas/services/Book#showBook").to(equal,true);
+            });
+
+        });
+
 
 
     });
 });
+
+
+/*
+
+        describe('Siesta.Model.Schema',function() {
+
+	    describe('.modelReference',function() {
+
+                it("should retrieve the model reference associated to this service from the repository",
+                   function() {
+                       Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
+                       expect(Siesta.Model.Repositories.schemas.triplesArray().length == 0).to(equal,true);
+                       var graph = Siesta.Formats.Turtle.parseDoc("",fixtureN3Data3);
+                       Siesta.Model.Repositories.schemas = graph;
+                       expect(Siesta.Model.Repositories.schemas.triplesArray().length > 0).to(equal,true);
+
+                       var model = new Siesta.Model.Schema("http://localhost:3000/schemas/models/Book");
+                       expect(model.type() == "http://www.w3.org/2000/01/rdf-schema#Class").to(equal,true);
+                   });
+
+            });
+        })
+*/

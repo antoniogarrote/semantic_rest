@@ -42,14 +42,14 @@ Siesta.isRhino = function() {
 
 /**
   Returns the current path in the browser till the last '/' (not included)
-*/ 
+*/
 Siesta.currentPath = function() {
         return location.href.split("/").slice(0,-1).join("/");
 };
 
 
 /**
-  generic load of scripts it should load 
+  generic load of scripts it should load
   with the Rhino 'load' function or with
   the javascript framework in the browser
   - scriptPath : path to the script to load.
@@ -69,7 +69,7 @@ Siesta.load = function(scriptPath)  {
         var e = document.createElement("script");
         e.src = thePath;
         e.type="text/javascript";
-        document.getElementsByTagName("head")[0].appendChild(e); 
+        document.getElementsByTagName("head")[0].appendChild(e);
     }
 };
 
@@ -88,7 +88,7 @@ Siesta.loadFromBase = function(scriptPath)  {
         var e = document.createElement("script");
         e.src = thePath;
         e.type="text/javascript";
-        document.getElementsByTagName("head")[0].appendChild(e); 
+        document.getElementsByTagName("head")[0].appendChild(e);
     }
 };
 
@@ -110,7 +110,7 @@ Object.prototype.methods = function() {
 }
 
 /**
- *  Let's load microtype if we are in 
+ *  Let's load microtype if we are in
  *  Rhino to have basic class support.
  *  If we're in a browser, Prototype
  *  will be loaded.
@@ -148,10 +148,10 @@ Siesta.registerNamespace = function() {
  */
 Siesta.Framework.Namespace = Class.create();
 Siesta.Framework.Namespace.prototype = {
-    
+
     /**
      *  Builds a new namespace.
-     *  
+     *
      *  @arguments
      *  - name: the name of the namespace.
      *  - uri: the uri of this namespace.
@@ -183,16 +183,16 @@ Siesta.Framework.Uri.prototype = {
     initialize: function() {
         if(arguments.length == 2) {
             this.namespace = arguments[0];
-            this.value = arguments[1];            
+            this.value = arguments[1];
         } else if(arguments.length == 1) {
             this.value = arguments[0];
             this.namespace = null;
         } else {
             throw new Error("Trying to create null Siesta.Framework.Uri");
         }
-        this.__type = 'uri';        
+        this.__type = 'uri';
     },
-    
+
     /**
      * Human readable representation of this URI
      */
@@ -226,7 +226,7 @@ Siesta.Framework.BlankNode.prototype = {
         this.value = identifier;
         this.__type = 'blanknode';
     },
-    
+
     /**
      * Human readable representation of this URI
      */
@@ -275,7 +275,7 @@ Siesta.Framework.Literal.prototype = {
         }
         this.__type = 'literal';
     },
-    
+
     /**
      * Human readable representation of this URI
      */
@@ -331,7 +331,7 @@ Siesta.Framework.Triple.prototype = {
         }
         this.__type = 'triple';
     },
-    
+
     /**
      * Test if subject, predicate and object
      * are set for this triple.
@@ -371,7 +371,7 @@ Siesta.Framework.Graph.prototype = {
         this.invNamespaces = {};
 
         // The collection of triples in the graph
-        this.triples = {}; 
+        this.triples = {};
 
         // Triples cache
         this.triplesCache = [];
@@ -396,7 +396,7 @@ Siesta.Framework.Graph.prototype = {
     },
 
     /**
-     *  Adds one triple to the index 
+     *  Adds one triple to the index
      *
      *  @arguments
      *  - aTriple: the triple to be added.
@@ -455,7 +455,7 @@ Siesta.Framework.Graph.prototype = {
             this.triples[identifier] = {};
         }
         return this.triples[identifier];
-           
+
     },
 
     /**
@@ -487,7 +487,7 @@ Siesta.Framework.Graph.prototype = {
             predicates[identifier] = {};
         }
         return predicates[identifier];
-           
+
     },
 
     /**
@@ -519,7 +519,7 @@ Siesta.Framework.Graph.prototype = {
         } else {
             return false;
         }
-           
+
     },
 
     /**
@@ -581,7 +581,6 @@ String.prototype.capitalize = function(){ //v1.0
 // Namespaces
 Siesta.registerNamespace("Siesta","Model");
 Siesta.registerNamespace("Siesta","Model","Repositories");
-
 Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
 Siesta.Model.Repositories.schemas = new Siesta.Framework.Graph();
 Siesta.Model.Repositories.data = new Siesta.Framework.Graph();
@@ -616,7 +615,7 @@ Siesta.Services.onRegisteredServiceJsonp = function(serviceDescription) {
         } else if(format == "turtle") {
             formater = Siesta.Formats.Turtle;
         }
-        
+
         var parsedGraph = formater.parseDoc("",serviceDescription);
         for(_i=0; _i< parsedGraph.triplesArray().length; _i++) {
             Siesta.Model.Repositories.services.addTriple(parsedGraph.triplesArray()[_i]);
@@ -636,13 +635,13 @@ Siesta.Services.onRegisteredServiceJsonp = function(serviceDescription) {
   Starts the registrations of a service.
   The user must provide the URL of the service and the network transport mechanism to retrieve
   the service: "ajax" or "jsonp" are valid transport mechanisms.
-  If "jsonp" is chosen as the transport mechanism, and additional parameter is accepted with 
+  If "jsonp" is chosen as the transport mechanism, and additional parameter is accepted with
   the value for the callback function parameter, if none is provided 'callback' will be used.
 
 
    @argument serviceUrl: URL of the service
    @argument networkTransport: transport mechanism, 'ajax' or 'jsonp' are valid
-   @argument callback (optional): an optional third parameter with the name used for the callback parameter if jsonp is used as mechanim.                         
+   @argument callback (optional): an optional third parameter with the name used for the callback parameter if jsonp is used as mechanim.
 */
 Siesta.Services.registerService = function(serviceUrl, networkTransport /*, callback (optional)*/) {
     if(networkTransport == "jsonp") {
@@ -659,7 +658,7 @@ Siesta.Services.serviceRegistrationCallbacks = [];
 /**
   Registers a function that will be notified with success or failure after
   a service registration trial.
-  
+
   @argument callback: the function to be notified, it must receive two arguments, a status and a value.
 */
 Siesta.Services.addServiceRegistrationCallback = function(callback) {
@@ -670,9 +669,9 @@ Siesta.Services.addServiceRegistrationCallback = function(callback) {
 Siesta.registerNamespace("Siesta","Framework","Common");
 /**
   Try to determine the format of the test passed as a parameter.
-  
+
   @argument documentText: the text to be checked.
- 
+
   @returns "turtle" or "xml"
 
   @throws Error if no format can be determined.
@@ -700,7 +699,7 @@ Siesta.Services.RestfulOperationInputParameter.prototype = {
      * @constructor
      *
      * Initiates a new RestfulOperationInputParameter object with the
-     * the data associated to the URI passed as an 
+     * the data associated to the URI passed as an
      * argument in the constructor.
      *
      * Triplets are looked up in the Siesta.Model.Repositories.services repository,
@@ -720,7 +719,7 @@ Siesta.Services.RestfulOperationInputParameter.prototype = {
             this.uri = uri.toString();
             this.uriInQuery = this.uri;
         }
-        
+
         this._type = null;
         this._parameterName = null;
     },
@@ -732,7 +731,7 @@ Siesta.Services.RestfulOperationInputParameter.prototype = {
             var query = "SELECT ?type WHERE {  " + this.uriInQuery + " <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> " + "?type } ";
 
             var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
-            
+
             if(result.length != 1) {
                 throw new Error("Error retrieving the type for the input parameter "+this.uri);
             } else {
@@ -749,7 +748,7 @@ Siesta.Services.RestfulOperationInputParameter.prototype = {
             var query = "SELECT ?name WHERE {  " + this.uriInQuery + " <http://www.wsmo.org/ns/hrests#parameterName> " + "?name } ";
 
             var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
-            
+
             if(result.length != 1) {
                 throw new Error("Error retrieving the parameterName for the input parameter "+this.uri);
             } else {
@@ -771,7 +770,7 @@ Siesta.Services.RestfulOperationInputMessage.prototype = {
      * @constructor
      *
      * Initiates a new RestfulOperationInputMessage object with the
-     * the data associated to the URI passed as an 
+     * the data associated to the URI passed as an
      * argument in the constructor.
      *
      * Triplets are looked up in the Siesta.Model.Repositories.services repository,
@@ -791,7 +790,7 @@ Siesta.Services.RestfulOperationInputMessage.prototype = {
             this.uri = uri.toString();
             this.uriInQuery = this.uri;
         }
-        
+
         this._modelReference = null;
         this._loweringSchemaMapping = null;
     },
@@ -807,7 +806,7 @@ Siesta.Services.RestfulOperationInputMessage.prototype = {
             query = query + this.uriInQuery +" <http://www.w3.org/ns/sawsdl#modelReference> ?model }";
 
             var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
-            
+
             if(result.length != 1) {
                 throw new Error("Error retrieving the modelReference for the input message "+this.uri);
             } else {
@@ -829,7 +828,7 @@ Siesta.Services.RestfulOperationInputMessage.prototype = {
             return this._modelReference;
         }
     },
-    
+
     loweringSchemaMapping: function() {
         if(this._loweringSchemaMapping != null) {
             return this._loweringSchemaMapping;
@@ -838,13 +837,107 @@ Siesta.Services.RestfulOperationInputMessage.prototype = {
             query = query + this.uriInQuery +" <http://www.w3.org/ns/sawsdl#loweringSchemaMapping> ?schema }";
 
             var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
-            
+
             if(result.length != 1) {
                 throw new Error("Error retrieving the loweringSchemaMapping for the input message "+this.uri);
             } else {
                 this._loweringSchemaMapping = result[0].schema.value
             }
             return this._loweringSchemaMapping;
+        }
+    }
+};
+
+Siesta.Services.RestfulOperationOutputMessage = Class.create();
+/**
+  @class Siesta.Services.RestfulOperationOutputMessage
+
+  An input message for a hRESTS operation of a hRESTS service.
+*/
+Siesta.Services.RestfulOperationOutputMessage.prototype = {
+    /**
+     * @constructor
+     *
+     * Initiates a new RestfulOperationOutputMessage object with the
+     * the data associated to the URI passed as an
+     * argument in the constructor.
+     *
+     * Triplets are looked up in the Siesta.Model.Repositories.services repository,
+     * they must have been retrieved first via a callo to Siesta.Services.registerService.
+     *
+     * @see Siesta.Services.registerService
+     *
+     * @argument messageUri: input message URI (blank node identifier), a Siesta.Framework.Uri object, a Siesta.Framework.BlankNode or a String
+     */
+    initialize: function(messageUri) {
+        this.uri = messageUri;
+        this.uriInQuery = this.uri;
+        if(messageUri.__type == 'uri') {
+            this.uri = uri.toString();
+            this.uriInQuery = "<"+this.uri+">";
+        } else if(messageUri.__type == 'blanknode') {
+            this.uri = uri.toString();
+            this.uriInQuery = this.uri;
+        }
+
+        this._modelReference = null;
+        this._liftingSchemaMapping = null;
+    },
+
+    modelReference: function() {
+        if(this._modelReference != null) {
+            return this._modelReference;
+        } else {
+//            var query = "SELECT ?id ?model WHERE {  ?id "+ "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type> " + "<http://www.wsmo.org/ns/wsmo-lite#Message> . ";
+//            query = query + "?id <http://www.w3.org/ns/sawsdl#modelReference> ?model }";
+
+            var query = "SELECT ?model WHERE {  " + this.uriInQuery + " <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> " + "<http://www.wsmo.org/ns/wsmo-lite#Message> . ";
+            query = query + this.uriInQuery +" <http://www.w3.org/ns/sawsdl#modelReference> ?model }";
+
+            var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
+
+            if(result.length != 1) {
+                throw new Error("Error retrieving the modelReference for the input message "+this.uri);
+            } else {
+/*
+                var found = false;
+                for(_i=0; _i<result.length; _i++) {
+                    if(result[_i].id.toString() == this.uriInQuery) {
+                        found = true;
+                        this._modelReference = result[0].model.value;
+                        break;
+                    }
+                }
+                if(!found) {
+                    throw new Error("Error retrieving the modelReference for the input message "+this.uri);
+                }
+*/
+                this._modelReference = result[0].model.value
+            }
+            return this._modelReference;
+        }
+    },
+
+    /**
+      Retrieves the liftinSchemaMapping for this message.
+
+      @returns the URL of the schema mapping
+    */
+    liftingSchemaMapping: function() {
+        if(this._liftingSchemaMapping != null) {
+            return this._liftingSchemaMapping;
+        } else {
+            var query = "SELECT ?schema WHERE {  " + this.uriInQuery + " <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> " + "<http://www.wsmo.org/ns/wsmo-lite#Message> . ";
+            query = query + this.uriInQuery +" <http://www.w3.org/ns/sawsdl#liftingSchemaMapping> ?schema }";
+
+            var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
+
+            if(result.length != 1) {
+                 this._liftingSchemaMapping = null;
+            } else {
+                this._liftingSchemaMapping = result[0].schema.value
+            }
+            return this._liftingSchemaMapping;
         }
     }
 };
@@ -860,7 +953,7 @@ Siesta.Services.RestfulOperation.prototype = {
      * @constructor
      *
      * Initiates a new RestfulOperation object with the
-     * the data associated to the URI passed as an 
+     * the data associated to the URI passed as an
      * argument in the constructor.
      *
      * Triplets are looked up in the Siesta.Model.Repositories.services repository,
@@ -875,12 +968,13 @@ Siesta.Services.RestfulOperation.prototype = {
         if(operationUri.__type == 'uri') {
             this.uri = uri.toString();
         }
-        
+
         this._label = null;
         this._method = null;
         this._address = null;
         this._inputMessages = null;
         this._inputParameters = null;
+        this._outputMessage = null;
     },
 
     label: function() {
@@ -891,7 +985,7 @@ Siesta.Services.RestfulOperation.prototype = {
             query = query + "<"+this.uri+"> <http://www.w3.org/2000/01/rdf-schema#label> ?text }";
 
             var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
-            
+
             if(result.length != 1) {
                 this._label = "";
             } else {
@@ -908,7 +1002,7 @@ Siesta.Services.RestfulOperation.prototype = {
             var query = "SELECT ?method WHERE { <"+this.uri+"> " + "<http://www.wsmo.org/ns/hrests#hasMethod> " + "?method } ";
 
             var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
-            
+
             if(result.length != 1) {
                 throw new Error("Error retrieving the method associated to the operation "+this.uri);
             } else {
@@ -925,7 +1019,7 @@ Siesta.Services.RestfulOperation.prototype = {
             var query = "SELECT ?address WHERE { <"+this.uri+"> " + "<http://www.wsmo.org/ns/hrests#hasAddress> " + "?address } ";
 
             var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
-            
+
             if(result.length != 1) {
                 throw new Error("Error retrieving the address associated to the operation "+this.uri);
             } else {
@@ -936,9 +1030,9 @@ Siesta.Services.RestfulOperation.prototype = {
     },
 
     /**
-      Returns an array of RestfulOperationInputMessages object with all the 
+      Returns an array of RestfulOperationInputMessages object with all the
       input messages associated to this operation.
- 
+
       @returns An array of RestulOperationInputMessages objects
     */
     inputMessages: function() {
@@ -948,7 +1042,7 @@ Siesta.Services.RestfulOperation.prototype = {
             var query = "SELECT ?message WHERE { <"+this.uri+"> " + "<http://www.wsmo.org/ns/wsmo-lite#hasInputMessage> " + "?message } ";
 
             var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
-            
+
             this._inputMessages = [];
 
             for(_i=0; _i<result.length; _i++) {
@@ -960,10 +1054,35 @@ Siesta.Services.RestfulOperation.prototype = {
         }
     },
 
+
     /**
-      Returns an array of RestfulOperationInputParameter object with all the 
+      Returns the RestfulOperationOutputMessage object associated
+      to this operation.
+
+      @returns A RestulOperationOutputMessage objects or null if no output message is associated.
+    */
+    outputMessage: function() {
+        if(this._outputMessage != null) {
+            return this._outputMessage;
+        } else {
+            var query = "SELECT ?message WHERE { <"+this.uri+"> " + "<http://www.wsmo.org/ns/wsmo-lite#hasOutputMessage> " + "?message } ";
+
+            var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
+
+            for(_i=0; _i<result.length; _i++) {
+                var msg = new Siesta.Services.RestfulOperationOutputMessage(result[_i].message.toString());
+                this._outputMessage = msg;
+            }
+
+            return this._outputMessage;
+        }
+    },
+
+
+    /**
+      Returns an array of RestfulOperationInputParameter object with all the
       input messages associated to this operation.
- 
+
       @returns An array of RestulOperationInputMessages objects
     */
     inputParameters: function() {
@@ -973,7 +1092,7 @@ Siesta.Services.RestfulOperation.prototype = {
             var query = "SELECT ?parameter WHERE { <"+this.uri+"> " + "<http://www.wsmo.org/ns/hrests#hasInputParameter> " + "?parameter } ";
 
             var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
-            
+
             this._inputParameters = [];
 
             for(_i=0; _i<result.length; _i++) {
@@ -997,7 +1116,7 @@ Siesta.Services.RestfulService.prototype = {
      * @constructor
      *
      * Initiates a new RestfulService object with the
-     * the data associated to the URI passed as an 
+     * the data associated to the URI passed as an
      * argument in the constructor.
      *
      * Triplets are looked up in the Siesta.Model.Repositories.services repository,
@@ -1027,7 +1146,7 @@ Siesta.Services.RestfulService.prototype = {
             query = query + "<"+this.uri+"> <http://www.w3.org/ns/sawsdl#modelReference> ?reference }";
 
             var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
-            
+
             if(result.length != 1) {
                 throw new Error("Error retrieving sawsdl#modelReference for <"+this.uri+"> uri. Found "+result.length+" results instead of 1");
             } else {
@@ -1045,7 +1164,7 @@ Siesta.Services.RestfulService.prototype = {
             query = query + "<"+this.uri+"> <http://www.w3.org/2000/01/rdf-schema#isDefinedBy> ?defined }";
 
             var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
-            
+
             if(result.length != 1) {
                 throw new Error("Error retrieving rdfs#isDefinedBy for <"+this.uri+"> uri. Found "+result.length+" results instead of 1");
             } else {
@@ -1065,15 +1184,103 @@ Siesta.Services.RestfulService.prototype = {
 
 
             var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
-            
+
             for(_i=0; _i<result.length; _i++) {
                 this._operationsUris.push(result[_i].operation.value);
             }
             return this._operationsUris;
         }
+    },
+
+    operations: function() {
+        if(this._operations != null) {
+            return this._operations;
+        } else {
+            this._operations = [];
+            var opsUris = this.operationsUris();
+
+            for(_i=0; _i<opsUris.length; _i++) {
+                var opName = opsUris[_i];
+                this._operations.push(new Siesta.Services.RestfulOperation(opName));
+            }
+
+            return this._operations;
+        }
     }
 };
 
+Siesta.Model.Schema = Class.create();
+/**
+  @class Siesta.Model.Schema
+
+  A RDF model schema.
+*/
+Siesta.Model.Schema.prototype = {
+    /**
+     * @constructor
+     *
+     * Initiates a new model schema object with the
+     * the data associated to the URI passed as an
+     * argument in the constructor.
+     *
+     * Triplets are looked up in the Siesta.Model.Repositories.schemas repository,
+     * they must have been retrieved before initating the schema object.
+     *
+     * @argument serviceuri: Schema URI: a Siesta.Framework.Uri object or a String
+     */
+    initialize: function(schemaUri ) {
+        this.uri = schemaUri;
+        if(schemaUri.__type == 'uri') {
+            this.uri = uri.toString();
+        }
+
+        this._type = null;
+        this._propertiesUris = null;
+    },
+
+    /**
+      Retrieves the type of this model schema.
+
+      @returns The URI of the type associated to this schema model
+    */
+    type: function() {
+        if(this._type != null) {
+            return this._type;
+        } else {
+            var query = "SELECT ?type WHERE { <"+this.uri+"> " + "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type> " + "?type }";
+
+            var result = Siesta.Sparql.query(Siesta.Model.Repositories.schemas,query);
+
+            if(result.length != 1) {
+                throw new Error("Error retrieving rdfs#type for <"+this.uri+"> uri. Found "+result.length+" results instead of 1");
+            } else {
+                this._type = result[0].type.value;
+                return this._type;
+            }
+        }
+    },
+
+    /**
+      Retrieves all the properties URIs associated to this schema URI by a rdfs:domain predicate.
+
+      @returns An array of URIs as String objects.
+    */
+    propertiesUris: function() {
+        if(this._propertiesUris != null) {
+            return this._propertiesUris;
+        } else {
+            var query = "SELECT ?prop WHERE { ?prop  <http://www.w3.org/2000/01/rdf-schema#domain> <"+ this.uri +"> }";
+            var result = Siesta.Sparql.query(Siesta.Model.Repositories.schemas,query);
+
+            this._propertiesUris = [];
+
+            for(_i=0; _i<result.length; _i++) {
+                this._propertiesUris.push(result[0].prop.value);
+            }
+            return this._propertiesUris;
+        }
+    }
+};
 /**************************************************************************************************************/
 /*                            Framework configuration and initalization                                       */
 /**************************************************************************************************************/
@@ -1081,7 +1288,7 @@ Siesta.registerNamespace("Siesta","Sparql");
 Siesta.registerNamespace("Siesta","Formats","Turtle");
 Siesta.registerNamespace("Siesta","Formats","Xml");
 
-Siesta.defineConfiguration = function(theConfiguration) { 
+Siesta.defineConfiguration = function(theConfiguration) {
     Siesta.Configuration = theConfiguration;
     Siesta.loadFrameworks();
 }
@@ -1109,7 +1316,6 @@ Siesta.loadFrameworks = function() {
     Siesta.remainingFrameworks["formats/turtle"] = true;
     Siesta.remainingFrameworks["formats/xml"] = true;
     Siesta.remainingFrameworks["network"] = true;
-    
 
     // Loading of the frameworks
     if(Siesta.Configuration.drivers != null) {
