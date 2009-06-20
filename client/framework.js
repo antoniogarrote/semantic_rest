@@ -1136,6 +1136,7 @@ Siesta.Services.RestfulService.prototype = {
         this._operationsUris = null;
 
         this._modelReference = null;
+        this._connected = false;
     },
 
     modelReference: function() {
@@ -1206,6 +1207,20 @@ Siesta.Services.RestfulService.prototype = {
 
             return this._operations;
         }
+    },
+
+    /**
+      Retrieves all the external resources for this service: model, lowering and lifting operations, etc.
+
+      @returns nothing
+    */
+    connect: function() {
+        // we retrieve the model reference if not already present
+        var query = "SELECT ?reference WHERE { <"+this.uri+"> " + "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type> " + "?object } ";
+        var result = Siesta.Sparql.query(Siesta.Model.Repositories.schemas,query);
+        if(result.length == 0) {
+            // El modelo no est
+        }
     }
 };
 
@@ -1235,7 +1250,7 @@ Siesta.Model.Schema.prototype = {
         }
 
         this._type = null;
-        this._propertiesUris = null;
+        this._properties = null;
     },
 
     /**
@@ -1261,23 +1276,27 @@ Siesta.Model.Schema.prototype = {
     },
 
     /**
-      Retrieves all the properties URIs associated to this schema URI by a rdfs:domain predicate.
+      Retrieves all the properties associated to this schema URI by a rdfs:domain predicate.
 
-      @returns An array of URIs as String objects.
+      @returns A hash of URIs -> range for the properties of the model schema.
     */
-    propertiesUris: function() {
-        if(this._propertiesUris != null) {
-            return this._propertiesUris;
+    properties: function() {
+        if(this._properties != null) {
+            return this._properties;
         } else {
-            var query = "SELECT ?prop WHERE { ?prop  <http://www.w3.org/2000/01/rdf-schema#domain> <"+ this.uri +"> }";
+            var query = "SELECT ?prop ?range WHERE { ?prop  <http://www.w3.org/2000/01/rdf-schema#domain> <"+ this.uri +"> . ?prop <http://www.w3.org/2000/01/rdf-schema#range> ?range}";
             var result = Siesta.Sparql.query(Siesta.Model.Repositories.schemas,query);
 
-            this._propertiesUris = [];
+            this._properties = [];
 
             for(_i=0; _i<result.length; _i++) {
-                this._propertiesUris.push(result[0].prop.value);
+                var prop = {};
+                prop['uri'] = result[_i].prop.value;
+                prop['range'] = result[_i].range.value;
+
+                this._properties.push(prop);
             }
-            return this._propertiesUris;
+            return this._properties;
         }
     }
 };

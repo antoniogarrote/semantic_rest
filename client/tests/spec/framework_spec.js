@@ -494,6 +494,7 @@ Screw.Unit(function() {
 
         });
 
+
 	describe('.data',function() {
 
 	    it("should mantain a graph repository for the data at Siesta.Model.Repositories.data",
@@ -881,6 +882,22 @@ Screw.Unit(function() {
 
                    var model = new Siesta.Model.Schema("http://localhost:3000/schemas/models/Book");
                    expect(model.type() == "http://www.w3.org/2000/01/rdf-schema#Class").to(equal,true);
+               });
+
+        });
+
+	describe('.properties',function() {
+
+            it("should retrieve the properties associated to this model and its ranges",
+               function() {
+                   Siesta.Model.Repositories.schemas = new Siesta.Framework.Graph();
+                   expect(Siesta.Model.Repositories.schemas.triplesArray().length == 0).to(equal,true);
+                   var graph = Siesta.Formats.Turtle.parseDoc("",fixtureN3Data3);
+                   Siesta.Model.Repositories.schemas = graph;
+                   expect(Siesta.Model.Repositories.schemas.triplesArray().length > 0).to(equal,true);
+
+                   var model = new Siesta.Model.Schema("http://localhost:3000/schemas/models/Book");
+                   expect(model.properties().length == 7).to(equal,true);
                });
 
         });
