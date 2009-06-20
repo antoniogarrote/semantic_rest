@@ -6,6 +6,7 @@ require 'spec/autorun'
 require 'spec/rails'
 
 require 'reddy'
+require 'hpricot'
 #require 'reddy/n3parser'
 
 Spec::Runner.configure do |config|

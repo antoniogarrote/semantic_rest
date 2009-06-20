@@ -56,6 +56,10 @@ module SemanticResource
             render(:text => rdf,
                    :content_type => "text/rdf+n3",
                    :status => status)
+          elsif(format == :xml)
+            render(:text => rdf,
+                   :content_type => "application/rdf+xml",
+                   :status => status)
           elsif(format == :html)
             render(:inline => rdf)
           end

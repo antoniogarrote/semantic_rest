@@ -150,6 +150,21 @@ describe SemanticResource,"to_service_description" do
     p.graph.should have(33).triples
   end
 
+  it "should return a XML/RDF description of the service" do
+
+    SemanticResourceTestHelper.with_routing_stubs
+
+    xml = TestActiveRecord.to_service_description(:xml)
+    puts "::::::Service description::::::::"
+    puts xml
+    puts ":::::::::::::::::::::::::::::::::"
+
+    lambda{
+      Hpricot.parse(xml)
+    }.should_not raise_error
+
+  end
+
 end
 
 describe SemanticResource,"::to_rdf" do
@@ -191,6 +206,19 @@ describe SemanticResource,".to_rdf" do
 
     p = Reddy::N3Parser.new(rdf_n3,"http://test.com/")
     p.graph.should have(3).triples
+  end
+end
+
+describe SemanticResource,".with_service_uri_prefix" do
+  it "should concatenate the arguments in the schemas/services route" do
+    SemanticResource::Configuration.stub!(:resources_host).and_return("test.com")
+    TestActiveRecord.with_service_uri_prefix("a","b","c").should be_eql("<http://test.com/schemas/services/TestActiveRecordabc>")
+  end
+
+  it "should concatenate the arguments in the schemas/services route using the last one as a mime type (.mime) if it is\
+  provided as a symbol" do
+    SemanticResource::Configuration.stub!(:resources_host).and_return("test.com")
+    TestActiveRecord.with_service_uri_prefix("a","b","c",:txt).should be_eql("<http://test.com/schemas/services/TestActiveRecordabc.txt>")
   end
 end
 

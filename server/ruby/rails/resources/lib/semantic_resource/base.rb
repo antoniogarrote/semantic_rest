@@ -122,7 +122,13 @@ module SemanticResource
     end
 
     def with_service_uri_prefix(*args)
+      args = (args[0..-2]).push(".#{args[-1].to_s}") if args[-1].instance_of?(Symbol) # mime type last arg?
       "<http://#{SemanticResource::Configuration.resources_host}/schemas/services/#{self.name}#{args.join('')}>"
+    end
+
+    def with_service_uri_prefix_xml(*args)
+      args = (args[0..-2]).push(".#{args[-1].to_s}") if args[-1].instance_of?(Symbol) # mime type last arg?
+      "http://#{SemanticResource::Configuration.resources_host}/schemas/services/#{self.name}#{args.join('')}"
     end
 
     def resource_model_uri
@@ -181,12 +187,44 @@ module SemanticResource
                              end
             html << "<div class='operation' id='#{operation_name}'>"
             html << "<h2> Operation <code class'label'>#{operation_name}</code></h2>"
-            html << desc.call(:html).string
+            html << desc.call(:html)
             html << "</div>"
           end
         end
         html << "</div>"
         html.string
+      elsif(format == :xml)
+        xml = StringIO.new
+        xml << "<?xml version='1.0'?>"
+        xml << "<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#' xmlns:rdfs='http://www.w3.org/2000/01/rdf-schema#' xmlns:sawsdl='http://www.w3.org/ns/sawsdl#' xmlns:wsl='http://www.wsmo.org/ns/wsmo-lite#' xmlns:hr='http://www.wsmo.org/ns/hrests#'>"
+        xml << "<rdf:Description rdf:about='#{with_service_uri_prefix_xml('Service')}'>"
+        xml << "<rdf:type rdf:resource='http://www.wsmo.org/ns/wsmo-lite#Service'/>"
+        xml << "<rdfs:isDefinedBy rdf:resource='#{with_service_uri_prefix_xml('Service')}'/>"
+        xml << "<sawsdl:modelReference rdf:resource='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}'/>"
+
+        xml << "</rdf:Description>"
+
+        ops_xml = StringIO.new
+
+        [:create_operation, :show_operation].each do |op|
+          desc = self.send(op)
+          unless desc.nil?
+            operation_name = if(op == :create_operation)
+                               "#create#{self.name}"
+                             elsif(op == :show_operation)
+                               "#show#{self.name}"
+                             end
+
+            ops_xml << "<rdf:Description rdf:about='#{operation_name}'>"
+            ops_xml << "<rdf:type rdf:resource='http://www.wsmo.org/ns/wsmo-lite#Operation'/>"
+            ops_xml << "<rdfs:label>#{operation_name}</rdfs:label>"
+            ops_xml << desc.call(:xml)
+            ops_xml << "</rdf:Description>"
+          end
+        end
+        xml << ops_xml.string
+        xml << "</rdf:RDF>"
+        xml.string.gsub("&","&amp;")
       end
     end
 
@@ -249,7 +287,7 @@ module SemanticResource
         elsif(format == :html)
           html = StringIO.new
           html << "<p> Invoked using <span class='method'>POST</span> at <code class='address'>#{encoded}</code></p>"
-          html << "<strong>Input Parameters</strong>"
+          html << "<strong>Input Messages</strong>"
           html << "<ul>"
           params.each do |p|
             html << "<li class='input'> <a href='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}' rel='model'><code>#{p}</code></a>"
@@ -261,6 +299,28 @@ module SemanticResource
           html << "<ul>"
           html << "<li class='output'> <a href='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}' rel='model'>the new #{self.name}</a></li>"
           html << "</ul>"
+
+          html.string
+        elsif(format == :xml)
+          xml = StringIO.new
+
+          xml << "<hr:hasAddress>#{encoded}</hr:hasAddress>"
+          xml << "<hr:hasInputParameter rdf:parseType='Resource'>"
+          xml << "<rdf:type rdf:resource='http://semantic_rest.org/ns/hrests_js#JSONPCallback'/>"
+          xml << "<hr:parameterName>callback</hr:parameterName>"
+          xml << "</hr:hasInputParameter>"
+          xml << "<hr:hasMethod>GET</hr:hasMethod>"
+          xml << "<wsl:hasInputMessage rdf:parseType='Resource'>"
+          xml << "<rdf:type rdf:resource='http://www.wsmo.org/ns/wsmo-lite#Message'/>"
+          xml << "<sawsdl:loweringSchemaMapping rdf:resource='http://#{SemanticResource::Configuration.resources_host}/schemas/lowering/#{self.name}/show.sparql'/>"
+          xml << "<sawsdl:modelReference rdf:resource='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}'/>"
+          xml << "</wsl:hasInputMessage>"
+          xml << "<wsl:hasOutputMessage rdf:parseType='Resource'>"
+          xml << "<rdf:type rdf:resource='http://www.wsmo.org/ns/wsmo-lite#Message'/>"
+          xml << "<sawsdl:modelReference rdf:resource='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}'/>"
+          xml << "</wsl:hasOutputMessage>"
+
+          xml.string
         end
       end
     end
@@ -284,7 +344,7 @@ module SemanticResource
           rdf = StringIO.new
           rdf<< "#{with_service_uri_prefix('#show',self.name)} <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> wsl:Operation ;\n"
           rdf<< "  rdfs:label \"retrieves #{self.name} resource with id {id}\" ;\n"
-          rdf<< "  hr:hasMethod  \"GET\" ;\n"
+          rdf<< "  hr:hasMethod  \"POST\" ;\n"
           rdf<< "  hr:hasAddress \"#{encoded}\"^^<hr:URITemplate> ;\n"
           rdf<< "  wsl:hasInputMessage [\n"
           rdf<< "    <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> wsl:Message ;\n"
@@ -299,22 +359,43 @@ module SemanticResource
           rdf<< "    <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> wsl:Message ;\n"
           rdf<< "    sawsdl:modelReference <http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}>"
           rdf<< "  ] .\n"
-
           rdf.string
+
         elsif(format == :html)
 
           html = StringIO.new
           html << "<p> Invoked using <span class='method'>GET</span> at <code class='address'>#{encoded}</code></p>"
-          html << "<strong>Input Parameters</strong>"
+          html << "<strong>Input Messages</strong>"
           html << "<ul>"
           html << "<li class='input'> <a href='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}' rel='model'><code>id</code></a>"
           html << "(<a href='http://#{SemanticResource::Configuration.resources_host}/schemas/lowering/#{self.name}/show.sparql'>lowering</a>)</li>"
           html << "</ul>"
-
           html << "<strong>Output Response</strong>"
           html << "<ul>"
           html << "<li class='output'> <a href='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}' rel='model'>the #{self.name}</a></li>"
           html << "</ul>"
+          html.string
+
+        elsif(format == :xml)
+
+          xml = StringIO.new
+          xml << "<hr:hasAddress>#{encoded}</hr:hasAddress>"
+          xml << "<hr:hasInputParameter rdf:parseType='Resource'>"
+          xml << "<rdf:type rdf:resource='http://semantic_rest.org/ns/hrests_js#JSONPCallback'/>"
+          xml << "<hr:parameterName>callback</hr:parameterName>"
+          xml << "</hr:hasInputParameter>"
+          xml << "<hr:hasMethod>GET</hr:hasMethod>"
+          xml << "<wsl:hasInputMessage rdf:parseType='Resource'>"
+          xml << "<rdf:type rdf:resource='http://www.wsmo.org/ns/wsmo-lite#Message'/>"
+          xml << "<sawsdl:loweringSchemaMapping rdf:resource='http://#{SemanticResource::Configuration.resources_host}/schemas/lowering/#{self.name}/show.sparql'/>"
+          xml << "<sawsdl:modelReference rdf:resource='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}'/>"
+          xml << "</wsl:hasInputMessage>"
+          xml << "<wsl:hasOutputMessage rdf:parseType='Resource'>"
+          xml << "<rdf:type rdf:resource='http://www.wsmo.org/ns/wsmo-lite#Message'/>"
+          xml << "<sawsdl:modelReference rdf:resource='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}'/>"
+          xml << "</wsl:hasOutputMessage>"
+          xml.string
+
         end
 
       end
