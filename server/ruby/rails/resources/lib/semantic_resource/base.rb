@@ -382,13 +382,13 @@ module SemanticResource
     def build_mapping_rdf_description(key,value)
       rdf = StringIO.new
       if self.columns.detect{|column| column.name.to_sym == key.to_sym}
-        rdf << "<#{build_uri_for_property(value)}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> rdfs:Property .\n"
-        rdf << "<#{build_uri_for_property(value)}> rdfs:domain #{resource_model_uri} .\n"
-        rdf << "<#{build_uri_for_property(value)}> rdfs:range rdfs:Datatype .\n"
+        rdf << "<#{build_uri_for_property(key)}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> rdfs:Property .\n"
+        rdf << "<#{build_uri_for_property(key)}> rdfs:domain #{resource_model_uri} .\n"
+        rdf << "<#{build_uri_for_property(key)}> rdfs:range rdfs:Datatype .\n"
       elsif association = self.reflect_on_all_associations.detect{|association| association.name.to_sym == key.to_sym}
-        rdf << "<#{build_uri_for_property(value)}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> rdfs:Property .\n"
-        rdf << "<#{build_uri_for_property(value)}> rdfs:domain #{resource_model_uri} .\n"
-        rdf << "<#{build_uri_for_property(value)}> rdfs:range #{association.active_record.resource_model_uri} .\n"
+        rdf << "<#{build_uri_for_property(key)}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> rdfs:Property .\n"
+        rdf << "<#{build_uri_for_property(key)}> rdfs:domain #{resource_model_uri} .\n"
+        rdf << "<#{build_uri_for_property(key)}> rdfs:range #{association.active_record.resource_model_uri} .\n"
       end
       rdf.string
     end
