@@ -207,6 +207,27 @@ describe SemanticResource,".to_rdf" do
     p = Reddy::N3Parser.new(rdf_n3,"http://test.com/")
     p.graph.should have(3).triples
   end
+
+  it "should return a xml/rdf document describing the rdfs instance for the model instance" do
+    SemanticResourceTestHelper.with_routing_stubs
+
+    mock_column = mock(:column)
+    mock_column.stub!(:name).and_return("foo")
+
+    TestActiveRecord.stub!(:columns).and_return([mock_column])
+    TestActiveRecord.stub!(:url_for).and_return("http://test.com/tests/1")
+
+    rdf_xml = TestActiveRecord.new.to_rdf(:controller => 'tests', :action => 'show', :id => '1', :format => :xml)
+    puts ":::::::Resource model Instance RDF::::::::::::"
+    puts rdf_xml
+    puts "::::::::::::::::::::::::::::::::::::::::::::::"
+
+    rdf_xml.index("http://http://").should be_nil
+
+    lambda{
+      Hpricot.parse(rdf_xml)
+    }.should_not raise_error
+  end
 end
 
 describe SemanticResource,".with_service_uri_prefix" do

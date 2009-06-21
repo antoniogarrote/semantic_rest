@@ -6,15 +6,24 @@ module SemanticResource
       rdf = ""
       status = 404
 
+      format = (params[:format] || :n3).to_sym
+
       SemanticResource::Manager.models.each_pair do |model,resource|
         if model == params[:model_name]
-          rdf = resource.to_rdf
+          rdf = resource.to_rdf(format)
           status = 200
         end
       end
-      render(:text => rdf,
-             :content_type => "text/rdf+n3",
-             :status => status)
+
+      if(format == :n3 || format == :rdf)
+        render(:text => rdf,
+               :content_type => "text/rdf+n3",
+               :status => status)
+      elsif(format == :xml)
+        render(:text => rdf,
+               :content_type => "application/rdf+xml",
+               :status => status)
+      end
     end
 
     def lowering

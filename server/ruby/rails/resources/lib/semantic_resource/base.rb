@@ -9,31 +9,49 @@ module SemanticResource
   end
 
   # Methods to be included
-  def to_rdf(params)
+  def to_rdf(params,format = :n3)
 
     res_name = if params.instance_of?(String)
       # we have received a URL for the resource, for instance,
       # with the result of the calling to a resource_path or resource_url function
       "http://#{SemanticResource::Configuration.resources_host}#{params}"
     else
+      format = params[:format] || format
       self.class.url_for(params.merge(:host => SemanticResource::Configuration.resources_host))
     end
     res_name = res_name.split("?").first;
 
-    rdf = StringIO.new
+    if(format == :n3 || format == :rdf)
 
-    rdf << "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n"
-    rdf << "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n"
-    rdf << "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"
+      rdf = StringIO.new
 
-    rdf << "<#{res_name}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> #{self.class.resource_model_uri} .\n"
-    rdf << "<#{res_name}> <#{SemanticResource::Configuration::SIESTA_ID}> \"#{self.id}\" .\n"
+      rdf << "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n"
+      rdf << "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n"
+      rdf << "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"
 
-    self.class.resource_mapping.each_pair do |key,value|
-      rdf << "<#{res_name}> #{instance_build_mapping_rdf_description(res_name,key,value)}" unless self.send(key).nil?
+      rdf << "<#{res_name}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> #{self.class.resource_model_uri} .\n"
+      rdf << "<#{res_name}> <#{SemanticResource::Configuration::SIESTA_ID}> \"#{self.id}\" .\n"
+
+      self.class.resource_mapping.each_pair do |key,value|
+        rdf << "<#{res_name}> #{instance_build_mapping_rdf_description(res_name,key,value)}" unless self.send(key).nil?
+      end
+
+      rdf.string
+
+    elsif(format == :xml)
+
+      xml = StringIO.new
+      xml << "<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#' xmlns:rdfs='http://www.w3.org/2000/01/rdf-schema#'>"
+      xml << "<rdf:Description rdf:about='#{res_name}'> <rdf:type rdf:resource='http://www.w3.org/2000/01/rdf-schema#Class'/> </rdf:Description>"
+      xml << "<rdf:Description rdf:about='http://semantic_rest/siesta#id'>"
+      xml << "<rdf:type rdf:resource='http://www.w3.org/2000/01/rdf-schema#Property'/>"
+      xml << "<rdfs:domain rdf:resource='#{res_name}'/>"
+      xml << "<rdfs:range rdf:resource='http://www.w3.org/2000/01/rdf-schema#Datatype'/>"
+      xml << "</rdf:Description>"
+
+      xml.string
+
     end
-
-    rdf.string
   end
 
   def instance_build_mapping_rdf_description(res_name,key,value)
@@ -83,23 +101,46 @@ module SemanticResource
       @semantic_operations
     end
 
-    def to_rdf
-      rdf = StringIO.new
+    def to_rdf(format = :n3)
+      if(format == :n3 || format == :rdf)
 
-      rdf << "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n"
-      rdf << "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n"
-      rdf << "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"
+        rdf = StringIO.new
 
-      rdf << "#{resource_model_uri} <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> rdfs:Class .\n"
-      rdf << "<#{SemanticResource::Configuration::SIESTA_ID}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> rdfs:Property .\n"
-      rdf << "<#{SemanticResource::Configuration::SIESTA_ID}> rdfs:domain #{resource_model_uri} .\n"
-      rdf << "<#{SemanticResource::Configuration::SIESTA_ID}> rdfs:range rdfs:Datatype .\n"
+        rdf << "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n"
+        rdf << "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n"
+        rdf << "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"
 
-      @mapping.each_pair do |key,value|
-        rdf << build_mapping_rdf_description(key,value)
+        rdf << "#{resource_model_uri} <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> rdfs:Class .\n"
+        rdf << "<#{SemanticResource::Configuration::SIESTA_ID}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> rdfs:Property .\n"
+        rdf << "<#{SemanticResource::Configuration::SIESTA_ID}> rdfs:domain #{resource_model_uri} .\n"
+        rdf << "<#{SemanticResource::Configuration::SIESTA_ID}> rdfs:range rdfs:Datatype .\n"
+
+        @mapping.each_pair do |key,value|
+          rdf << build_mapping_rdf_description(key,value,format)
+        end
+
+        rdf.string
+
+      elsif(format == :xml)
+        model_ref = "http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}"
+        xml = StringIO.new
+        xml << "<?xml version='1.0'?>"
+        xml << "<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#' xmlns:rdfs='http://www.w3.org/2000/01/rdf-schema#'>"
+        xml << "<rdf:Description rdf:about='#{model_ref}'> <rdf:type rdf:resource='http://www.w3.org/2000/01/rdf-schema#Class'/> </rdf:Description>"
+        xml << "<rdf:Description rdf:about='http://semantic_rest/siesta#id'>"
+        xml << "<rdf:type rdf:resource='http://www.w3.org/2000/01/rdf-schema#Property'/>"
+        xml << "<rdfs:domain rdf:resource='#{model_ref}'/>"
+        xml << "<rdfs:range rdf:resource='http://www.w3.org/2000/01/rdf-schema#Datatype'/>"
+        xml << "</rdf:Description>"
+
+        @mapping.each_pair do |key,value|
+          xml << build_mapping_rdf_description(key,value,format)
+        end
+        xml << "</rdf:RDF>"
+        xml.string.gsub("&","&amp;")
+        xml.string
+
       end
-
-      rdf.string
     end
 
     def set_resource_namespace(name,uri=nil)
@@ -460,18 +501,40 @@ module SemanticResource
       url
     end
 
-    def build_mapping_rdf_description(key,value)
-      rdf = StringIO.new
-      if self.columns.detect{|column| column.name.to_sym == key.to_sym}
-        rdf << "<#{build_uri_for_property(key)}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> rdfs:Property .\n"
-        rdf << "<#{build_uri_for_property(key)}> rdfs:domain #{resource_model_uri} .\n"
-        rdf << "<#{build_uri_for_property(key)}> rdfs:range rdfs:Datatype .\n"
-      elsif association = self.reflect_on_all_associations.detect{|association| association.name.to_sym == key.to_sym}
-        rdf << "<#{build_uri_for_property(key)}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> rdfs:Property .\n"
-        rdf << "<#{build_uri_for_property(key)}> rdfs:domain #{resource_model_uri} .\n"
-        rdf << "<#{build_uri_for_property(key)}> rdfs:range #{association.active_record.resource_model_uri} .\n"
+    def build_mapping_rdf_description(key,value, format = :n3)
+      if(format == :n3 || format == :rdf)
+
+        rdf = StringIO.new
+        if self.columns.detect{|column| column.name.to_sym == key.to_sym}
+          rdf << "<#{build_uri_for_property(key)}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> rdfs:Property .\n"
+          rdf << "<#{build_uri_for_property(key)}> rdfs:domain #{resource_model_uri} .\n"
+          rdf << "<#{build_uri_for_property(key)}> rdfs:range rdfs:Datatype .\n"
+        elsif association = self.reflect_on_all_associations.detect{|association| association.name.to_sym == key.to_sym}
+          rdf << "<#{build_uri_for_property(key)}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> rdfs:Property .\n"
+          rdf << "<#{build_uri_for_property(key)}> rdfs:domain #{resource_model_uri} .\n"
+          rdf << "<#{build_uri_for_property(key)}> rdfs:range #{association.active_record.resource_model_uri} .\n"
+        end
+        rdf.string
+
+      elsif(format == :xml)
+        resource_model_uri_xml = "http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}"
+        xml = StringIO.new
+        if self.columns.detect{|column| column.name.to_sym == key.to_sym}
+          xml << "<rdf:Description rdf:about='#{build_uri_for_property(key)}'>"
+          xml << "<rdf:type rdf:resource='http://www.w3.org/2000/01/rdf-schema#Property'/>"
+          xml << "<rdfs:domain rdf:resource='#{resource_model_uri_xml}'/>"
+          xml << "<rdfs:range rdf:resource='http://www.w3.org/2000/01/rdf-schema#Datatype'/>"
+          xml << "</rdf:Description>"
+        elsif association = self.reflect_on_all_associations.detect{|association| association.name.to_sym == key.to_sym}
+          xml << "<rdf:Description rdf:about='#{build_uri_for_property(key)}'>"
+          xml << "<rdf:type rdf:resource='http://www.w3.org/2000/01/rdf-schema#Property'/>"
+          xml << "<rdfs:domain rdf:resource='#{resource_model_uri_xml}'/>"
+          xml << "<rdfs:range rdf:resource='#{association.active_record.resource_model_uri}'/>"
+          xml << "</rdf:Description>"
+        end
+        xml.string
+
       end
-      rdf.string
     end
 
     # SPARQL generators
