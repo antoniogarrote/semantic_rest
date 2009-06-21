@@ -7,7 +7,7 @@ module SemanticResource
       content_type = nil
 
       if(params[name_of_callback])
-        base_response = "#{params[:callback]}('#{response.gsub('\'','"').gsub("\n"," ")}');"
+        base_response = "#{params[:callback]}('#{response.gsub('\'','"').gsub("\n"," ")}');" if base_response
         content_type = "text/javascript"
       end
 

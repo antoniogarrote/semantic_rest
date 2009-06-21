@@ -2,6 +2,8 @@ module SemanticResource
 
   class SchemasController < ApplicationController
 
+    include SemanticResource::ControllerCommon
+
     def models
       rdf = ""
       status = 404
@@ -15,15 +17,17 @@ module SemanticResource
         end
       end
 
+      base_response,content_type = check_jsonp_response(rdf)
+
       if(format == :n3 || format == :rdf)
-        render(:text => rdf,
-               :content_type => "text/rdf+n3",
-               :status => status)
+        content_type = "text/rdf+n3"
       elsif(format == :xml)
-        render(:text => rdf,
-               :content_type => "application/rdf+xml",
-               :status => status)
+        content_type = "application/rdf+xml"
       end
+
+      render(:text => base_response,
+             :content_type => content_type,
+             :status => status)
     end
 
     def lowering
@@ -39,8 +43,11 @@ module SemanticResource
           end
         end
       end
+
+      sparql,content_type = check_jsonp_response(sparql)
+
       render(:text => sparql,
-             :content_type => "application/sparql-query",
+             :content_type => content_type || "application/sparql-query",
              :status => status)
     end
 
@@ -61,13 +68,15 @@ module SemanticResource
           rdf = resource.to_service_description(format.to_sym)
           status = 200
 
+          rdf,content_type = check_jsonp_response(rdf)
+
           if(format == :n3)
             render(:text => rdf,
-                   :content_type => "text/rdf+n3",
+                   :content_type => content_type || "text/rdf+n3",
                    :status => status)
           elsif(format == :xml)
             render(:text => rdf,
-                   :content_type => "application/rdf+xml",
+                   :content_type => content_type || "application/rdf+xml",
                    :status => status)
           elsif(format == :html)
             render(:inline => rdf)
