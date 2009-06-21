@@ -49,6 +49,7 @@ module SemanticResource
       end
       xml << " xmlns:siesta='#{SemanticResource::Configuration::SIESTA_NAMESPACE}'>"
       xml << "<rdf:Description rdf:about='#{res_name}'>"
+      xml << "<rdf:type rdf:resource='#{self.class.resource_model_uri}'/>"
       xml << "<siesta:id>#{self.id}</siesta:id>"
       self.class.resource_mapping.each_pair do |key,value|
         xml << instance_build_mapping_rdf_description(res_name,key,value,format) unless self.send(key).nil?
