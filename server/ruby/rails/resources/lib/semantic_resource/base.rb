@@ -10,7 +10,6 @@ module SemanticResource
 
   # Methods to be included
   def to_rdf(params,format = :n3)
-
     res_name = if params.instance_of?(String)
       # we have received a URL for the resource, for instance,
       # with the result of the calling to a resource_path or resource_url function
@@ -20,7 +19,9 @@ module SemanticResource
       self.class.url_for(params.merge(:host => SemanticResource::Configuration.resources_host))
     end
     res_name = res_name.split("?").first;
+    res_name = res_name.split(".")[0]
 
+    format = format.to_sym
     if(format == :n3 || format == :rdf)
 
       rdf = StringIO.new
@@ -33,7 +34,7 @@ module SemanticResource
       rdf << "<#{res_name}> <#{SemanticResource::Configuration::SIESTA_ID}> \"#{self.id}\" .\n"
 
       self.class.resource_mapping.each_pair do |key,value|
-        rdf << "<#{res_name}> #{instance_build_mapping_rdf_description(res_name,key,value)}" unless self.send(key).nil?
+        rdf << "<#{res_name}> #{instance_build_mapping_rdf_description(res_name,key,value,format)}" unless self.send(key).nil?
       end
 
       rdf.string
@@ -41,46 +42,75 @@ module SemanticResource
     elsif(format == :xml)
 
       xml = StringIO.new
-      xml << "<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#' xmlns:rdfs='http://www.w3.org/2000/01/rdf-schema#'>"
-      xml << "<rdf:Description rdf:about='#{res_name}'> <rdf:type rdf:resource='http://www.w3.org/2000/01/rdf-schema#Class'/> </rdf:Description>"
-      xml << "<rdf:Description rdf:about='http://semantic_rest/siesta#id'>"
-      xml << "<rdf:type rdf:resource='http://www.w3.org/2000/01/rdf-schema#Property'/>"
-      xml << "<rdfs:domain rdf:resource='#{res_name}'/>"
-      xml << "<rdfs:range rdf:resource='http://www.w3.org/2000/01/rdf-schema#Datatype'/>"
+      xml << "<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#' xmlns:rdfs='http://www.w3.org/2000/01/rdf-schema#'"
+      self.class.namespaces_for_resource.each_pair do |ns,uri|
+        uri = "#{uri}#" unless uri[-1..-1] == "#" ||  uri[-1..-1] == "/"
+        xml << " xmlns:#{ns}='#{uri}'"
+      end
+      xml << " xmlns:siesta='#{SemanticResource::Configuration::SIESTA_NAMESPACE}'>"
+      xml << "<rdf:Description rdf:about='#{res_name}'>"
+      xml << "<siesta:id>#{self.id}</siesta:id>"
+      self.class.resource_mapping.each_pair do |key,value|
+        xml << instance_build_mapping_rdf_description(res_name,key,value,format) unless self.send(key).nil?
+      end
       xml << "</rdf:Description>"
-
+      xml << "</rdf:RDF>"
       xml.string
 
     end
   end
 
-  def instance_build_mapping_rdf_description(res_name,key,value)
+  def instance_build_mapping_rdf_description(res_name,key,value,format = :n3)
     res_value = self.send(key)
 
     return "" if res_value.nil?
-
-    rdf = StringIO.new
-    if self.class.columns.detect{|column| column.name.to_sym == key.to_sym}
-      rdf << "<#{self.class.build_uri_for_property(key)}> \"#{res_value}\".\n"
-    elsif association = self.class.reflect_on_all_associations.detect{|association| association.name.to_sym == key.to_sym}
-      #TODO: rdf << "#{self.class.with_service_uri_prefix(res_name)} <#{SemanticResource::Configuration.namespaces_map[value.first]}#{value.last}>  .\n"
+    if(format == :n3 || format == :rdf)
+      rdf = StringIO.new
+      if self.class.columns.detect{|column| column.name.to_sym == key.to_sym}
+        rdf << "<#{self.class.build_uri_for_property(key)}> \"#{res_value}\".\n"
+      elsif association = self.class.reflect_on_all_associations.detect{|association| association.name.to_sym == key.to_sym}
+        #TODO: rdf << "#{self.class.with_service_uri_prefix(res_name)} <#{SemanticResource::Configuration.namespaces_map[value.first]}#{value.last}>  .\n"
+      end
+      rdf.string
+    elsif(format == :xml)
+      xml = StringIO.new
+      if self.class.columns.detect{|column| column.name.to_sym == key.to_sym}
+        prop = self.class.build_uri_for_property(key,format)
+        xml << "<#{prop}>#{res_value}</#{prop}>"
+      elsif association = self.class.reflect_on_all_associations.detect{|association| association.name.to_sym == key.to_sym}
+        #TODO:
+      end
+      xml.string
     end
-    rdf.string
   end
 
   # Methods to be extended
   module ClassMethods
 
-    def build_uri_for_property(value)
-      if resource_mapping[value].nil? || resource_mapping[value][:uri].nil?
-        #no mapping? we use the default registerd namespace and the value
-        "#{resource_namespace.second}##{value.to_s}"
-      else
-        uri_mapping = resource_mapping[value][:uri]
-        if uri_mapping.instance_of? String
-          uri_mapping
+    def build_uri_for_property(value,format = :n3)
+      if(format == :n3)
+        if resource_mapping[value].nil? || resource_mapping[value][:uri].nil?
+          #no mapping? we use the default registerd namespace and the value
+          "#{resource_namespace.second}##{value.to_s}"
         else
-          "#{SemanticResource::Configuration.namespaces_map[uri_mapping.first]}#{uri_mapping.last}"
+          uri_mapping = resource_mapping[value][:uri]
+          if uri_mapping.instance_of? String
+            uri_mapping
+          else
+            "#{SemanticResource::Configuration.namespaces_map[uri_mapping.first]}#{uri_mapping.last}"
+          end
+        end
+      elsif(format == :xml)
+        if resource_mapping[value].nil? || resource_mapping[value][:uri].nil?
+          #no mapping? we use the default registerd namespace and the value
+          "#{resource_namespace.first}##{value.to_s}"
+        else
+          uri_mapping = resource_mapping[value][:uri]
+          if uri_mapping.instance_of? String
+            uri_mapping
+          else
+            "#{uri_mapping.first}:#{uri_mapping.second.split("#").second}"
+          end
         end
       end
     end
@@ -160,6 +190,18 @@ module SemanticResource
 
     def resource_mapping
       @mapping
+    end
+
+    def namespaces_for_resource
+      namespaces = []
+      resource_mapping.each_pair do |k,m|
+        ns = m[:uri].first if m.keys.include?(:uri) || nil
+        namespaces.push(ns) if ns && !namespaces.include?(ns)
+      end
+      namespaces.inject({}) do |acum,elem|
+        acum[elem] = SemanticResource::Configuration.namespaces_map[elem]
+        acum
+      end
     end
 
     def with_service_uri_prefix(*args)
