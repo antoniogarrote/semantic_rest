@@ -23,7 +23,7 @@ module SemanticResource
           raise Exception.new("Cannot find semantic resource for controller #{self.name}")
         end
       end
-
+      base.send(:include,SemanticResource::ControllerCommon)
       base.send(:include,InstanceMethods)
     end
 
@@ -49,29 +49,21 @@ module SemanticResource
         format = format.to_sym
 
         base_response = semantic_find.to_rdf(request.parameters.symbolize_keys,format)
+        base_response,content_type = check_jsonp_response(base_response)
 
         if(format == :n3 || format == :rdf)
-          content_type = "text/rdf+n3"
-
-          if(params[:callback])
-            base_response = "#{params[:callback]}('#{base_response.gsub('\'','"').gsub("\n"," ")}');"
-            content_type = "text/javascript"
+          if(content_type.nil?)
+            content_type = "text/rdf+n3"
           end
-
-          render(:text => base_response,
-                 :content_type => content_type,
-                 :status => 200)
         elsif(format == :xml)
-          content_type = "application/rdf+xml"
-          if(params[:callback])
-            base_response = "#{params[:callback]}('#{base_response.gsub('\'','"').gsub("\n"," ")}');"
-            content_type = "text/javascript"
+          if(content_type.nil?)
+            content_type = "application/rdf+xml"
           end
-
-          render(:text => base_response,
-                 :content_type => content_type,
-                 :status => 200)
         end
+
+        render(:text => base_response,
+               :content_type => content_type,
+               :status => 200)
       end
 
       # retrieves the semantic resource
