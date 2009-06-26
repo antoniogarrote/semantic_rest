@@ -95,6 +95,8 @@ Siesta.loadFromBase = function(scriptPath)  {
 /**
   Allow the enumeration of object methods in Rhino
 */
+// CUIDADO CON PROTOTYPE Y ESTE METODO!!!
+/*
 Object.prototype.methods = function() {
     var ms = [];
     counter = 0;
@@ -108,6 +110,7 @@ Object.prototype.methods = function() {
 
     ms;
 }
+*/
 
 /**
  *  Let's load microtype if we are in
@@ -600,6 +603,28 @@ Siesta.Services.onRegisteredServiceAjax = function(serviceDescription) {
 
 };
 
+Siesta.Services.chooseFormaterFor = function(document) {
+    var format = Siesta.Framework.Common.determineFormat(document);
+    var formater = null;
+
+    if(format == "xml") {
+        formater = Siesta.Formats.Xml;
+    } else if(format == "turtle") {
+        formater = Siesta.Formats.Turtle;
+    }
+
+    return formater;
+};
+
+Siesta.Services.parseAndAddToRepository = function(doc,repository) {
+    var  formater = Siesta.Services.chooseFormaterFor(doc);
+
+    var parsedGraph = formater.parseDoc("",doc);
+    for(_i=0; _i< parsedGraph.triplesArray().length; _i++) {
+        repository.addTriple(parsedGraph.triplesArray()[_i]);
+    }
+};
+
 /**
  Callback function for registering of services if JSONP used
 
@@ -793,6 +818,10 @@ Siesta.Services.RestfulOperationInputMessage.prototype = {
 
         this._modelReference = null;
         this._loweringSchemaMapping = null;
+        this.loweringSchemaMappingContent = null;
+        this._connected = false;
+        this._model = null;
+        this_transportMechanism = null;
     },
 
     modelReference: function() {
@@ -845,7 +874,78 @@ Siesta.Services.RestfulOperationInputMessage.prototype = {
             }
             return this._loweringSchemaMapping;
         }
-    }
+    },
+
+    model: function() {
+        if(this._model != null) {
+            return this._model;
+        } else {
+            // we retrieve the model reference if not already present
+            if(this.modelReference() != null) {
+                this._model = new Siesta.Model.Schema(this.modelReference());
+            }
+        }
+    },
+
+    connect: function(mechanism) {
+        this._transportMechanism = mechanism;
+        if(this._connected == false) {
+            if(this.model() == null) {
+                try {
+                    if(mechanism == "jsonp") {
+                        var callback = "callback";
+                        if(arguments.length == 2) {
+                            callback = arguments[1];
+                        }
+                        Siesta.Network.jsonpRequestForMethod(this.modelReference(),callback,this,this._retryConnectModel);
+                    } else {
+
+                    }
+                } catch(e) { _retrieveLoweringSchemaMapping(mechanism); }
+            } else {
+                _retrieveLoweringSchemaMapping(mechanism);
+            }
+        }
+    },
+    
+    // Events
+
+    EVENT_MESSAGE_LOADED: "EVENT_SERVICE_LOADED",
+
+    // Connection callbacks
+
+    _retryConnectModel: function(resp) {
+        Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.schemas);
+        this.model();
+        
+        this._retrieveLoweringSchemaMapping(this._transportMechanism);        
+    },
+
+    _retrieveLoweringSchemaMapping: function(mechanism) {
+        if(this._connected == false) {
+            if(this.loweringSchemaMappingContent == null) {
+                try {
+                    if(mechanism == "jsonp") {
+                        var callback = "callback";
+                        if(arguments.length == 2) {
+                            callback = arguments[1];
+                        }
+                        Siesta.Network.jsonpRequestForMethod(this.loweringSchemaMapping(),callback,this,this._retryConnectLoweringSchemaMapping);
+                    } else {
+
+                    }
+                } catch(e) {  Siesta.Events.notifyEvent(this,this.EVENT_MESSAGE_LOADED,this); }
+            }
+        } else {
+            Siesta.Events.notifyEvent(this,this.EVENT_MESSAGE_LOADED,this);
+        }
+    },
+
+    _retryConnectLoweringSchemaMapping: function(resp) {
+        this.loweringSchemaMappingContent = resp
+        
+        Siesta.Events.notifyEvent(this,this.EVENT_MESSAGE_LOADED,this);
+    },
 };
 
 Siesta.Services.RestfulOperationOutputMessage = Class.create();
@@ -1137,6 +1237,7 @@ Siesta.Services.RestfulService.prototype = {
 
         this._modelReference = null;
         this._connected = false;
+        this._model = null;
     },
 
     modelReference: function() {
@@ -1149,11 +1250,12 @@ Siesta.Services.RestfulService.prototype = {
             var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
 
             if(result.length != 1) {
-                throw new Error("Error retrieving sawsdl#modelReference for <"+this.uri+"> uri. Found "+result.length+" results instead of 1");
+                //throw new Error("Error retrieving sawsdl#modelReference for <"+this.uri+"> uri. Found "+result.length+" results instead of 1");
+                this._modelReference = null;
             } else {
                 this._modelReference = result[0].reference.value;
-                return this._modelReference;
             }
+            return this._modelReference;
         }
     },
 
@@ -1209,19 +1311,50 @@ Siesta.Services.RestfulService.prototype = {
         }
     },
 
+    model: function() {
+        if(this._model != null) {
+            return this._model;
+        } else {
+            // we retrieve the model reference if not already present
+            if(this.modelReference() != null) {
+                this._model = new Siesta.Model.Schema(this.modelReference());
+            }
+        }
+    },
+
     /**
       Retrieves all the external resources for this service: model, lowering and lifting operations, etc.
 
       @returns nothing
     */
-    connect: function() {
-        // we retrieve the model reference if not already present
-        var query = "SELECT ?reference WHERE { <"+this.uri+"> " + "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type> " + "?object } ";
-        var result = Siesta.Sparql.query(Siesta.Model.Repositories.schemas,query);
-        if(result.length == 0) {
-            // El modelo no est
+    connect: function(mechanism) {
+        if(this._connected == false) {
+            if(this.model() == null) {
+                try {
+                    if(mechanism == "jsonp") {
+                        var callback = "callback";
+                        if(arguments.length == 2) {
+                            callback = arguments[1];
+                        }
+                        Siesta.Network.jsonpRequestForMethod(this.modelReference(),callback,this,this._retryConnectModel);
+                    } else {
+
+                    }
+                } catch(e) { }
+            } else {
+                //_retrieveLoweringOperation();
+            }
         }
-    }
+    },
+
+    _retryConnectModel: function(resp) {
+        Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.schemas);
+        this.model();
+        
+        Siesta.Events.notifyEvent(this,this.EVENT_SERVICE_LOADED,this);
+    },
+
+    EVENT_SERVICE_LOADED: "EVENT_SERVICE_LOADED"
 };
 
 Siesta.Model.Schema = Class.create();
@@ -1300,6 +1433,71 @@ Siesta.Model.Schema.prototype = {
         }
     }
 };
+
+/**
+  Events manager
+*/
+Siesta.Events = {
+    eventsDictionary: {},
+    
+    addListener: function(sender,notification,receiver,method) {
+        if(this.eventsDictionary[sender] == undefined) {
+            this.eventsDictionary[sender] = {};
+        }
+
+        if(this.eventsDictionary[sender][notification] == undefined) {
+            this.eventsDictionary[sender][notification] = [];
+        }
+
+        this.eventsDictionary[sender][notification].push([receiver,method]);
+    },
+
+    removeListener: function(sender,notification,receiver) {
+        if(this.eventsDictionary[sender] != undefined) {
+            if(this.eventsDictionary[sender][notification] != undefined) {
+                var found = null;
+                for(_i=0; _i < this.eventsDictionary[sender][notification].length; _i++) {                    
+                    if(this.eventsDictionary[sender][notification][_i][0] == receiver) {
+                        found = _i;
+                    }
+                }
+                if(found != null) {
+                    this.eventsDictionary[sender][notification].splice(_i,1);
+                }
+
+                if(this.eventsDictionary[sender][notification].length == 0) {
+                    delete this.eventsDictionary[sender][notification];
+                }
+            }
+        }
+    },
+
+    notifyEvent: function(sender,notification,data) {
+        if(this.eventsDictionary[sender] != undefined) {
+            if(this.eventsDictionary[sender][notification] != undefined) {
+                var found = null;
+                for(_i=0; _i < this.eventsDictionary[sender][notification].length; _i++) {                    
+                    var obj = this.eventsDictionary[sender][notification][_i][0];
+                    this.eventsDictionary[sender][notification][_i][1].call(obj,notification,data);
+                }
+            }
+        }        
+    },
+
+    notifyEventAndDelete: function(sender,nofitication,data) {
+        if(this.eventsDictionary[sender] != undefined) {
+            if(this.eventsDictionary[sender][notification] != undefined) {
+                var found = null;
+                for(_i=0; _i < this.eventsDictionary[sender][notification].length; _i++) {                    
+                    var obj = this.eventsDictionary[sender][notification][_i][0];
+                    this.eventsDictionary[sender][notification][_i][1].call(obj,notification,data);
+                }
+            }
+            delete this.eventsDictionary[sender][notification];
+        }        
+    }
+};
+
 /**************************************************************************************************************/
 /*                            Framework configuration and initalization                                       */
 /**************************************************************************************************************/
@@ -1328,8 +1526,7 @@ Siesta.loadConfiguration = function(basePath) {
 // Loading of the frameworks
 Siesta.loadFrameworks = function() {
     // We check if prototype is not loaded we load microtype
-    var isPrototypeLoaded = false;
-
+//    var isPrototypeLoaded = false;
     Siesta.remainingFrameworks = {};
     Siesta.remainingFrameworks["sparql"] = true;
     Siesta.remainingFrameworks["formats/turtle"] = true;
@@ -1339,10 +1536,10 @@ Siesta.loadFrameworks = function() {
     // Loading of the frameworks
     if(Siesta.Configuration.drivers != null) {
         for(_i=0; _i< Siesta.Configuration.drivers.length; _i++) {
-            if(Siesta.Configuration.drivers[_i]!="prototype") {
+//            if(Siesta.Configuration.drivers[_i]!="prototype") {
                 var path = "libs/drivers/"+Siesta.Configuration.drivers[_i]+"/load.js";
                 Siesta.loadFromBase(path);
-            }
+//            }
         }
     }
 

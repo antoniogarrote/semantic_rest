@@ -3,7 +3,7 @@ Siesta.defineConfiguration({
     sparql: "hercules",
     formats: {
         turtle: "hercules",
-        xml: "oat"
+        xml: "OAT"
     },
     network: "prototype"
 });

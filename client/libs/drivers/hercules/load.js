@@ -1885,7 +1885,6 @@ Arielworks.Hercules.Sparql.SelectQuery.prototype.execute = function() {
 
 
     // matching once
-    this.rootPattern.methods();
     var matchingResult = this.rootPattern.match(this.engine.graph);
 
     

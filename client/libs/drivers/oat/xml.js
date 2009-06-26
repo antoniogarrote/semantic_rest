@@ -24,6 +24,9 @@
 	var xpath = OAT.Xml.xpath(xmlDoc,xpath,nsObject)
 	var newXmlText = OAT.Xml.removeDefaultNamespace(xmlText)
 */
+
+//OAT = {};
+
 OAT.Browser = {
     isIE:function() {
         return (window.attachEvent && navigator.userAgent.indexOf('Opera') === -1);
@@ -226,4 +229,4 @@ OAT.Xml = {
 	escape:OAT.Dom.toSafeXML,
 	unescape:OAT.Dom.fromSafeXML*/
 }
-OAT.Loader.featureLoaded("xml");
+//OAT.Loader.featureLoaded("xml");

@@ -428,7 +428,7 @@ module SemanticResource
           rdf = StringIO.new
           rdf<< "#{with_service_uri_prefix('#show',self.name)} <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> wsl:Operation ;\n"
           rdf<< "  rdfs:label \"retrieves #{self.name} resource with id {id}\" ;\n"
-          rdf<< "  hr:hasMethod  \"POST\" ;\n"
+          rdf<< "  hr:hasMethod  \"GET\" ;\n"
           rdf<< "  hr:hasAddress \"#{encoded}\"^^<hr:URITemplate> ;\n"
           rdf<< "  wsl:hasInputMessage [\n"
           rdf<< "    <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> wsl:Message ;\n"
