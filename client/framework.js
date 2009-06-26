@@ -897,7 +897,13 @@ Siesta.Services.RestfulOperationInputMessage.prototype = {
                         if(arguments.length == 2) {
                             callback = arguments[1];
                         }
-                        Siesta.Network.jsonpRequestForMethod(this.modelReference(),callback,this,this._retryConnectModel);
+                        var thisObj = this;
+                        Siesta.Network.jsonpRequestForFunction(this.modelReference(),callback,function(resp){
+                            Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.schemas);
+                            thisObj.model();
+
+                            thisObj._retrieveLoweringSchemaMapping(thisObj._transportMechanism);
+                        });
                     } else {
 
                     }
@@ -907,19 +913,12 @@ Siesta.Services.RestfulOperationInputMessage.prototype = {
             }
         }
     },
-    
+
     // Events
 
     EVENT_MESSAGE_LOADED: "EVENT_SERVICE_LOADED",
 
     // Connection callbacks
-
-    _retryConnectModel: function(resp) {
-        Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.schemas);
-        this.model();
-        
-        this._retrieveLoweringSchemaMapping(this._transportMechanism);        
-    },
 
     _retrieveLoweringSchemaMapping: function(mechanism) {
         if(this._connected == false) {
@@ -930,7 +929,11 @@ Siesta.Services.RestfulOperationInputMessage.prototype = {
                         if(arguments.length == 2) {
                             callback = arguments[1];
                         }
-                        Siesta.Network.jsonpRequestForMethod(this.loweringSchemaMapping(),callback,this,this._retryConnectLoweringSchemaMapping);
+                        var thisObj = this;
+                        Siesta.Network.jsonpRequestForMethod(this.loweringSchemaMapping(),callback,function(res){
+                            thisObj.loweringSchemaMappingContent = resp
+                            Siesta.Events.notifyEvent(thisObj,thisObj.EVENT_MESSAGE_LOADED,thisObj);
+                        });
                     } else {
 
                     }
@@ -939,13 +942,7 @@ Siesta.Services.RestfulOperationInputMessage.prototype = {
         } else {
             Siesta.Events.notifyEvent(this,this.EVENT_MESSAGE_LOADED,this);
         }
-    },
-
-    _retryConnectLoweringSchemaMapping: function(resp) {
-        this.loweringSchemaMappingContent = resp
-        
-        Siesta.Events.notifyEvent(this,this.EVENT_MESSAGE_LOADED,this);
-    },
+    }
 };
 
 Siesta.Services.RestfulOperationOutputMessage = Class.create();
