@@ -819,7 +819,7 @@ Siesta.Services.RestfulOperationInputMessage.prototype = {
         this._modelReference = null;
         this._loweringSchemaMapping = null;
         this.loweringSchemaMappingContent = null;
-        this._connected = false;
+        this.connected = false;
         this._model = null;
         this_transportMechanism = null;
     },
@@ -887,9 +887,14 @@ Siesta.Services.RestfulOperationInputMessage.prototype = {
         }
     },
 
+    /**
+       Retrieves all the remote references of this message.
+
+       @returns The method sends the event: EVENT_MESSAGE_LOADED
+    */
     connect: function(mechanism) {
         this._transportMechanism = mechanism;
-        if(this._connected == false) {
+        if(this.connected == false) {
             if(this.model() == null) {
                 try {
                     if(mechanism == "jsonp") {
@@ -897,12 +902,13 @@ Siesta.Services.RestfulOperationInputMessage.prototype = {
                         if(arguments.length == 2) {
                             callback = arguments[1];
                         }
-                        var thisObj = this;
+                        var that = this;
                         Siesta.Network.jsonpRequestForFunction(this.modelReference(),callback,function(resp){
+                            debugger;
                             Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.schemas);
-                            thisObj.model();
+                            that.model();
 
-                            thisObj._retrieveLoweringSchemaMapping(thisObj._transportMechanism);
+                            that._retrieveLoweringSchemaMapping(that._transportMechanism);
                         });
                     } else {
 
@@ -916,12 +922,14 @@ Siesta.Services.RestfulOperationInputMessage.prototype = {
 
     // Events
 
-    EVENT_MESSAGE_LOADED: "EVENT_SERVICE_LOADED",
+    EVENT_MESSAGE_LOADED: "EVENT_MESSAGE_LOADED",
 
     // Connection callbacks
 
     _retrieveLoweringSchemaMapping: function(mechanism) {
-        if(this._connected == false) {
+        debugger;
+        if(this.connected == false) {
+            this.connected = true;
             if(this.loweringSchemaMappingContent == null) {
                 try {
                     if(mechanism == "jsonp") {
@@ -929,10 +937,10 @@ Siesta.Services.RestfulOperationInputMessage.prototype = {
                         if(arguments.length == 2) {
                             callback = arguments[1];
                         }
-                        var thisObj = this;
-                        Siesta.Network.jsonpRequestForMethod(this.loweringSchemaMapping(),callback,function(res){
-                            thisObj.loweringSchemaMappingContent = resp
-                            Siesta.Events.notifyEvent(thisObj,thisObj.EVENT_MESSAGE_LOADED,thisObj);
+                        var that = this;
+                        Siesta.Network.jsonpRequestForFunction(this.loweringSchemaMapping(),callback,function(res){
+                            that.loweringSchemaMappingContent = res
+                            Siesta.Events.notifyEvent(that,that.EVENT_MESSAGE_LOADED,that);
                         });
                     } else {
 
@@ -1233,7 +1241,7 @@ Siesta.Services.RestfulService.prototype = {
         this._operationsUris = null;
 
         this._modelReference = null;
-        this._connected = false;
+        this.connected = false;
         this._model = null;
     },
 
@@ -1325,7 +1333,7 @@ Siesta.Services.RestfulService.prototype = {
       @returns nothing
     */
     connect: function(mechanism) {
-        if(this._connected == false) {
+        if(this.connected == false) {
             if(this.model() == null) {
                 try {
                     if(mechanism == "jsonp") {
