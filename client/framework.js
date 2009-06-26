@@ -569,6 +569,72 @@ Siesta.Framework.Graph.prototype = {
 };
 
 /**************************************************************************************************************/
+/*                                              Utils                                                         */
+/**************************************************************************************************************/
+
+Siesta.registerNamespace("Siesta","Utils");
+
+Siesta.Utils.Sequentializer = Class.create();
+/**
+  @class Siesta.Utils.Network.SequentialRemoteRequester
+
+  Helper class for easing the creation of sequential asynchronous calls.
+*/
+Siesta.Utils.Sequentializer.prototype = {
+    /**
+     * @constructor
+     *
+     * Builds a new requester.
+     */
+    initialize: function() {
+        this._requestsQueue = [];
+        this._finishedCallback = null;
+    },
+
+    /**
+     * Adds a remote request to the queue of requests.
+     *
+     * @argument remoteRequest, function containing the invocation
+     */
+    addRemoteRequest: function(remoteRequest) {
+        this._requestsQueue.push(remoteRequest);
+    },
+
+    /**
+     * Sets the function that will be optionally invoked
+     * when all the requests have been processed.
+     *
+     * @argument callback, the function to be invoked.
+     */
+    finishedCallback: function(callback) {
+        this._finishedCallback = callback;
+    },
+
+    /**
+     * This funcition must be invoked in the callbacks of the remote requests
+     * callbacks to notify the request has finished.
+     */
+    notifyRequestFinished: function() {
+        this._nextRequest();
+    },
+
+    /**
+     * Starts the processing of the requests.
+     */
+    start: function() {
+        this._nextRequest();
+    },
+
+    _nextRequest: function() {
+        if(this._requestsQueue.length == 0) {
+            this._finishedCallback();
+        } else {
+            (this._requestsQueue.pop())();
+        }
+    }
+};
+
+/**************************************************************************************************************/
 /*                                              Model Layer                                                   */
 /**************************************************************************************************************/
 
@@ -904,7 +970,6 @@ Siesta.Services.RestfulOperationInputMessage.prototype = {
                         }
                         var that = this;
                         Siesta.Network.jsonpRequestForFunction(this.modelReference(),callback,function(resp){
-                            debugger;
                             Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.schemas);
                             that.model();
 
@@ -927,7 +992,6 @@ Siesta.Services.RestfulOperationInputMessage.prototype = {
     // Connection callbacks
 
     _retrieveLoweringSchemaMapping: function(mechanism) {
-        debugger;
         if(this.connected == false) {
             this.connected = true;
             if(this.loweringSchemaMappingContent == null) {
@@ -1080,6 +1144,7 @@ Siesta.Services.RestfulOperation.prototype = {
         this._inputMessages = null;
         this._inputParameters = null;
         this._outputMessage = null;
+        this.connected = false;
     },
 
     label: function() {
@@ -1207,7 +1272,43 @@ Siesta.Services.RestfulOperation.prototype = {
 
             return this._inputParameters;
         }
-    }
+    },
+
+    connect: function(mechanism) {
+        debugger;
+        var that = this;
+        if(that.connected == false) {
+            var sequentializer = new Siesta.Utils.Sequentializer();
+
+            // let's add the closures for the requests
+            debugger;
+            for(var _i=0; _i<that.inputMessages().length; _i++) {
+                debugger;
+                var message = that.inputMessages()[_i];
+                sequentializer.addRemoteRequest(function(){
+                    debugger;
+                    Siesta.Events.addListener(message,message.EVENT_MESSAGE_LOADED,that,function(event,msg) {
+                        sequentializer.notifyRequestFinished();
+                    });
+                    message.connect(mechanism);
+                });
+            }
+
+            // here we set the callback for all requests done
+            sequentializer.finishedCallback(function() {
+                this.connected = true;
+                Siesta.Events.notifyEvent(that,that.EVENT_CONNECTED,that);
+            });
+
+            // the fun starts here
+            sequentializer.start();
+        }
+    },
+
+    // Events
+
+    EVENT_CONNECTED: "EVENT_OPERATION_CONNECTED"
+
 };
 
 Siesta.Services.RestfulService = Class.create();
@@ -1293,7 +1394,7 @@ Siesta.Services.RestfulService.prototype = {
 
             var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
 
-            for(_i=0; _i<result.length; _i++) {
+            for(var _i=0; _i<result.length; _i++) {
                 this._operationsUris.push(result[_i].operation.value);
             }
             return this._operationsUris;
@@ -1355,7 +1456,7 @@ Siesta.Services.RestfulService.prototype = {
     _retryConnectModel: function(resp) {
         Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.schemas);
         this.model();
-        
+
         Siesta.Events.notifyEvent(this,this.EVENT_SERVICE_LOADED,this);
     },
 
