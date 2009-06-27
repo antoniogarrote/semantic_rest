@@ -601,6 +601,17 @@ Siesta.Utils.Sequentializer.prototype = {
     },
 
     /**
+     * Adds a remote request to the queue of requests and passes the argument to it.
+     * The callback function must accept one parameter.
+     *
+     * @argument remoteRequest, function containing the invocation.
+     * @argument env, the environment to pass to the function.
+     */
+    addRemoteRequestWithEnv: function(remoteRequest,env) {
+        this._requestsQueue.push(function(){ remoteRequest(env) });
+    },
+
+    /**
      * Sets the function that will be optionally invoked
      * when all the requests have been processed.
      *
@@ -1051,6 +1062,8 @@ Siesta.Services.RestfulOperationOutputMessage.prototype = {
 
         this._modelReference = null;
         this._liftingSchemaMapping = null;
+        this.liftingSchemaMappingContent = null;
+        this.connected = false;
     },
 
     modelReference: function() {
@@ -1094,7 +1107,11 @@ Siesta.Services.RestfulOperationOutputMessage.prototype = {
     */
     liftingSchemaMapping: function() {
         if(this._liftingSchemaMapping != null) {
-            return this._liftingSchemaMapping;
+            if(this._liftingSchemaMapping == 0) {
+                return null;
+            } else {
+                return this._liftingSchemaMapping;
+            }
         } else {
             var query = "SELECT ?schema WHERE {  " + this.uriInQuery + " <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> " + "<http://www.wsmo.org/ns/wsmo-lite#Message> . ";
             query = query + this.uriInQuery +" <http://www.w3.org/ns/sawsdl#liftingSchemaMapping> ?schema }";
@@ -1102,11 +1119,42 @@ Siesta.Services.RestfulOperationOutputMessage.prototype = {
             var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
 
             if(result.length != 1) {
-                 this._liftingSchemaMapping = null;
+                 this._liftingSchemaMapping = 0; // this is to avoid continously quering the repository in case of no liftingSchema
             } else {
                 this._liftingSchemaMapping = result[0].schema.value
             }
             return this._liftingSchemaMapping;
+        }
+    },
+
+    // Events
+
+    EVENT_CONNECTED: "EVENT_OUTPUT_MESSAGE_CONNECTED",
+
+    // Connection callbacks
+
+    connect: function(mechanism) {
+        if(this.connected == false) {
+            this.connected = true;
+            if(this.liftingSchemaMappingContent == null) {
+                try {
+                    if(mechanism == "jsonp") {
+                        var callback = "callback";
+                        if(arguments.length == 2) {
+                            callback = arguments[1];
+                        }
+                        var that = this;
+                        Siesta.Network.jsonpRequestForFunction(this.liftingSchemaMapping(),callback,function(res){
+                            that.liftingSchemaMappingContent = res;
+                            Siesta.Events.notifyEvent(that,that.EVENT_CONNECTED,that);
+                        });
+                    } else {
+                        // TODO AJAX here.
+                    }
+                } catch(e) {  Siesta.Events.notifyEvent(this,this.EVENT_CONNECTED,this); }
+            }
+        } else {
+            Siesta.Events.notifyEvent(this,this.EVENT_CONNECTED,this);
         }
     }
 };
@@ -1275,28 +1323,37 @@ Siesta.Services.RestfulOperation.prototype = {
     },
 
     connect: function(mechanism) {
-        debugger;
         var that = this;
         if(that.connected == false) {
             var sequentializer = new Siesta.Utils.Sequentializer();
 
             // let's add the closures for the requests
-            debugger;
             for(var _i=0; _i<that.inputMessages().length; _i++) {
-                debugger;
-                var message = that.inputMessages()[_i];
-                sequentializer.addRemoteRequest(function(){
-                    debugger;
+                sequentializer.addRemoteRequestWithEnv(function(message){
                     Siesta.Events.addListener(message,message.EVENT_MESSAGE_LOADED,that,function(event,msg) {
+                        Siesta.Events.removeListener(message,message.EVENT_MESSAGE_LOADED,that);
                         sequentializer.notifyRequestFinished();
                     });
                     message.connect(mechanism);
-                });
+                },that.inputMessages()[_i]);
+            }
+
+            // let's add the output message
+            var outputMessage = this.outputMessage();
+            if(outputMessage != null) {
+                sequentializer.addRemoteRequest(function(){
+                    Siesta.Events.addListener(outputMessage,outputMessage.EVENT_CONNECTED,that,function(event,msg) {
+                        Siesta.Events.removeListener(outputMessage,outputMessage.EVENT_CONNECTED,that);
+                        sequentializer.notifyRequestFinished();
+                    });
+                    outputMessage.connect(mechanism);
+                });            
             }
 
             // here we set the callback for all requests done
             sequentializer.finishedCallback(function() {
-                this.connected = true;
+                
+                that.connected = true;
                 Siesta.Events.notifyEvent(that,that.EVENT_CONNECTED,that);
             });
 
@@ -1435,6 +1492,10 @@ Siesta.Services.RestfulService.prototype = {
     */
     connect: function(mechanism) {
         if(this.connected == false) {
+            
+            var that = this;
+            var sequentializer = new Siesta.Utils.Sequentializer();
+            
             if(this.model() == null) {
                 try {
                     if(mechanism == "jsonp") {
@@ -1442,14 +1503,51 @@ Siesta.Services.RestfulService.prototype = {
                         if(arguments.length == 2) {
                             callback = arguments[1];
                         }
-                        Siesta.Network.jsonpRequestForMethod(this.modelReference(),callback,this,this._retryConnectModel);
+                        sequentializer.addRemoteRequest(function(){
+                            Siesta.Network.jsonpRequestForFunction(that.modelReference(),callback,function(resp){
+                                
+                                Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.schemas);
+                                that.model();
+                                sequentializer.notifyRequestFinished();
+                            });
+                        });                        
                     } else {
 
                     }
                 } catch(e) { }
-            } else {
-                //_retrieveLoweringOperation();
+            } 
+
+            for(var _i=0; _i<this.operations().length; _i++){
+                
+                /*
+                var f = (function (theOperation) { return function () { 
+                    Siesta.Events.addListener(theOperation,theOperation.EVENT_CONNECTED,that,function(event,op) {
+                        
+                        Siesta.Events.removeListener(theOperation,theOperation.EVENT_CONNECTED,that);                        
+                        sequentializer.notifyRequestFinished();                        
+                    });
+                    theOperation.connect(mechanism);
+                }})(this.operations()[_i]);
+                sequentializer.addRemoteRequest(f);                
+                */
+                sequentializer.addRemoteRequestWithEnv(function(theOperation) {
+                    
+                    Siesta.Events.addListener(theOperation,theOperation.EVENT_CONNECTED,that,function(event,op) {
+                        Siesta.Events.removeListener(theOperation,theOperation.EVENT_CONNECTED,that);                        
+                        sequentializer.notifyRequestFinished();                        
+                    });
+                    theOperation.connect(mechanism);
+                }, this.operations()[_i]);
             }
+
+            // here we set the callback for all requests done
+            sequentializer.finishedCallback(function() {
+                that.connected = true;
+                Siesta.Events.notifyEvent(that,that.EVENT_SERVICE_LOADED,that);
+            });
+
+            // the fun starts here
+            sequentializer.start();
         }
     },
 
@@ -1565,6 +1663,7 @@ Siesta.Events = {
                 for(_i=0; _i < this.eventsDictionary[sender][notification].length; _i++) {                    
                     if(this.eventsDictionary[sender][notification][_i][0] == receiver) {
                         found = _i;
+                        break;
                     }
                 }
                 if(found != null) {
@@ -1572,7 +1671,8 @@ Siesta.Events = {
                 }
 
                 if(this.eventsDictionary[sender][notification].length == 0) {
-                    delete this.eventsDictionary[sender][notification];
+                    // delete this.eventsDictionary[sender][notification];
+                    // this.eventsDictionary[sender][notification] = undefined;
                 }
             }
         }

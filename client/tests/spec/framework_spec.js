@@ -687,7 +687,9 @@ Screw.Unit(function() {
                           var _uri = result[0].uri.toString();
                           var message = new Siesta.Services.RestfulOperationInputMessage(_uri);
                           expect(message.loweringSchemaMapping() == "http://localhost:3000/schemas/lowering/Book/create.sparql").to(equal,true);
-                          Siesta.Events.addListener(message,message.EVENT_MESSAGE_LOADED,this,function(event,msg) {
+                          var that = this;
+                          Siesta.Events.addListener(message,message.EVENT_MESSAGE_LOADED,that,function(event,msg) {
+                              Siesta.Events.removeListener(message,message.EVENT_MESSAGE_LOADED,that);
                               expect(msg.model().uri == "http://localhost:3000/schemas/models/Book").to(equal,true);
                               expect(msg.loweringSchemaMappingContent != null).to(equal,true);
                               expect(msg.connected).to(equal,true);
@@ -749,6 +751,37 @@ Screw.Unit(function() {
                           expect(message.liftingSchemaMapping() == "http://localhost:3000/schemas/lowering/Book/lifting.xslt").to(equal,true);
                       }
 
+                  });
+           });
+
+
+        describe('.connect',function() {
+               it("should parse the liftingSchemaMapping value and retrieve the operation from the remote server",
+                  function() {
+                      Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
+                      expect(Siesta.Model.Repositories.services.triplesArray().length == 0).to(equal,true);
+                      var graph = Siesta.Formats.Turtle.parseDoc("",fixtureN3Data4);
+                      Siesta.Model.Repositories.services = graph;
+                      expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
+
+                      var query = "SELECT ?uri WHERE { ?x <http://www.wsmo.org/ns/wsmo-lite#hasOutputMessage> ?uri .";
+                      query = query + " ?uri <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> " + "<http://www.wsmo.org/ns/wsmo-lite#Message> }";
+
+                      var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
+
+                      if(result.length == 0) {
+                          expect(true).to(equal,false);
+                      } else {
+                          var _uri = result[1].uri.toString();
+                          var message = new Siesta.Services.RestfulOperationOutputMessage(_uri);
+                          var that = this;
+                          Siesta.Events.addListener(message,message.EVENT_CONNECTED,that,function(event,operation) {
+                              Siesta.Events.removeListener(message,message.EVENT_CONNECTED,that);
+                              expect(message.liftingSchemaMappingContent != null).to(equal,true);
+                          });
+
+                          message.connect('jsonp');
+                      }
                   });
            });
 
@@ -899,16 +932,15 @@ Screw.Unit(function() {
         describe('.connect',function() {
                it("should parse all the input parameters creating an array of RestfulOperationInputParameters with the parsed parameters",
                   function() {
-                      debugger;
                       Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
                       expect(Siesta.Model.Repositories.services.triplesArray().length == 0).to(equal,true);
                       var graph = Siesta.Formats.Turtle.parseDoc("",fixtureN3Data1);
                       Siesta.Model.Repositories.services = graph;
                       expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
-                      debugger;
                       var operation = new Siesta.Services.RestfulOperation("http://localhost:3000/schemas/services/Book#createBook");
-                      Siesta.Events.addListener(operation,operation.EVENT_CONNECTED,this,function(event,operation) {
-                          debugger;
+                      var that = this;
+                      Siesta.Events.addListener(operation,operation.EVENT_CONNECTED,that,function(event,operation) {
+                          Siesta.Events.removeListener(operation,operation.EVENT_CONNECTED,that);
                           expect(operation.inputMessages()[0].loweringSchemaMappingContent != null).to(equal,true);
                       });
                       operation.connect('jsonp');
@@ -1035,10 +1067,23 @@ Screw.Unit(function() {
 
                 var service = new Siesta.Services.RestfulService("http://localhost:3000/schemas/services/BookService");
                 expect(service.modelReference() == "http://localhost:3000/schemas/models/Book").to(equal,true);
-
-                Siesta.Events.addListener(service,service.EVENT_SERVICE_LOADED,this,function(event,serv) {
+                
+                var that = this;
+                Siesta.Events.addListener(service,service.EVENT_SERVICE_LOADED,that,function(event,serv) {
+                    
+                    Siesta.Events.removeListener(service,service.EVENT_SERVICE_LOADED,that);
                     expect(serv.model().uri == "http://localhost:3000/schemas/models/Book").to(equal,true);
+                    expect(serv.connected).to(equal,true);
+                    for(var _i=0; _i<serv.operations().length; _i++) {
+                        var op = serv.operations()[_i];
+                        expect(op.inputMessages()[0].connected).to(equal,true);
+                        expect(op.inputMessages()[0].loweringSchemaMappingContent != null).to(equal,true);
+                        expect(op.outputMessage().connected).to(equal,true);
+                        //expect(op.outputMessage().liftingSchemaMappingContent != null).to(equal,true);
+                        
+                    }
                 });
+                
                 service.connect("jsonp");
             });
 
