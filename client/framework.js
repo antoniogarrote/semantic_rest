@@ -407,7 +407,7 @@ Siesta.Framework.Graph.prototype = {
     addTriple: function(aTriple /* Siesta.Framework.Triple */) {
 
         if(aTriple.__type != 'triple') {
-            throw new Exception("Trying to add something different of a Siesta.Framework.Triple to a Siesta.Framework.Graph");
+            throw "Trying to add something different of a Siesta.Framework.Triple to a Siesta.Framework.Graph";
         } else {
 
             var wasInserted = this.__addTripleByObject(aTriple,
@@ -693,6 +693,17 @@ Siesta.Services.chooseFormaterFor = function(document) {
     return formater;
 };
 
+Siesta.Services.TRIPLET_CHANGE_EVENT = "TRIPLET_CHANGE_EVENT";
+
+/**
+  Parses a new doc and add the parsed triplets to the provided repository.
+
+  @argument doc, to be parsed in a valid format: N3, XML, JSON...
+  @argument repository, the repository where the triplets will be added.
+
+  @returns throw a Siesta.Services.TRIPLET_CHANGE_EVENT with an object message including the repository \
+where the triplets have been added an the graph from the document.
+ */
 Siesta.Services.parseAndAddToRepository = function(doc,repository) {
     var  formater = Siesta.Services.chooseFormaterFor(doc);
 
@@ -700,6 +711,13 @@ Siesta.Services.parseAndAddToRepository = function(doc,repository) {
     for(_i=0; _i< parsedGraph.triplesArray().length; _i++) {
         repository.addTriple(parsedGraph.triplesArray()[_i]);
     }
+
+    var resp = {
+        repository: repository,
+        parsedGraph: parsedGraph
+    };
+
+    Siesta.Events.notifyEvent(this,Siesta.Services.TRIPLET_CHANGE_EVENT,resp);
 };
 
 /**
@@ -1014,7 +1032,7 @@ Siesta.Services.RestfulOperationInputMessage.prototype = {
                         }
                         var that = this;
                         Siesta.Network.jsonpRequestForFunction(this.loweringSchemaMapping(),callback,function(res){
-                            that.loweringSchemaMappingContent = res
+                            that.loweringSchemaMappingContent = res;
                             Siesta.Events.notifyEvent(that,that.EVENT_MESSAGE_LOADED,that);
                         });
                     } else {
@@ -1193,6 +1211,7 @@ Siesta.Services.RestfulOperation.prototype = {
         this._inputParameters = null;
         this._outputMessage = null;
         this.connected = false;
+        this._addressAttributes = null;
     },
 
     label: function() {
@@ -1245,6 +1264,34 @@ Siesta.Services.RestfulOperation.prototype = {
                 return this._address;
             }
         }
+    },
+
+    _parsingAddressPatterRegExOut: /\{[\w%]+\}/g,
+
+    _parsingAddressPatternRegExIn: /[^\{\}]+/,
+
+    /**
+      Parses the address of the operation retrieving the list of prameters
+      from the address.
+
+      @returns the list of parsed parameters
+    */
+    addressAttributes: function() {
+        var theAddress = this.address();
+        if(this._addressAttributes == null) {
+            this._addressAttributes = [];
+
+            var finished = false;
+            while(!finished) {
+                var attribute = this._parsingAddressPatterRegExOut.exec(theAddress);
+                if(attribute != null) {
+                    this._addressAttributes.push(this._parsingAddressPatternRegExIn.exec(attribute)[0]);
+                } else {
+                    finished = true;
+                }
+            }
+        }
+        return this._addressAttributes;
     },
 
     /**
@@ -1362,10 +1409,51 @@ Siesta.Services.RestfulOperation.prototype = {
         }
     },
 
+    consume: function(mechanism,graph) {
+        if(this.connected == false) {
+            throw "Unable to consume a disconnected service";
+        }
+
+        var loweredParametersMap = {};
+        var inputMsgs = this.inputMessages();
+        for(var _i=0; _i<inputMsgs.length; _i++) {
+            var inputMsg = inputMsgs[_i];
+            var result = Siesta.Sparql.query(graph,inputMsg.loweringSchemaMappingContent);
+            for(var v in result[0]) {
+                if((typeof result[0][v]) == "object") {
+                    loweredParametersMap[v] = result[0][v];
+                }
+            }
+        }
+        var theAddress = this.address();
+        for(var _i=0; _i<this.addressAttributes().length; _i++) {
+            var theAttr = this.addressAttributes()[_i];
+            var theAttrInAddress = "{"+ theAttr +"}";
+            
+            theAddress = theAddress.replace(theAttrInAddress,encodeURIComponent(loweredParametersMap[theAttr].value));
+        }
+
+        if(mechanism == "jsonp") {
+            var that = this;
+            if(theAddress.indexOf("?") != -1) {
+                theAddress = theAddress + "&_method=" + this.method().toLowerCase();
+            } else {
+                theAddress = theAddress + "?_method=" + this.method().toLowerCase();
+            }
+            Siesta.Network.jsonpRequestForFunction(theAddress,"callback",function(resp) {
+                Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.data);
+                Siesta.Events.notifyEvent(that,that.EVENT_CONSUMED,that);
+            });
+        } else {
+            // AJAX here
+        }
+    },
+
     // Events
 
-    EVENT_CONNECTED: "EVENT_OPERATION_CONNECTED"
+    EVENT_CONNECTED: "EVENT_OPERATION_CONNECTED",
 
+    EVENT_CONSUMED: "CONSUMED_OPERATON_EVENT"
 };
 
 Siesta.Services.RestfulService = Class.create();

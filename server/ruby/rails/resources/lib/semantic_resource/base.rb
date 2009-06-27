@@ -592,9 +592,10 @@ module SemanticResource
       sparql << "SELECT "
       resource_mapping.each_pair do |key,value|
         sparql << "?#{key.to_s} "
-        sparql_where_clause << "OPTIONAL { " if value[:optional] && value[:optional] == true
+        #TODO: revert to the OPTIONAL CLAUSE
+        #sparql_where_clause << "OPTIONAL { " if value[:optional] && value[:optional] == true
         sparql_where_clause << "?x <#{build_uri_for_property(key)}> ?#{key.to_s} . "
-        sparql_where_clause << " } " if value[:optional] && value[:optional] == true
+        #sparql_where_clause << " } " if value[:optional] && value[:optional] == true
       end
 
       return "#{sparql.string} WHERE { #{sparql_where_clause.string} }"
