@@ -1723,6 +1723,64 @@ Siesta.Model.Schema.prototype = {
             }
             return this._properties;
         }
+    },    
+};
+
+Siesta.Model.Instance = Class.create();
+/**
+  @class Siesta.Model.Instance
+
+  A RDF instance of some model.
+*/
+Siesta.Model.Instance.prototype = {
+    /**
+     * @constructor
+     *
+     * Initiates a new instance model with the URI andvalues
+     * provided in the constructor.
+     *
+     * @argument schema: Siesta.Model.Schema for the instance.
+     * @argument uri: instance URI, it can be null.
+     * @argument properties: values for the properties of the instance
+     */
+    initialize: function(schema, uri, properties ) {
+        this._schema = schema;
+        this.uri = uri;
+        this._properties = properties;
+        this._graph = null;
+        for(var p in properties) {
+            this[p] = properties[p];
+        }
+    },
+
+    toGraph: function() {
+        if(this._graph == null) {
+            this._graph = new  Siesta.Framework.Graph();            
+            if(this.uri == null) {
+                this.uri = "_:0";
+            }
+            var subject = new Siesta.Framework.Uri(this.uri);
+            for(var _i=0; _i<this._schema.properties().length; _i++) {
+                var prop = this._schema.properties()[_i];
+                var found = null;
+                var foundUri = null;
+                for(var p in this._properties) {
+                    var pindex = prop.uri.indexOf(p);
+                    if(pindex != -1 && (pindex + p.length) == prop.uri.length) {
+                        found = p;
+                        foundUri = prop.uri;
+                        break;
+                    }
+                }
+
+                if(found != null) {
+                    this._graph.addTriple(new Siesta.Framework.Triple(new Siesta.Framework.Uri(this.uri),
+                                                                      new Siesta.Framework.Uri(foundUri),
+                                                                      new Siesta.Framework.Literal({value: this._properties[found]})));
+                }
+            }
+        } 
+        return this._graph;
     }
 };
 
