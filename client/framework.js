@@ -3,6 +3,13 @@
 */
 var Siesta = {};
 
+/**
+  By default the framework is not packaged.
+  This setting will be overriden by sprockets 
+  when requiring the next script
+*/
+Siesta.isPackaged = false;
+//= require "packagedConfiguration"
 
 /**
   main namespace for the framework
@@ -81,7 +88,10 @@ Siesta.loadFromBase = function(scriptPath)  {
     if(Siesta.isRhino()) {
 	load(scriptPath);
     } else {
-        thePath = Siesta.basePath();
+        var thePath = "/";
+        try{
+            var thePath = Siesta.basePath();
+        }catch(e) {}
         for(i = 0; i<arguments.length; i++) {
             thePath = thePath.concat("/").concat(arguments[i]);
         }
@@ -1877,34 +1887,35 @@ Siesta.loadConfiguration = function(basePath) {
 
 // Loading of the frameworks
 Siesta.loadFrameworks = function() {
+    debugger;
     // We check if prototype is not loaded we load microtype
-//    var isPrototypeLoaded = false;
+    // var isPrototypeLoaded = false;
     Siesta.remainingFrameworks = {};
     Siesta.remainingFrameworks["sparql"] = true;
     Siesta.remainingFrameworks["formats/turtle"] = true;
     Siesta.remainingFrameworks["formats/xml"] = true;
     Siesta.remainingFrameworks["network"] = true;
 
-    // Loading of the frameworks
-    if(Siesta.Configuration.drivers != null) {
-        for(_i=0; _i< Siesta.Configuration.drivers.length; _i++) {
-//            if(Siesta.Configuration.drivers[_i]!="prototype") {
+    // Loading of the frameworks from remote scripts,
+    // only when not packaged
+    if(!Siesta.isPackaged) {
+        if(Siesta.Configuration.drivers != null) {
+            for(_i=0; _i< Siesta.Configuration.drivers.length; _i++) {
                 var path = "libs/drivers/"+Siesta.Configuration.drivers[_i]+"/load.js";
                 Siesta.loadFromBase(path);
-//            }
+            }
         }
+
+        // Loading the components
+
+        // sparql queries
+        Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.sparql+"/sparql/query.js");
+        // formats
+        Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.formats.turtle+"/formats/turtle.js"); //turtle
+        Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.formats.xml+"/formats/xml.js"); //xml
+        // networking
+        Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.network+"/network.js"); //xml
     }
-
-    // Loading the components
-
-    // sparql queries
-    Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.sparql+"/sparql/query.js");
-    // formats
-    Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.formats.turtle+"/formats/turtle.js"); //turtle
-    Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.formats.xml+"/formats/xml.js"); //xml
-    // networking
-    Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.network+"/network.js"); //xml
-
 };
 
 Siesta.WhenInitiatedScripts = [];
@@ -1913,7 +1924,11 @@ Siesta.onFrameworkInitiated = function(f) {
     Siesta.WhenInitiatedScripts.push(f);
 };
 
+//Sprocket including the configuration
+//= require "configuration"
+
 Siesta.registerFramework = function(key) {
+    debugger;
     Siesta.remainingFrameworks[key] = false;
 
     var notReady = false;
@@ -1924,13 +1939,13 @@ Siesta.registerFramework = function(key) {
     notReady = notReady || Siesta.remainingFrameworks["network"];
 
     if(key == "sparql") {
-        Siesta.Sparql = eval("Siesta.Drivers."+Siesta.Configuration.sparql.capitalize()+".Sparql");
+        Siesta.Sparql = eval("Siesta.Drivers."+Siesta.Configuration.sparql+".Sparql");
     } else if(key == "formats/turtle") {
-        Siesta.Formats.Turtle = eval("Siesta.Drivers."+Siesta.Configuration.formats.turtle.capitalize()+".Formats.Turtle");
+        Siesta.Formats.Turtle = eval("Siesta.Drivers."+Siesta.Configuration.formats.turtle+".Formats.Turtle");
     } else if(key == "formats/xml") {
-        Siesta.Formats.Xml = eval("Siesta.Drivers."+Siesta.Configuration.formats.xml.capitalize()+".Formats.Xml");
+        Siesta.Formats.Xml = eval("Siesta.Drivers."+Siesta.Configuration.formats.xml+".Formats.Xml");
     } else if(key == "network") {
-        Siesta.Network = eval("Siesta.Drivers."+Siesta.Configuration.network.capitalize()+".Network");
+        Siesta.Network = eval("Siesta.Drivers."+Siesta.Configuration.network+".Network");
     }
 
     if(!notReady) {

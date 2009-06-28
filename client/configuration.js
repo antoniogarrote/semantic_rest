@@ -1,9 +1,9 @@
 Siesta.defineConfiguration({
     drivers: ["hercules","oat","prototype"],
-    sparql: "hercules",
+    sparql: "Hercules",
     formats: {
-        turtle: "hercules",
+        turtle: "Hercules",
         xml: "OAT"
     },
-    network: "prototype"
+    network: "Prototype"
 });
