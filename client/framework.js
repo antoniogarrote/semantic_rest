@@ -752,11 +752,11 @@ Siesta.Services.onRegisteredServiceJsonp = function(serviceDescription) {
         }
 
         for(_f=0; _f<Siesta.Services.serviceRegistrationCallbacks.length; _f++) {
-            serviceRegistrationCallbacks[_f].call(Siesta.Constants.SUCCESS,parsedGraph);
+            Siesta.Services.serviceRegistrationCallbacks[_f].call(Siesta.Constants.SUCCESS,parsedGraph);
         }
     } catch(e) {
         for(_f=0; _f<Siesta.Services.serviceRegistrationCallbacks.length; _f++) {
-            serviceRegistrationCallbacks[_f].call(Siesta.Constants.FAILURE,e);
+            Siesta.Services.serviceRegistrationCallbacks[_f].call(Siesta.Constants.FAILURE,e);
         }
     }
 };

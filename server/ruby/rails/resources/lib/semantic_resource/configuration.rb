@@ -1,4 +1,5 @@
 require 'action_controller'
+require File.join(File.dirname(__FILE__), 'restful_jsonp_middleware')
 
 module SemanticResource
 
@@ -36,5 +37,10 @@ module SemanticResource
         retry
       end
     end
+
+    def self.setup_middleware(rails_configuration)
+      rails_configuration.middleware.insert_before(Rack::MethodOverride,SemanticResource::RestfulJsonpMiddleware)
+    end
+
   end
 end

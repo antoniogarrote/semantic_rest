@@ -43,5 +43,5 @@ Rails::Initializer.run do |config|
   require 'semantic_resource/configuration'
   require 'semantic_resource/routing'
   SemanticResource::Configuration.set_resources_host("http://localhost:3000")
-
+  SemanticResource::Configuration.setup_middleware(config)
 end
