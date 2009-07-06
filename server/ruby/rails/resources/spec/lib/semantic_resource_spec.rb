@@ -303,3 +303,22 @@ describe SemanticResource,".build_uri_for_property" do
   end
 
 end
+
+describe SemanticResource::Configuration do
+
+  it "should retrieve :rdfa as the default serialization of the HTML resources" do
+    SemanticResource::Configuration.default_html_serialization.should be_eql(:rdfa)
+  end
+
+  it "should allow to specify a different HTML serialization fo the HTML resources" do
+    SemanticResource::Configuration.default_html_serialization.should be_eql(:rdfa)
+    SemanticResource::Configuration.set_default_html_serialization(:microformat)
+    SemanticResource::Configuration.default_html_serialization.should be_eql(:microformat)
+  end
+
+  it "should raise an exception if a bad serialization for HTML is provided" do
+    lambda{
+      SemanticResource::Configuration.set_default_html_serialization(:nonexistant)
+    }.should raise_error
+  end
+end

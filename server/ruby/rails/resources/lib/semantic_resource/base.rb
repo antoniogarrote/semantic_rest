@@ -3,6 +3,8 @@ module SemanticResource
 
   def self.included(base)
     base.extend(ClassMethods)
+    base.send(:include,SemanticResource::ViewHelpers)
+    base.send(:extend,SemanticResource::ViewHelpers)
 
     # The resource is registered
     base.register_semantic_resource
@@ -30,7 +32,7 @@ module SemanticResource
       rdf << "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n"
       rdf << "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"
 
-      rdf << "<#{res_name}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> #{self.class.resource_model_uri} .\n"
+      rdf << "<#{res_name}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <#{self.class.resource_model_uri}> .\n"
       rdf << "<#{res_name}> <#{SemanticResource::Configuration::SIESTA_ID}> \"#{self.id}\" .\n"
 
       self.class.resource_mapping.each_pair do |key,value|
@@ -49,7 +51,7 @@ module SemanticResource
       end
       xml << " xmlns:siesta='#{SemanticResource::Configuration::SIESTA_NAMESPACE}'>"
       xml << "<rdf:Description rdf:about='#{res_name}'>"
-      xml << "<rdf:type rdf:resource='#{self.class.resource_model_uri}'/>"
+      xml << "<rdf:type rdf:resource='<#{self.class.resource_model_uri}>'/>"
       xml << "<siesta:id>#{self.id}</siesta:id>"
       self.class.resource_mapping.each_pair do |key,value|
         xml << instance_build_mapping_rdf_description(res_name,key,value,format) unless self.send(key).nil?
@@ -141,9 +143,9 @@ module SemanticResource
         rdf << "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n"
         rdf << "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"
 
-        rdf << "#{resource_model_uri} <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> rdfs:Class .\n"
+        rdf << "<#{resource_model_uri}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> rdfs:Class .\n"
         rdf << "<#{SemanticResource::Configuration::SIESTA_ID}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> rdfs:Property .\n"
-        rdf << "<#{SemanticResource::Configuration::SIESTA_ID}> rdfs:domain #{resource_model_uri} .\n"
+        rdf << "<#{SemanticResource::Configuration::SIESTA_ID}> rdfs:domain <#{resource_model_uri}> .\n"
         rdf << "<#{SemanticResource::Configuration::SIESTA_ID}> rdfs:range rdfs:Datatype .\n"
 
         @mapping.each_pair do |key,value|
@@ -171,6 +173,52 @@ module SemanticResource
         xml.string.gsub("&","&amp;")
         xml.string
 
+      elsif(format == :html)
+        model_ref = "http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}"
+        html = StringIO.new
+        html << "<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'>"
+        html << "<html xmlns='http://www.w3.org/1999/xhtml' xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#' xmlns:rdfs='http://www.w3.org/2000/01/rdf-schema#'>"
+        html << "<head><title>#{model_ref}</title></head>"
+        html << "<body>"
+        html << rdfa_description(model_ref,:typeof => "rdfs:Class", :tag => 'h1') do
+          "model <code>#{model_ref}</code>"
+        end
+        html << "<h2>Properties</h2>"
+        html << rdfa_description("http://semantic_rest/siesta#id", :tag => :span, :typeof => 'rdfs:Property') do
+          property_html = StringIO.new
+          property_html << "<b>id</b>"
+          property_html << "<ul>"
+          property_html << "<li>domain: <code>"
+          property_html << rdfa_relation("rdfs:domain",:a, model_ref) do
+            "#{model_ref}"
+          end
+          property_html << rdfa_relation("rdfs:range",:li,"http://www.w3.org/2000/01/rdf-schema#Datatype") do
+            "range: <code>http://www.w3.org/2000/01/rdf-schema#Datatype</code>"
+          end
+          property_html << "</ul>"
+          property_html.string
+        end
+        @mapping.keys.each do |key|
+          html << rdfa_description(build_uri_for_property(key), :tag => :span, :typeof => 'rdfs:Property') do
+            property_html = StringIO.new
+            property_html << "<b>#{key}</b>"
+            property_html << "<ul>"
+            property_html << "<li>domain: <code>"
+            property_html << rdfa_relation("rdfs:domain",:a, model_ref) do
+              "#{model_ref}"
+            end
+            property_html << "</code></li>"
+            property_html << rdfa_relation("rdfs:range",:li, "http://www.w3.org/2000/01/rdf-schema#Datatype") do
+              "range: <code>http://www.w3.org/2000/01/rdf-schema#Datatype</code>"
+            end
+            property_html << "</ul>"
+            property_html.string
+          end
+        end
+
+        html << "</body>"
+        html << "</html>"
+        html.string
       end
     end
 
@@ -216,7 +264,7 @@ module SemanticResource
     end
 
     def resource_model_uri
-      "<http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}>"
+      "http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}"
     end
 
     def to_service_description(format=:n3)
@@ -260,23 +308,45 @@ module SemanticResource
       elsif(format == :html)
         html = StringIO.new
 
-        html << "<div class='service' id='svc'><h1><span class='label'>#{self.name} Service</span></h1>"
-        [:create_operation, :show_operation].each do |op|
-          desc = self.send(op)
-          unless desc.nil?
-            operation_name = if(op == :create_operation)
-                               "#create#{self.name}"
-                             elsif(op == :show_operation)
-                               "#show#{self.name}"
-                             end
-            html << "<div class='operation' id='#{operation_name}'>"
-            html << "<h2> Operation <code class'label'>#{operation_name}</code></h2>"
-            html << desc.call(:html)
-            html << "</div>"
+        if(SemanticResource::Configuration.default_html_serialization == :microformat)
+          html << "<div class='service' id='svc'><h1><span class='label'>#{self.name} Service</span></h1>"
+          [:create_operation, :show_operation].each do |op|
+            desc = self.send(op)
+            unless desc.nil?
+              operation_name = if(op == :create_operation)
+                                 "#create#{self.name}"
+                               elsif(op == :show_operation)
+                                 "#show#{self.name}"
+                               end
+              html << "<div class='operation' id='#{operation_name}'>"
+              html << "<h2> Operation <code class='label'>#{operation_name}</code></h2>"
+              html << desc.call(:html)
+              html << "</div>"
+            end
           end
+          html << "</div>"
+          html.string
+        elsif(SemanticResource::Configuration.default_html_serialization == :rdfa )
+          html << "<div xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'
+          xmlns:rdfs='http://www.w3.org/2000/01/rdf-schema#' xmlns:sawsdl='http://www.w3.org/ns/sawsdl#'
+          xmlns:wsl='http://www.wsmo.org/ns/wsmo-lite#' xmlns:hr='http://www.wsmo.org/ns/hrests#' typeOf='wsl:Service' about='#{with_service_uri_prefix_xml('Service')}'><h1><span property='rdfs:label'>#{self.name} Service</span></h1>"
+          [:create_operation, :show_operation].each do |op|
+            desc = self.send(op)
+            unless desc.nil?
+              operation_name = if(op == :create_operation)
+                                 "#create#{self.name}"
+                               elsif(op == :show_operation)
+                                 "#show#{self.name}"
+                               end
+              html << "<div rel='wsl:hasOperation'><span typeOf='wsl:Operation' about='##{operation_name}'>"
+              html << "<h2> Operation <code property='rdfs:label'>#{operation_name}</code></h2>"
+              html << desc.call(:html)
+              html << "</div>"
+            end
+          end
+          html << "</div>"
+          html.string
         end
-        html << "</div>"
-        html.string
       elsif(format == :xml)
         xml = StringIO.new
         xml << "<?xml version='1.0'?>"
@@ -369,22 +439,47 @@ module SemanticResource
 
           rdf.string
         elsif(format == :html)
-          html = StringIO.new
-          html << "<p> Invoked using <span class='method'>POST</span> at <code class='address'>#{encoded}</code></p>"
-          html << "<strong>Input Messages</strong>"
-          html << "<ul>"
-          params.each do |p|
-            html << "<li class='input'> <a href='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}' rel='model'><code>#{p}</code></a>"
-            html << "(<a href='http://#{SemanticResource::Configuration.resources_host}/schemas/lowering/#{self.name}/create.sparql'>lowering</a>)</li>"
+          if(SemanticResource::Configuration.default_html_serialization == :microformat)
+            html = StringIO.new
+            html << "<p> Invoked using <span class='method'>POST</span> at <code class='address'>#{encoded}</code></p>"
+            html << "<strong>Input Messages</strong>"
+            html << "<ul>"
+            params.each do |p|
+              html << "<li class='input'> <a href='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}' rel='model'><code>#{p}</code></a>"
+              html << "(<a href='http://#{SemanticResource::Configuration.resources_host}/schemas/lowering/#{self.name}/create.sparql'>lowering</a>)</li>"
+            end
+            html << "</ul>"
+
+            html << "<strong>Output Response</strong>"
+            html << "<ul>"
+            html << "<li class='output'> <a href='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}' rel='model'>the new #{self.name}</a></li>"
+            html << "</ul>"
+
+            html.string
+          elsif(SemanticResource::Configuration.default_html_serialization == :rdfa)
+            html = StringIO.new
+            html << "<p> Invoked using <span property='wsl:hasMethod'>POST</span> at <code datatype='hr:URITemplate' property='hr:hasAddress'>#{encoded}</code></p>"
+            html << "<strong>Input Messages</strong>"
+            html << "<ul>"
+            params.each do |p|
+              html << "<span rel='wsl:hasInputMessage'>"
+              html << "<li typeOf='wsl:Message'> <a href='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}' rel='sawsdl:modelReference'><code>#{p}</code></a>"
+              html << "(<a href='http://#{SemanticResource::Configuration.resources_host}/schemas/lowering/#{self.name}/create.sparql' rel='sawsdl:loweringSchemaMapping'>lowering</a>)</li>"
+              html << "</span>"
+            end
+            html << "</ul>"
+
+            html << "<strong>Output Response</strong>"
+            html << "<ul>"
+            html << "<span rel='wsl:hasOutputMessage'>"
+            html << "<li typeOf='wsl:Message'> <a href='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}' rel='sawsdl:modelReference'>the new #{self.name}</a></li>"
+            html << "</span>"
+            html << "</ul>"
+
+            html.string
+          else
+            raise Exception.new("Unknown serialization format for html #{SemanticResource::Configuration.default_html_serialization}")
           end
-          html << "</ul>"
-
-          html << "<strong>Output Response</strong>"
-          html << "<ul>"
-          html << "<li class='output'> <a href='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}' rel='model'>the new #{self.name}</a></li>"
-          html << "</ul>"
-
-          html.string
         elsif(format == :xml)
           xml = StringIO.new
 
@@ -550,12 +645,12 @@ module SemanticResource
         rdf = StringIO.new
         if self.columns.detect{|column| column.name.to_sym == key.to_sym}
           rdf << "<#{build_uri_for_property(key)}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> rdfs:Property .\n"
-          rdf << "<#{build_uri_for_property(key)}> rdfs:domain #{resource_model_uri} .\n"
+          rdf << "<#{build_uri_for_property(key)}> rdfs:domain <#{resource_model_uri}> .\n"
           rdf << "<#{build_uri_for_property(key)}> rdfs:range rdfs:Datatype .\n"
         elsif association = self.reflect_on_all_associations.detect{|association| association.name.to_sym == key.to_sym}
           rdf << "<#{build_uri_for_property(key)}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> rdfs:Property .\n"
-          rdf << "<#{build_uri_for_property(key)}> rdfs:domain #{resource_model_uri} .\n"
-          rdf << "<#{build_uri_for_property(key)}> rdfs:range #{association.active_record.resource_model_uri} .\n"
+          rdf << "<#{build_uri_for_property(key)}> rdfs:domain <#{resource_model_uri}> .\n"
+          rdf << "<#{build_uri_for_property(key)}> rdfs:range <#{association.active_record.resource_model_uri}> .\n"
         end
         rdf.string
 
@@ -582,7 +677,7 @@ module SemanticResource
 
     # SPARQL generators
     def sparql_lowering_show semantic_model
-      "SELECT ?id WHERE { ?x <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> #{semantic_model.resource_model_uri}. ?x <http://semantic_rest/siesta#id> ?id. }"
+      "SELECT ?id WHERE { ?x <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <#{semantic_model.resource_model_uri}>. ?x <http://semantic_rest/siesta#id> ?id. }"
     end
 
     def sparql_lowering_create semantic_model

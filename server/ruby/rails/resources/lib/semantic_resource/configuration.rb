@@ -22,6 +22,27 @@ module SemanticResource
       @@resources_host
     end
 
+    # Sets what kind of serialization is desired for the html
+    # resource.
+    # :rdfa -> RDFa serialization
+    # :microformat -> hRESTS microformat serialization
+    def self.set_default_html_serialization(serialization=:rdfa)
+      serialization = serialization.to_sym
+      if(serialization != :rdfa && serialization != :microformat)
+        raise Exception.new("Unknown html serialization: #{serialization} :hrests or :rdfa must be provided")
+      end
+      @@html_serialization = serialization
+    end
+
+    # Returns the desired serialization for HTML resources representation
+    # By default :rdfa is chosen
+    def self.default_html_serialization
+      unless defined?(@@html_serialization)
+        @@html_serialization = :rdfa
+      end
+      @@html_serialization
+    end
+
     def self.define_creation_operation(res,options,params=nil)
       params = res.resource_mapping.keys if params.nil?
       res_name = res.class.name.downcase
