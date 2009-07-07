@@ -1,5 +1,12 @@
 Siesta.registerNamespace("Siesta","Drivers","OAT","Formats","Xml");
 
+/**
+ * informs the client that if this parser is synchronous or asynchronous
+ */
+Siesta.Drivers.OAT.Formats.Xml.isParserAsynchronous = function() {
+    return false;
+}
+
 Siesta.Drivers.OAT.Formats.Xml.parseDoc = function(baseUri, doc /* RDF/XML document string */) {
     
     var xmlDoc = OAT.Xml.createXmlDoc(doc);

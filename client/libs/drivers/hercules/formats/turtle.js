@@ -1,5 +1,11 @@
 Siesta.registerNamespace("Siesta","Drivers","Hercules","Formats","Turtle");
 
+/**
+ * informs the client that if this parser is synchronous or asynchronous
+ */
+Siesta.Drivers.Hercules.Formats.Turtle.isParserAsynchronous = function() {
+    return false;
+}
 
 /**
  *  Parses a Turtle enconded RDF document and returns a
