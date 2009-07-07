@@ -2,6 +2,15 @@
 // simulating JSONP requests
 GRDDL_initializers = {};
 
+// setup the basic
+RDFA = new Object();
+
+// EXPECTING __RDFA_BASE
+if (typeof(__RDFA_BASE) == 'undefined')
+   __RDFA_BASE = 'http://www.w3.org/2001/sw/BestPractices/HTML/rdfa-bookmarklet/';
+
+var __RDFA_VERSION_SUBDIR = '2006-10-08/';
+
 //
 // An in-place GRDDL profile
 // for XHTML1 hGRDDL
@@ -67,7 +76,7 @@ XH.get_special_subject = function(element) {
     XH.bnode_counter = 0;
 
   XH.bnode_counter++;
-  return '[_:]' + element.nodeName + XH.bnode_counter + ']';
+  return '[_:' + element.nodeName + XH.bnode_counter + ']';
 };
 
 //
@@ -169,16 +178,11 @@ GRDDL_initializers[__RDFA_BASE + __RDFA_VERSION_SUBDIR + 'xhtml1-hgrddl.js'] = X
  */
 
 // EXPECTING __RDFA_BASE
-if (typeof(__RDFA_BASE) == 'undefined')
-  __RDFA_BASE = 'http://www.w3.org/2001/sw/BestPractices/HTML/rdfa-bookmarklet/';
+// if (typeof(__RDFA_BASE) == 'undefined')
+//   __RDFA_BASE = 'http://www.w3.org/2001/sw/BestPractices/HTML/rdfa-bookmarklet/';
 
-if (typeof(__RDFA_VERSION_SUBDIR) == 'undefined')
-  __RDFA_VERSION_SUBDIR = '2006-10-08/';
-
-// setup the basic
-if (!RDFA) {
-    RDFA = new Object();
-}
+// if (typeof(__RDFA_VERSION_SUBDIR) == 'undefined')
+//   __RDFA_VERSION_SUBDIR = '2006-10-08/';
 
 // internal data structures
 RDFA.triples = new Array();
@@ -679,23 +683,29 @@ RDFA.reset = function() {
  * licensed under GPL v2
  */
 
-
-// EXPECTING __RDFA_BASE
-if (typeof(__RDFA_BASE) == 'undefined')
-   __RDFA_BASE = 'http://www.w3.org/2001/sw/BestPractices/HTML/rdfa-bookmarklet/';
-
-var __RDFA_VERSION_SUBDIR = '2006-10-08/';
-
 // configuration information
-var RDFA = new Object();
 RDFA.url = __RDFA_BASE + __RDFA_VERSION_SUBDIR + 'rdfa.js';
 
 RDFA.N3_GRAPH = new Siesta.Framework.Graph();
 
 N3_ADD = function(el,triple) {
-     var triple = new Siesta.Framework.Triple(Siesta.Drivers.W3c.__parseReference(triple.subject),
-                                              Siesta.Drivers.W3c.__parseReference(triple.predicate),
-                                              Siesta.Drivers.W3c.__parseReference(triple.object));
+    var subj = RDFA.__parseReference(triple.subject);
+    var pred = RDFA.__parseReference(triple.predicate);
+    var obj = null;
+    if(triple.object_literal_p == null) {
+        obj = new Siesta.Framework.Uri(triple.object)
+    } else {
+        /*
+        var obj_lit = triple.object_literal_p
+        if (obj_lit.indexOf('^^') != -1) {
+
+        } else {
+
+        }
+        */
+        obj = new Siesta.Framework.Literal({value: triple.object});
+    }
+    var triple = new Siesta.Framework.Triple(subj,pred,obj);
     RDFA.N3_GRAPH.addTriple(triple);
 }
 
@@ -767,11 +777,20 @@ RDFA.CALLBACK_NEW_TRIPLE_WITH_SUBJECT = function(el, triple) {
  *  @returns:
  *  - the equivalente Siesta.Framework reference
  */
-Siesta.Drivers.W3c.__parseReference = function(reference) {
-    if(reference instanceof Arielworks.Hercules.Rdf.RdfUriRef.prototype.constructor) {
-
-        return new Siesta.Framework.Uri(reference.value);
-
+RDFA.__parseReference = function(reference) {
+    console.log('parsing');
+    console.log(reference);
+    if(typeof reference == 'string') {
+        if(reference.indexOf('_:') == -1) {
+            return new Siesta.Framework.Uri(reference);
+        } else {
+            var bnodeId = reference.split(':')[1].split(']')[0]
+            return new Siesta.Framework.BlankNode(bnodeId);
+        }
+    } else {
+        return new Siesta.Framework.Uri(reference.uri());
+    }
+    /*
     } else if(reference instanceof Arielworks.Hercules.Rdf.TypedLiteral.prototype.constructor) {
 
         return new Siesta.Framework.Literal({value: reference.value,
@@ -786,6 +805,7 @@ Siesta.Drivers.W3c.__parseReference = function(reference) {
         return new Siesta.Framework.BlankNode(reference.value);
 
     } else {
-        throw new Exception("Parsing Hercules unknown reference");
+        throw "Parsing Hercules unknown reference";
     }
+*/
 };

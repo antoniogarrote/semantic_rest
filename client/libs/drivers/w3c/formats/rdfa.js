@@ -23,7 +23,7 @@ Siesta.Drivers.W3c.Formats.Rdfa.parseDoc = function(baseUri, doc /* html with en
     // results here
     RDFA.CALLBACK_DONE_PARSING = function() {
         // synchronous is better?
-        RDFA.N3_GRAPH.tripleList.baseUri = baseUri;
+        RDFA.N3_GRAPH.baseUri = baseUri;
 
         callback(baseUri,doc,RDFA.N3_GRAPH);
     }

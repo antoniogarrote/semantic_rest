@@ -1,9 +1,10 @@
 Siesta.defineConfiguration({
-    drivers: ["hercules","oat","prototype"],
+    drivers: ["hercules","oat","prototype","w3c"],
     sparql: "Hercules",
     formats: {
         turtle: "Hercules",
-        xml: "OAT"
+        xml: "OAT",
+        rdfa: "W3c"
     },
     network: "Prototype"
 });
