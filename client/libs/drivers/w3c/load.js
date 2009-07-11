@@ -778,8 +778,6 @@ RDFA.CALLBACK_NEW_TRIPLE_WITH_SUBJECT = function(el, triple) {
  *  - the equivalente Siesta.Framework reference
  */
 RDFA.__parseReference = function(reference) {
-    console.log('parsing');
-    console.log(reference);
     if(typeof reference == 'string') {
         if(reference.indexOf('_:') == -1) {
             return new Siesta.Framework.Uri(reference);

@@ -28,7 +28,7 @@ Siesta.Drivers.W3c.Formats.Rdfa.parseDoc = function(baseUri, doc /* html with en
         callback(baseUri,doc,RDFA.N3_GRAPH);
     }
 
-    RDFA.parse(doc,baseUri);
+    RDFA.parse(Siesta.Utils.htmlParser(doc),baseUri);
 };
 
 //Let's register the framework

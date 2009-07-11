@@ -615,6 +615,42 @@ Screw.Unit(function() {
         });
     });
 
+	describe('.parseAndAddToRepository',function() {
+
+            it("should inmediately parse the doc and send a notification if the parser is syncrhonous",
+            function() {
+                var _graph = new  Siesta.Framework.Graph();            
+                try {
+                    expect(_graph.triplesArray().length == 0).to(equal,true);
+                    var that = this;
+                    Siesta.Events.addListener(Siesta.Services,Siesta.Services.TRIPLET_CHANGE_EVENT,that,function(event,msg) {
+                        Siesta.Events.removeListener(Siesta.Services,Siesta.Services.TRIPLET_CHANGE_EVENT,that);
+                        expect(_graph.triplesArray().length > 0).to(equal,true);
+                    });
+                    Siesta.Services.parseAndAddToRepository(fixtureN3Data1,_graph);
+                } catch(e) {
+                    expect(true).to(equal,false);
+                }
+            });
+
+            it("should parse the doc and send an asynchronous notification if the parser is syncrhonous",
+            function() {
+                var _graph = new  Siesta.Framework.Graph();            
+                try {
+                    expect(_graph.triplesArray().length == 0).to(equal,true);
+                    var that = this;
+                    Siesta.Events.addListener(Siesta.Services,Siesta.Services.TRIPLET_CHANGE_EVENT,that,function(event,msg) {
+                        Siesta.Events.removeListener(Siesta.Services,Siesta.Services.TRIPLET_CHANGE_EVENT,that);
+                        expect(_graph.triplesArray().length > 0).to(equal,true);
+                    });
+                    Siesta.Services.parseAndAddToRepository(fixtureRdfaData1,_graph);
+                } catch(e) {
+                    expect(true).to(equal,false);
+                }
+            });
+
+        });
+
     describe('Siesta.Services.RestfulOperationInputMessage',function() {
 
 	   describe('.modelReference',function() {
@@ -784,18 +820,18 @@ Screw.Unit(function() {
                       }
                   });
            });
-/*
-        describe('.consume(GET)',function() {
+
+        describe('.consume(GET) this test may fail',function() {
                it("should consume the GET operation of a service",
                   function() {
                       Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
                       Siesta.Model.Repositories.schemas = new Siesta.Framework.Graph();
                       //console.log("1");
-                      //expect(Siesta.Model.Repositories.services.triplesArray().length == 0).to(equal,true);
+                      expect(Siesta.Model.Repositories.services.triplesArray().length == 0).to(equal,true);
                       var graph = Siesta.Formats.Turtle.parseDoc("",fixtureN3Data5);
                       Siesta.Model.Repositories.services = graph;
                       //console.log("2");
-                      //expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
+                      expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
                       
                       var service = new Siesta.Services.RestfulService("http://localhost:3000/schemas/services/BookService");
                       //console.log("3");
@@ -837,11 +873,63 @@ Screw.Unit(function() {
                               }
                           }
                       });
-                      
                       service.connect("jsonp");
                   });
            });
-*/
+
+        describe('.consume(POST) this test may fail',function() {
+               it("should consume the POST operation of a service",
+                  function() {
+                      console.log("POST");
+                      Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
+                      Siesta.Model.Repositories.schemas = new Siesta.Framework.Graph();
+                      console.log("1");
+                      expect(Siesta.Model.Repositories.services.triplesArray().length == 0).to(equal,true);
+                      var graph = Siesta.Formats.Turtle.parseDoc("",fixtureN3Data5);
+                      Siesta.Model.Repositories.services = graph;
+                      console.log("2");
+                      expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
+                      
+                      var service = new Siesta.Services.RestfulService("http://localhost:3000/schemas/services/BookService");
+                      console.log("3");
+                      //expect(service.modelReference() == "http://localhost:3000/schemas/models/Book").to(equal,true);
+                      
+                      var that = this;
+                      Siesta.Events.addListener(service,service.EVENT_SERVICE_LOADED,that,function(event,serv) {
+                          debugger;
+                          Siesta.Events.removeListener(service,service.EVENT_SERVICE_LOADED,that);
+                          console.log("4");
+                          //expect(serv.model().uri == "http://localhost:3000/schemas/models/Book").to(equal,true);
+                          console.log("5");
+                          //expect(serv.connected).to(equal,true);
+                          console.log("5b");
+                          for(var _i=0; _i<serv.operations().length; _i++) {
+                              var op = serv.operations()[_i];
+                              //expect(op.inputMessages()[0].connected).to(equal,true);
+                              //expect(op.inputMessages()[0].loweringSchemaMappingContent != null).to(equal,true);
+                              //expect(op.outputMessage().connected).to(equal,true);
+                              if(op.uri == "http://localhost:3000/schemas/services/Book#createBook") {
+                                  debugger;
+                                  //this is our operation
+                                  var toLowerGraph = Siesta.Formats.Turtle.parseDoc("",fixturesN3Book1);
+                                  
+                                  Siesta.Model.Repositories.data = new Siesta.Framework.Graph();
+
+                                  Siesta.Events.addListener(op,op.EVENT_CONSUMED,that,function(event,operation) {
+                                      debugger;
+                                      Siesta.Events.removeListener(op,op.EVENT_CONSUMED,that);
+                                      //expect(Siesta.Model.Repositories.data.triplesArray().length>0).to(equal,true);
+                                      //console.log("6");
+                                      expect(true).to(equal,true);
+                                      //console.log("yeah!!!");
+                                  });                                  
+                                  op.consume("jsonp",toLowerGraph);
+                              }
+                          }
+                      });
+                      service.connect("jsonp");
+                  });
+           });
     });
 
     describe('Siesta.Services.RestfulOperationInputParameter',function() {

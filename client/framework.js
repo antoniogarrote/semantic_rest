@@ -147,7 +147,7 @@ Siesta.registerNamespace = function() {
         try {
             var res = eval(nsPath);
             if(res == null) {
-                throw new Exception();
+                throw "Non existant path";
             }
         } catch(e) {
             eval(nsPath + " = {};");
@@ -754,17 +754,32 @@ where the triplets have been added an the graph from the document.
 Siesta.Services.parseAndAddToRepository = function(doc,repository) {
     var  formater = Siesta.Services.chooseFormaterFor(doc);
 
-    var parsedGraph = formater.parseDoc("",doc);
-    for(_i=0; _i< parsedGraph.triplesArray().length; _i++) {
-        repository.addTriple(parsedGraph.triplesArray()[_i]);
+    if(formater.isParserAsynchronous() == false) {
+        var parsedGraph = formater.parseDoc("",doc);
+        for(_i=0; _i< parsedGraph.triplesArray().length; _i++) {
+            repository.addTriple(parsedGraph.triplesArray()[_i]);
+        }
+
+        var resp = {
+            repository: repository,
+            parsedGraph: parsedGraph
+        };
+
+        Siesta.Events.notifyEvent(this,Siesta.Services.TRIPLET_CHANGE_EVENT,resp);
+    } else {
+        formater.parseDoc("",doc, function(resBaseUri, resDoc, parsedGraph) {
+            for(_i=0; _i< parsedGraph.triplesArray().length; _i++) {
+                repository.addTriple(parsedGraph.triplesArray()[_i]);
+            }
+
+            var resp = {
+                repository: repository,
+                parsedGraph: parsedGraph
+            };
+
+            Siesta.Events.notifyEvent(this,Siesta.Services.TRIPLET_CHANGE_EVENT,resp);
+        });
     }
-
-    var resp = {
-        repository: repository,
-        parsedGraph: parsedGraph
-    };
-
-    Siesta.Events.notifyEvent(this,Siesta.Services.TRIPLET_CHANGE_EVENT,resp);
 };
 
 /**
@@ -840,9 +855,6 @@ Siesta.Framework.Common.determineFormat = function(documentText) {
     if(documentText.indexOf("<rdf:RDF") != -1 ||
        documentText.indexOf("<?xml") != -1 ) {
         return "xml";
-    } else if(documentText.indexOf("@prefix") != -1 ||
-              documentText.indexOf(".") != -1) {
-        return "turtle";
     } else if(documentText.indexOf("<html") != -1 ||
               documentText.indexOf("<body") != -1 ||
               documentText.indexOf("<head") != -1 ||
@@ -850,7 +862,10 @@ Siesta.Framework.Common.determineFormat = function(documentText) {
               documentText.indexOf("<span") != -1 ||
               documentText.indexOf("<a") != -1 ){
         return "rdfa";
-    } else {
+    } else if(documentText.indexOf("@prefix") != -1 ||
+              documentText.indexOf(".") != -1) {
+        return "turtle";
+    } else  {
         throw new Error("Unknown format");
     }
 };
@@ -1924,7 +1939,6 @@ Siesta.loadConfiguration = function(basePath) {
 
 // Loading of the frameworks
 Siesta.loadFrameworks = function() {
-    console.log('loading frameworks...');
     // We check if prototype is not loaded we load microtype
     // var isPrototypeLoaded = false;
     Siesta.remainingFrameworks = {};
@@ -1939,7 +1953,6 @@ Siesta.loadFrameworks = function() {
     if(!Siesta.isPackaged) {
         if(Siesta.Configuration.drivers != null) {
             for(_i=0; _i< Siesta.Configuration.drivers.length; _i++) {
-                console.log('loading: '+"libs/drivers/"+Siesta.Configuration.drivers[_i]+"/load.js")
                 var path = "libs/drivers/"+Siesta.Configuration.drivers[_i]+"/load.js";
                 Siesta.loadFromBase(path);
             }
@@ -1968,7 +1981,6 @@ Siesta.onFrameworkInitiated = function(f) {
 //= require "configuration"
 
 Siesta.registerFramework = function(key) {
-    console.log('registering framework '+key+'...');
     Siesta.remainingFrameworks[key] = false;
 
     var notReady = false;
