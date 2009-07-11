@@ -207,7 +207,8 @@ module SemanticResource
       elsif(format == :html)
         model_ref = "http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}"
         html = StringIO.new
-        html << "<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'>"
+        html << "<?xml version='1.0' encoding='UTF-8'?>"
+        html << "<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML+RDFa 1.0//EN' 'http://www.w3.org/MarkUp/DTD/xhtml-rdfa-1.dtd'>"
         html << "<html xmlns='http://www.w3.org/1999/xhtml' xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#' xmlns:rdfs='http://www.w3.org/2000/01/rdf-schema#'>"
         html << "<head><title>#{model_ref}</title></head>"
         html << "<body>"
@@ -215,7 +216,7 @@ module SemanticResource
           "model <code>#{model_ref}</code>"
         end
         html << "<h2>Properties</h2>"
-        html << rdfa_description("http://semantic_rest/siesta#id", :tag => :span, :typeof => 'rdfs:Property') do
+        html << rdfa_description("http://semantic_rest/siesta#id", :tag => :div, :typeof => 'rdfs:Property') do
           property_html = StringIO.new
           property_html << "<b>id</b>"
           property_html << "<ul>"
@@ -223,6 +224,7 @@ module SemanticResource
           property_html << rdfa_relation("rdfs:domain",:a, model_ref) do
             "#{model_ref}"
           end
+          property_html << "</code></li>"
           property_html << rdfa_relation("rdfs:range",:li,"http://www.w3.org/2000/01/rdf-schema#Datatype") do
             "range: <code>http://www.w3.org/2000/01/rdf-schema#Datatype</code>"
           end
@@ -230,7 +232,7 @@ module SemanticResource
           property_html.string
         end
         @mapping.keys.each do |key|
-          html << rdfa_description(build_uri_for_property(key), :tag => :span, :typeof => 'rdfs:Property') do
+          html << rdfa_description(build_uri_for_property(key), :tag => :div, :typeof => 'rdfs:Property') do
             property_html = StringIO.new
             property_html << "<b>#{key}</b>"
             property_html << "<ul>"

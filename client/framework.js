@@ -584,6 +584,41 @@ Siesta.Framework.Graph.prototype = {
 
 Siesta.registerNamespace("Siesta","Utils");
 
+Siesta.Utils.htmlParser = function(doc) {
+    // iFrame way???
+//     $(function() {
+//         $.ajax({
+//             type: 'GET', 
+//             url: 'result.html',
+//             dataType: 'html',
+//             success: function(data) {
+//                 var $frame = $("<iframe src='about:blank'/>").hide();
+//                 $frame.appendTo('body');
+//                 var doc = $frame.get(0).contentWindow.document;
+//                 doc.write(data);
+//                 var $title = $("title", doc);
+//                 alert('Title: '+$title.text() );
+//                 $frame.remove();
+//             }
+//         });
+
+
+    //cross platform xml object creation from w3schools
+    try //Internet Explorer
+    {
+        xmlDoc=new ActiveXObject("Microsoft.XMLDOM");
+        xmlDoc.async="false";
+        xmlDoc.loadXML(doc);
+        return xmlDoc;
+    }
+    catch(e)
+    {
+        parser=new DOMParser();
+        xmlDoc=parser.parseFromString(doc,"text/xml");
+        return xmlDoc;
+    }
+}
+
 Siesta.Utils.Sequentializer = Class.create();
 /**
   @class Siesta.Utils.Network.SequentialRemoteRequester
@@ -698,6 +733,8 @@ Siesta.Services.chooseFormaterFor = function(document) {
         formater = Siesta.Formats.Xml;
     } else if(format == "turtle") {
         formater = Siesta.Formats.Turtle;
+    } else if(format == 'rdfa') {
+        formater = Siesta.Formats.Rdfa;
     }
 
     return formater;
@@ -737,14 +774,7 @@ Siesta.Services.parseAndAddToRepository = function(doc,repository) {
 */
 Siesta.Services.onRegisteredServiceJsonp = function(serviceDescription) {
     try {
-        var format = Siesta.Framework.Common.determineFormat(serviceDescription);
-        var formater = null;
-
-        if(format == "xml") {
-            formater = Siesta.Formats.Xml;
-        } else if(format == "turtle") {
-            formater = Siesta.Formats.Turtle;
-        }
+        var formater = Siesta.Framework.Common.chooseFormaterFor(serviceDescription);
 
         var parsedGraph = formater.parseDoc("",serviceDescription);
         for(_i=0; _i< parsedGraph.triplesArray().length; _i++) {
@@ -813,6 +843,13 @@ Siesta.Framework.Common.determineFormat = function(documentText) {
     } else if(documentText.indexOf("@prefix") != -1 ||
               documentText.indexOf(".") != -1) {
         return "turtle";
+    } else if(documentText.indexOf("<html") != -1 ||
+              documentText.indexOf("<body") != -1 ||
+              documentText.indexOf("<head") != -1 ||
+              documentText.indexOf("<div") != -1 ||
+              documentText.indexOf("<span") != -1 ||
+              documentText.indexOf("<a") != -1 ){
+        return "rdfa";
     } else {
         throw new Error("Unknown format");
     }
@@ -1887,13 +1924,14 @@ Siesta.loadConfiguration = function(basePath) {
 
 // Loading of the frameworks
 Siesta.loadFrameworks = function() {
-    debugger;
+    console.log('loading frameworks...');
     // We check if prototype is not loaded we load microtype
     // var isPrototypeLoaded = false;
     Siesta.remainingFrameworks = {};
     Siesta.remainingFrameworks["sparql"] = true;
     Siesta.remainingFrameworks["formats/turtle"] = true;
     Siesta.remainingFrameworks["formats/xml"] = true;
+    Siesta.remainingFrameworks["formats/rdfa"] = true;
     Siesta.remainingFrameworks["network"] = true;
 
     // Loading of the frameworks from remote scripts,
@@ -1901,6 +1939,7 @@ Siesta.loadFrameworks = function() {
     if(!Siesta.isPackaged) {
         if(Siesta.Configuration.drivers != null) {
             for(_i=0; _i< Siesta.Configuration.drivers.length; _i++) {
+                console.log('loading: '+"libs/drivers/"+Siesta.Configuration.drivers[_i]+"/load.js")
                 var path = "libs/drivers/"+Siesta.Configuration.drivers[_i]+"/load.js";
                 Siesta.loadFromBase(path);
             }
@@ -1913,6 +1952,7 @@ Siesta.loadFrameworks = function() {
         // formats
         Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.formats.turtle+"/formats/turtle.js"); //turtle
         Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.formats.xml+"/formats/xml.js"); //xml
+        Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.formats.rdfa+"/formats/rdfa.js"); //rdfa
         // networking
         Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.network+"/network.js"); //xml
     }
@@ -1928,7 +1968,7 @@ Siesta.onFrameworkInitiated = function(f) {
 //= require "configuration"
 
 Siesta.registerFramework = function(key) {
-    debugger;
+    console.log('registering framework '+key+'...');
     Siesta.remainingFrameworks[key] = false;
 
     var notReady = false;
@@ -1936,6 +1976,7 @@ Siesta.registerFramework = function(key) {
     notReady = notReady || Siesta.remainingFrameworks["sparql"];
     notReady = notReady || Siesta.remainingFrameworks["formats/turtle"];
     notReady = notReady || Siesta.remainingFrameworks["formats/xml"];
+    notReady = notReady || Siesta.remainingFrameworks["formats/rdfa"];
     notReady = notReady || Siesta.remainingFrameworks["network"];
 
     if(key == "sparql") {
@@ -1944,6 +1985,8 @@ Siesta.registerFramework = function(key) {
         Siesta.Formats.Turtle = eval("Siesta.Drivers."+Siesta.Configuration.formats.turtle+".Formats.Turtle");
     } else if(key == "formats/xml") {
         Siesta.Formats.Xml = eval("Siesta.Drivers."+Siesta.Configuration.formats.xml+".Formats.Xml");
+    } else if(key == "formats/rdfa") {
+        Siesta.Formats.Rdfa = eval("Siesta.Drivers."+Siesta.Configuration.formats.rdfa+".Formats.Rdfa");
     } else if(key == "network") {
         Siesta.Network = eval("Siesta.Drivers."+Siesta.Configuration.network+".Network");
     }

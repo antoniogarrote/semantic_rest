@@ -790,25 +790,25 @@ Screw.Unit(function() {
                   function() {
                       Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
                       Siesta.Model.Repositories.schemas = new Siesta.Framework.Graph();
-                      console.log("1");
+                      //console.log("1");
                       //expect(Siesta.Model.Repositories.services.triplesArray().length == 0).to(equal,true);
                       var graph = Siesta.Formats.Turtle.parseDoc("",fixtureN3Data5);
                       Siesta.Model.Repositories.services = graph;
-                      console.log("2");
+                      //console.log("2");
                       //expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
                       
                       var service = new Siesta.Services.RestfulService("http://localhost:3000/schemas/services/BookService");
-                      console.log("3");
+                      //console.log("3");
                       //expect(service.modelReference() == "http://localhost:3000/schemas/models/Book").to(equal,true);
                       
                       var that = this;
                       Siesta.Events.addListener(service,service.EVENT_SERVICE_LOADED,that,function(event,serv) {
                           Siesta.Events.removeListener(service,service.EVENT_SERVICE_LOADED,that);
-                          console.log("4");
+                          //console.log("4");
                           //expect(serv.model().uri == "http://localhost:3000/schemas/models/Book").to(equal,true);
-                          console.log("5");
+                          //console.log("5");
                           //expect(serv.connected).to(equal,true);
-                          console.log("5b");
+                          //console.log("5b");
                           for(var _i=0; _i<serv.operations().length; _i++) {
                               var op = serv.operations()[_i];
                               //expect(op.inputMessages()[0].connected).to(equal,true);
@@ -829,9 +829,9 @@ Screw.Unit(function() {
                                   Siesta.Events.addListener(op,op.EVENT_CONSUMED,that,function(event,operation) {
                                       Siesta.Events.removeListener(op,op.EVENT_CONSUMED,that);
                                       //expect(Siesta.Model.Repositories.data.triplesArray().length>0).to(equal,true);
-                                      console.log("6");
+                                      //console.log("6");
                                       expect(true).to(equal,true);
-                                      console.log("yeah!!!");
+                                      //console.log("yeah!!!");
                                   });                                  
                                   op.consume("jsonp",toLowerGraph);
                               }
@@ -1074,7 +1074,7 @@ Screw.Unit(function() {
                    expect(model.properties().length == 7).to(equal,true);
 
                    var instance = new Siesta.Model.Instance(model,null,{id: 1, isbn: 2});
-                   debugger;
+
                    var result = instance.toGraph();
                });
 
