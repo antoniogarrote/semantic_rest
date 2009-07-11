@@ -17,6 +17,8 @@ class TestActiveRecord < ActiveRecord::Base
 
   define_create_operation(:controller => 'tests', :action => 'create')
   define_show_operation(:controller => 'tests', :action => 'show')
+  define_destroy_operation(:controller => 'tests', :action => 'destroy')
+  define_update_operation(:controller => 'tests', :action => 'update')
 
   def initialize
   end
@@ -62,6 +64,8 @@ describe SemanticResource,"ActiveRecord inclusion" do
 
       define_create_operation(:controller => 'tests', :action => 'create')
       define_show_operation(:controller => 'tests', :action => 'show')
+      define_destroy_operation(:controller => 'tests', :action => 'destroy')
+      define_update_operation(:controller => 'tests', :action => 'update')
 
       def initialize
       end
@@ -106,8 +110,18 @@ describe SemanticResource,".semantic_operations" do
     TestActiveRecord.semantic_operations[:create][:action].should be_eql('create')
   end
 
-  it "should store the parameters of the destroy semantic operation"
-  it "should store the parameters of the update semantic operation"
+  it "should store the parameters of the destroy semantic operation" do
+    TestActiveRecord.semantic_operations[:destroy].should_not be_nil
+    TestActiveRecord.semantic_operations[:destroy][:controller].should be_eql('tests')
+    TestActiveRecord.semantic_operations[:destroy][:action].should be_eql('destroy')
+  end
+
+  it "should store the parameters of the update semantic operation" do
+    TestActiveRecord.semantic_operations[:update].should_not be_nil
+    TestActiveRecord.semantic_operations[:update][:controller].should be_eql('tests')
+    TestActiveRecord.semantic_operations[:update][:action].should be_eql('update')
+  end
+
   it "should store the parameters of the index semantic operation"
 end
 
@@ -147,7 +161,7 @@ describe SemanticResource,"to_service_description" do
     rdf_n3.index("http://http://").should be_nil
 
     p = Reddy::N3Parser.new(rdf_n3,"http://test.com/")
-    p.graph.should have(33).triples
+    p.graph.should have(63).triples
   end
 
   it "should return a XML/RDF description of the service" do
