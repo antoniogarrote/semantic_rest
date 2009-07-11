@@ -392,9 +392,24 @@ Siesta.Framework.Graph.prototype = {
         // base URI for the graph
         this.baseUri = null;
 
+        // blank node counter
+        this.blankNodeCounter = 0;
+
+        // should I recreate blank node identifier?
+        this.respectBlankNodeCounter = false;
+
+        // a mapping use when computing the union of two graphs
+        this.__blankNodeMap = {};
         // a native representation for this graph
         // cached in the siesta graph.
         //this.native = null;
+    },
+    
+    /**
+     *  Resets the mapping of blank nodes
+     */
+    resetBlankNodeMapping: function() {
+        this.__blankNodeMap = {};
     },
 
     /**
@@ -409,13 +424,64 @@ Siesta.Framework.Graph.prototype = {
     },
 
     /**
-     *  Adds one triple to the index
+     *  Computes the union between graphs respecting blank node
+     *  identifiers in both graphs.
+     *
+     *  @arguments
+     *  - aGraph: the graph to compute the union with.
+     */
+    mergeGraph: function(aGraph /* Siesta.Framework.Graph */) {
+        for(ns in aGraph.namespaces) {
+            this.addNamespace(ns);
+        }
+
+        var triplesToMerge = aGraph.triplesArray();
+        for(var _i=0; _i<triplesToMerge.length; _i++) {
+            this.mergeTriple(triplesToMerge[_i]);
+        }
+    },
+
+    /**
+     *  Computes the union between graphs without respecting blank node
+     *  identifiers in the graph to add.
+     *
+     *  @arguments
+     *  - aGraph: the graph to compute the union with.
+     */
+    addGraph: function(aGraph /* Siesta.Framework.Graph */) {
+        this.__blankNodeMap = {};
+        for(ns in aGraph.namespaces) {
+            this.addNamespace(ns);
+        }
+
+        var triplesToAdd = aGraph.triplesArray();
+        for(var _i=0; _i<triplesToAdd.length; _i++) {
+            this.addTriple(triplesToMerge[_i]);
+        }
+    },
+
+    /**
+     *  Computes the difference between graphs.
+     *
+     *  @arguments
+     *  - aGraph: the graph to compute the difference with.
+     */
+    removeGraph: function(aGraph /* Siesta.Framework.Graph */) {
+        var triplesToRemove = aGraph.triplesArray();
+        for(var _i=0; _i<triplesToRemove.length; _i++) {
+            this.removeTriple(triplesToRemove[_i]);
+        }
+    },
+
+    /**
+     *  Adds one triple to the index.
+     *  If one blank node identifier is found, it will be overwritten with a new one.
      *
      *  @arguments
      *  - aTriple: the triple to be added.
      */
     addTriple: function(aTriple /* Siesta.Framework.Triple */) {
-
+        this.respectBlankNodeCounter = false;
         if(aTriple.__type != 'triple') {
             throw "Trying to add something different of a Siesta.Framework.Triple to a Siesta.Framework.Graph";
         } else {
@@ -425,6 +491,58 @@ Siesta.Framework.Graph.prototype = {
                 this.__addTripleBySubject(aTriple)));
             if(wasInserted == true) {
                 this.triplesCache.push(aTriple);
+            }
+        }
+    },
+
+    /**
+     *  Merges one triple into the index.
+     *  If one blank node identifier is found, it will be respected.
+     *
+     *  @arguments
+     *  - aTriple: the triple to be added.
+     */
+    mergeTriple: function(aTriple /* Siesta.Framework.Triple */) {
+        this.respectBlankNodeCounter = true;
+        if(aTriple.__type != 'triple') {
+            throw "Trying to add something different of a Siesta.Framework.Triple to a Siesta.Framework.Graph";
+        } else {
+
+            var wasInserted = this.__addTripleByObject(aTriple,
+                this.__addTripleByPredicate(aTriple,
+                this.__addTripleBySubject(aTriple)));
+            if(wasInserted == true) {
+                this.triplesCache.push(aTriple);
+            }
+        }
+    },
+
+    /**
+     *  Remove one triple from the index.
+     *
+     *  @arguments
+     *  - aTriple: the triple to be removed.
+     */
+    removeTriple: function(aTriple /* Siesta.Framework.Triple */) {
+        this.respectBlankNodeCounter = false;
+        if(aTriple.__type != 'triple') {
+            throw "Trying to add something different of a Siesta.Framework.Triple to a Siesta.Framework.Graph";
+        } else {
+
+            var wasRemoved = this.__removeTripleByObject(aTriple,
+                this.__removeTripleByPredicate(aTriple,
+                this.__removeTripleBySubject(aTriple)));
+            if(wasRemoved == true) {
+                var newTriplesCache = [];
+                for(var _i=0; _i<this.triplesCache.length; _i++) {
+                    var _theTriple = this.triplesCache[_i];
+                    if(_theTriple.subject.value != aTriple.subject.value ||
+                       _theTriple.predicate.value != aTriple.predicate.value ||
+                       _theTriple.object.value != aTriple.object.value) {
+                        newTriplesCache.push(_theTriple);
+                    }
+                }
+                this.triplesCache = newTriplesCache;
             }
         }
     },
@@ -457,7 +575,18 @@ Siesta.Framework.Graph.prototype = {
             identifier = this.__normalizeUri(aTriple.subject);
             break;
         case 'blanknode':
-            identifier = aTriple.subject.value;
+            if(this.respectBlankNodeCounter) {
+                identifier = aTriple.subject.value;
+            } else {
+                var identifierInGraph = this.__blankNodeMap[aTriple.subject.value]
+                if(identifierInGraph == undefined) {
+                    identifier = ''+this.blankNodeCounter++;
+                    aTriple.subject.value = identifier;
+                    this.__blankNodeMap[aTriple.subject.value] = identifier;
+                } else {
+                    identifier = identifierInGraph;
+                }
+            }
             break;
         case 'literal':
             identifier = this.__normalizeLiteral(aTriple.subject);
@@ -489,7 +618,18 @@ Siesta.Framework.Graph.prototype = {
             identifier = this.__normalizeUri(aTriple.predicate);
             break;
         case 'blanknode':
-            identifier = aTriple.predicate.value;
+            if(this.respectBlankNodeCounter) {
+                identifier = aTriple.subject.value;
+            } else {
+                var identifierInGraph = this.__blankNodeMap[aTriple.predicate.value]
+                if(identifierInGraph == undefined) {
+                    identifier = ''+this.blankNodeCounter++;
+                    aTriple.predicate.value = identifier;
+                    this.__blankNodeMap[aTriple.predicate.value] = identifier;
+                } else {
+                    identifier = identifierInGraph;
+                }
+            }
             break;
         case 'literal':
             identifier = this.__normalizeLiteral(aTriple.predicate);
@@ -519,7 +659,18 @@ Siesta.Framework.Graph.prototype = {
             identifier = this.__normalizeUri(aTriple.object);
             break;
         case 'blanknode':
-            identifier = aTriple.object.value;
+            if(this.respectBlankNodeCounter) {
+                identifier = aTriple.subject.value;
+            } else {
+                var identifierInGraph = this.__blankNodeMap[aTriple.object.value]
+                if(identifierInGraph == undefined) {
+                    identifier = ''+this.blankNodeCounter++;
+                    aTriple.object.value = identifier;
+                    this.__blankNodeMap[aTriple.object.value] = identifier;
+                } else {
+                    identifier = identifierInGraph;
+                }
+            }
             break;
         case 'literal':
             identifier = this.__normalizeLiteral(aTriple.object);
@@ -528,6 +679,149 @@ Siesta.Framework.Graph.prototype = {
 
         if(objects[identifier] == null) {
             objects[identifier] = aTriple;
+            return true;
+        } else {
+            return false;
+        }
+
+    },
+
+    /**
+     *  Looks in the subject index of the triple hash.
+     *
+     *  @arguments:
+     *  - aTriple: the triple to insert.
+     *
+     *  @returns:
+     *  - a hash for the triples with the same predicate than the triple to store.
+     */
+    __removeTripleBySubject: function(aTriple /* Siesta.Framework.Triple */) {
+        var identifier = null;
+
+        switch(aTriple.subject.__type) {
+        case 'uri':
+            identifier = this.__normalizeUri(aTriple.subject);
+            break;
+        case 'blanknode':
+            identifier = aTriple.subject.value;
+            break;
+        case 'literal':
+            identifier = this.__normalizeLiteral(aTriple.subject);
+            break;
+        }
+
+        if(this.triples[identifier] == null) {
+            return [identifier, {}];
+        } else {
+            return [identifier, this.triples[identifier]]
+        }
+
+    },
+
+    /**
+     *  Looks in the predicate index of the triple hash.
+     *
+     *  @arguments:
+     *  - aTriple: the triple to insert.
+     *  - an array of
+     *     - the identifier of the subject
+     *     - predicates: a hash with the predicates for the triples with the same subject
+     *
+     *  @returns:
+     *  - a hash for the triples with the same predicate than the triple to store.
+     */
+    __removeTripleByPredicate: function(aTriple /* Siesta.Framework.Triple */,tmp) {
+        var identifier = null;
+
+        switch(aTriple.predicate.__type) {
+        case 'uri':
+            identifier = this.__normalizeUri(aTriple.predicate);
+            break;
+        case 'blanknode':
+            identifier = aTriple.subject.value;
+            break;
+        case 'literal':
+            identifier = this.__normalizeLiteral(aTriple.predicate);
+            break;
+        }
+        
+        var subjectIdentifier = tmp[0];
+        var predicates = tmp[1];
+        if(predicates[identifier] == null) {
+            return [subjectIdentifier, identifier, {}];
+        }
+        return [subjectIdentifier, identifier, predicates[identifier]];
+
+    },
+
+    /**
+     *  Looks in the object index of the triple hash.
+     *
+     *  @argument aTriple: the triple to insert.
+     *  @argument tmp: an array wit subject identifier, preidcate identifier and a hash with the objects for the triples with the same subject
+     *
+     *  @returns true if the triple is inserted, false if it was already inserted
+     */
+    __removeTripleByObject: function(aTriple /* Siesta.Framework.Triple */,tmp) {
+        var identifier = null;
+
+        switch(aTriple.object.__type) {
+        case 'uri':
+            identifier = this.__normalizeUri(aTriple.object);
+            break;
+        case 'blanknode':
+            if(this.respectBlankNodeCounter) {
+                identifier = aTriple.subject.value;
+            } else {
+                var identifierInGraph = this.__blankNodeMap[aTriple.object.value]
+                if(identifierInGraph == undefined) {
+                    identifier = ''+this.blankNodeCounter++;
+                    aTriple.object.value = identifier;
+                    this.__blankNodeMap[aTriple.object.value] = identifier;
+                } else {
+                    identifier = identifierInGraph;
+                }
+            }
+            break;
+        case 'literal':
+            identifier = this.__normalizeLiteral(aTriple.object);
+            break;
+        }
+
+        var subjectId = tmp[0];
+        var predicateId = tmp[1];
+        var objects = tmp[2];
+
+        if(objects[identifier] != null) {
+            var theTriple = objects[identifier];
+            var newObjects = [];
+            for(var _id in objects) {
+                if(_id != identifier) {
+                    newObjects[_id] = objects[_id];
+                }
+            }
+            if(newObjects.length != 0) {
+                this.triples[subjectId][predicateId] = newObjects;
+            } else {
+                for(var _id in this.triples[subjectId]) {
+                    var newPreds = [];
+                    if(_id != predicateId) {
+                        newPreds[_id] = this.triples[subjectId][_id];
+                    }
+
+                    if(newPreds.length != 0) {
+                        this.triples[subjectId] = newPreds;
+                    } else {
+                        var newSubjs = 0; 
+                        for(var _id in this.triples) {
+                            if(_id != subjectId) {
+                                newSubjs[_id] = this.triples[_id];                               
+                            }
+                        }
+                        this.triples = newSubjs;
+                    }
+                }
+            }
             return true;
         } else {
             return false;
@@ -1296,7 +1590,7 @@ Siesta.Services.RestfulOperation.prototype = {
 
     method: function() {
         if(this._method != null) {
-            return this._method;
+            return this._method.toUpperCase();
         } else {
             var query = "SELECT ?method WHERE { <"+this.uri+"> " + "<http://www.wsmo.org/ns/hrests#hasMethod> " + "?method } ";
 
@@ -1306,7 +1600,7 @@ Siesta.Services.RestfulOperation.prototype = {
                 throw new Error("Error retrieving the method associated to the operation "+this.uri);
             } else {
                 this._method = result[0].method.value;
-                return this._method;
+                return this._method.toUpperCase();
             }
         }
     },
@@ -1503,8 +1797,18 @@ Siesta.Services.RestfulOperation.prototype = {
                 theAddress = theAddress + "?_method=" + this.method().toLowerCase();
             }
             Siesta.Network.jsonpRequestForFunction(theAddress,"callback",function(resp) {
-                Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.data);
-                Siesta.Events.notifyEvent(that,that.EVENT_CONSUMED,that);
+                if(that.method() == 'GET' || that.method() == 'POST') {
+                    Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.data);
+                    Siesta.Events.notifyEvent(that,that.EVENT_CONSUMED,that);
+                } else if(that.method() == 'DELETE') {
+                    // TODO: DELETE graph from repositories here
+                    Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.data);
+                    Siesta.Events.notifyEvent(that,that.EVENT_CONSUMED,that);
+                } else if(that.method() == 'PUT') {
+                    // TODO: PUT remove and add graph from repositories here
+                    Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.data);
+                    Siesta.Events.notifyEvent(that,that.EVENT_CONSUMED,that);
+                }
             });
         } else {
             // AJAX here

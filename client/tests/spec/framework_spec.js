@@ -260,6 +260,50 @@ Screw.Unit(function() {
 
         });
 
+	describe('#mergeTriple',function() {
+
+	    it("should store a new triple in the graph without change the blank node identiier",
+               function() {
+                   var g = new Siesta.Framework.Graph();
+
+                   var u = new Siesta.Framework.BlankNode('0');
+                   var t = new Siesta.Framework.Triple(u,u,u);
+
+                   g.mergeTriple(t);
+                   expect(g.triplesArray().length).to(equal,1);
+
+                   var u = new Siesta.Framework.BlankNode('78');
+                   var t = new Siesta.Framework.Triple(u,u,u);
+                   g.mergeTriple(t);
+                   expect(g.triplesArray().length).to(equal,2);
+
+                   var ts = g.triplesArray();
+
+                   expect(ts[0].subject.value).to(equal,'0');
+                   expect(ts[1].subject.value).to(equal,'78');
+	       });
+        });
+
+	describe('#removeTriple',function() {
+
+	    it("should remove an existent triple in the graph",
+               function() {
+                   var g = new Siesta.Framework.Graph();
+
+                   var u = new Siesta.Framework.Uri("a","c");
+                   var t = new Siesta.Framework.Triple(u,u,u);
+
+                   var result = g.addTriple(t);
+
+                   expect(g.triplesArray().length).to(equal,1);
+
+                   g.removeTriple(t)
+
+                   expect(g.triplesArray().length).to(equal,0);
+                   expect(g.triples[g.__normalizeUri(u)]).to(equal,undefined);
+	       });
+        });
+
 	describe('#addTriple',function() {
 
 	    it("should store a new triple in the graph",
@@ -274,6 +318,27 @@ Screw.Unit(function() {
                    var result = g.addTriple(t);
 
                    expect(g.triples[g.__normalizeUri(u)][g.__normalizeUri(u)][g.__normalizeUri(u)] == t).to(equal,true);
+	       });
+
+	    it("should store a new triple in the graph changing the new blank node identiier",
+               function() {
+                   var g = new Siesta.Framework.Graph();
+
+                   var u = new Siesta.Framework.BlankNode('12');
+                   var t = new Siesta.Framework.Triple(u,u,u);
+
+                   g.addTriple(t);
+                   expect(g.triplesArray().length).to(equal,1);
+
+                   var u = new Siesta.Framework.BlankNode('78');
+                   var t = new Siesta.Framework.Triple(u,u,u);
+                   g.addTriple(t);
+                   expect(g.triplesArray().length).to(equal,2);
+
+                   var ts = g.triplesArray();
+
+                   expect(ts[0].subject.value).to(equal,'0');
+                   expect(ts[1].subject.value).to(equal,'1');
 	       });
 
 	    it("should store a new triple in the triplesCache",
@@ -326,6 +391,37 @@ Screw.Unit(function() {
                    var result = g.addTriple(t);
 
                    expect(g.triplesArray().length == 1).to(equal,true);
+	       });
+
+        });
+
+	describe('#removeGraph',function() {
+
+	    it("should return all the stored triples as an array",
+               function() {
+
+                   var g = new Siesta.Framework.Graph();
+
+                   var u = new Siesta.Framework.Uri("a","c");
+                   var t = new Siesta.Framework.Triple(u,u,u);
+
+                   var u2 = new Siesta.Framework.Uri("d","e");
+                   var t2 = new Siesta.Framework.Triple(u2,u2,u2);
+
+                   expect(g.triplesArray().length == 0).to(equal,true);
+
+                   g.addTriple(t);
+                   g.addTriple(t2);
+
+                   expect(g.triplesArray().length == 2).to(equal,true);
+
+                   var g2 = new Siesta.Framework.Graph();
+                   g2.addTriple(t2);
+
+                   g.removeGraph(g2);
+
+                   expect(g.triplesArray().length == 1).to(equal,true);
+                   expect(g.triplesArray()[0].subject.value).to(equal,t.subject.value);
 	       });
 
         });
@@ -896,7 +992,6 @@ Screw.Unit(function() {
                       
                       var that = this;
                       Siesta.Events.addListener(service,service.EVENT_SERVICE_LOADED,that,function(event,serv) {
-                          debugger;
                           Siesta.Events.removeListener(service,service.EVENT_SERVICE_LOADED,that);
                           console.log("4");
                           //expect(serv.model().uri == "http://localhost:3000/schemas/models/Book").to(equal,true);
@@ -909,14 +1004,12 @@ Screw.Unit(function() {
                               //expect(op.inputMessages()[0].loweringSchemaMappingContent != null).to(equal,true);
                               //expect(op.outputMessage().connected).to(equal,true);
                               if(op.uri == "http://localhost:3000/schemas/services/Book#createBook") {
-                                  debugger;
                                   //this is our operation
                                   var toLowerGraph = Siesta.Formats.Turtle.parseDoc("",fixturesN3Book1);
                                   
                                   Siesta.Model.Repositories.data = new Siesta.Framework.Graph();
 
                                   Siesta.Events.addListener(op,op.EVENT_CONSUMED,that,function(event,operation) {
-                                      debugger;
                                       Siesta.Events.removeListener(op,op.EVENT_CONSUMED,that);
                                       //expect(Siesta.Model.Repositories.data.triplesArray().length>0).to(equal,true);
                                       //console.log("6");
