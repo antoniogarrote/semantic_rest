@@ -14,7 +14,7 @@ describe SemanticResource::ViewHelpers do
       set_resource_namespace :test, "http://test.com"
 
       set_resource_mapping do |resource|
-        resource[:foo] = [:test, "#foo"]
+        resource[:foo] = {:uri => [:test, "#foo"] }
       end
 
       define_create_operation(:controller => 'test_semantic', :action => 'create')

@@ -30,4 +30,6 @@ class Book < ActiveRecord::Base
 
   define_show_operation(:controller => 'books', :action => 'show')
   define_create_operation(:controller => 'books', :action => 'create')
+  define_destroy_operation(:controller => 'books', :action => 'destroy')
+  define_update_operation(:controller => 'books', :action => 'update')
 end

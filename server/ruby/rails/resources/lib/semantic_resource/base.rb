@@ -60,6 +60,36 @@ module SemanticResource
       xml << "</rdf:RDF>"
       xml.string
 
+    elsif(format == :html)
+      model_ref = self.class.resource_model_uri
+      html = StringIO.new
+      html << "<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'>"
+      html << "<html xmlns='http://www.w3.org/1999/xhtml' xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#' xmlns:rdfs='http://www.w3.org/2000/01/rdf-schema#'>"
+      html << "<head><title>#{res_name}</title></head>"
+      html << "<body>"
+      html << "<h1>#{res_name}</h1>"
+
+      html << "<p><b>Type:</b> <code>"
+      html << rdfa_relation("rdfs:type", :a, model_ref) do
+        "#{model_ref}"
+      end
+      html << "</code></p>"
+      html << "<b>Properties</b>"
+      html << "<ul>"
+      html << rdfa_property("#{SemanticResource::Configuration::SIESTA_NAMESPACE}id", :li,:content => self.id) do
+        "id: #{self.id}"
+      end
+      self.class.resource_mapping.each_pair do |key,value|
+        unless self.send(key).nil?
+          html << rdfa_property(key, :li, :content => self.send(key)) do
+            "#{key}: #{self.send(key)}"
+          end
+        end
+      end
+      html << "</ul>"
+      html << "</body>"
+      html << "</html>"
+      html.string
     end
   end
 
@@ -125,6 +155,7 @@ module SemanticResource
       lowering_operations = Hash.new
       lowering_operations["show"] = "sparql_lowering_show"
       lowering_operations["create"] = "sparql_lowering_create"
+      lowering_operations["destroy"] = "sparql_lowering_destroy"
       SemanticResource::Manager.register_lowering_operation(self.name, lowering_operations)
     end
 
@@ -290,13 +321,17 @@ module SemanticResource
         # TODO: fill all the operations
 
         operations = StringIO.new
-        [:create_operation, :show_operation].each do |op|
+        [:create_operation, :show_operation, :destroy_operation, :update_operation].each do |op|
           desc = self.send(op)
           unless desc.nil?
             operation_name = if(op == :create_operation)
                                with_service_uri_prefix "#create#{self.name}"
                              elsif(op == :show_operation)
                                with_service_uri_prefix "#show#{self.name}"
+                             elsif(op == :destroy_operation)
+                               with_service_uri_prefix "#destroy#{self.name}"
+                             elsif(op == :update_operation)
+                               with_service_uri_prefix "#update#{self.name}"
                              end
             rdf << "#{with_service_uri_prefix('Service')} wsl:hasOperation #{operation_name} .\n"
             operations << desc.call(:n3)
@@ -310,13 +345,17 @@ module SemanticResource
 
         if(SemanticResource::Configuration.default_html_serialization == :microformat)
           html << "<div class='service' id='svc'><h1><span class='label'>#{self.name} Service</span></h1>"
-          [:create_operation, :show_operation].each do |op|
+          [:create_operation, :show_operation, :destroy_operation, :update_operation].each do |op|
             desc = self.send(op)
             unless desc.nil?
               operation_name = if(op == :create_operation)
                                  "#create#{self.name}"
                                elsif(op == :show_operation)
                                  "#show#{self.name}"
+                               elsif(op == :update_operation)
+                                 "#update#{self.name}"
+                               elsif(op == :destroy_operation)
+                                 "#destroy#{self.name}"
                                end
               html << "<div class='operation' id='#{operation_name}'>"
               html << "<h2> Operation <code class='label'>#{operation_name}</code></h2>"
@@ -330,13 +369,17 @@ module SemanticResource
           html << "<div xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'
           xmlns:rdfs='http://www.w3.org/2000/01/rdf-schema#' xmlns:sawsdl='http://www.w3.org/ns/sawsdl#'
           xmlns:wsl='http://www.wsmo.org/ns/wsmo-lite#' xmlns:hr='http://www.wsmo.org/ns/hrests#' typeOf='wsl:Service' about='#{with_service_uri_prefix_xml('Service')}'><h1><span property='rdfs:label'>#{self.name} Service</span></h1>"
-          [:create_operation, :show_operation].each do |op|
+          [:create_operation, :show_operation, :destroy_operation, :update_operation].each do |op|
             desc = self.send(op)
             unless desc.nil?
               operation_name = if(op == :create_operation)
                                  "#create#{self.name}"
                                elsif(op == :show_operation)
                                  "#show#{self.name}"
+                               elsif(op == :update_operation)
+                                 "#update#{self.name}"
+                               elsif(op == :destroy_operation)
+                                 "#destroy#{self.name}"
                                end
               html << "<div rel='wsl:hasOperation'><span typeOf='wsl:Operation' about='##{operation_name}'>"
               html << "<h2> Operation <code property='rdfs:label'>#{operation_name}</code></h2>"
@@ -360,13 +403,17 @@ module SemanticResource
 
         ops_xml = StringIO.new
 
-        [:create_operation, :show_operation].each do |op|
+        [:create_operation, :show_operation, :destroy_operation, :update_operation].each do |op|
           desc = self.send(op)
           unless desc.nil?
             operation_name = if(op == :create_operation)
                                "#create#{self.name}"
                              elsif(op == :show_operation)
                                "#show#{self.name}"
+                             elsif(op == :update_operation)
+                               "#update#{self.name}"
+                             elsif(op == :destroy_operation)
+                               "#destroy#{self.name}"
                              end
 
             ops_xml << "<rdf:Description rdf:about='#{operation_name}'>"
@@ -379,14 +426,6 @@ module SemanticResource
         xml << ops_xml.string
         xml << "</rdf:RDF>"
         xml.string.gsub("&","&amp;")
-      end
-    end
-
-    def create_operation
-      begin
-        @create_operation
-      rescue NameError
-        throw Exception.new("the create operation has not been defined, use #define_create_operation in the model")
       end
     end
 
@@ -580,11 +619,207 @@ module SemanticResource
       end
     end
 
+    def define_destroy_operation(options)
+
+      # we store the destroy operation parameters
+      semantic_operations[:destroy] = options
+
+      # we register the destroy lowering mechanism
+      #SemanticResource::Manager.lowering_operations[self.name]["destroy"] = "sparql_lowering_show"
+
+      res_name = self.class.name.downcase
+      @destroy_operation = Proc.new do |format|
+
+        encoded = url_for(options.merge({:id => "_id_"}).merge(:host => SemanticResource::Configuration.resources_host))
+        encoded = encoded.gsub(CGI.escape("_id_"),"{id}")
+
+        if(format == :n3)
+
+          rdf = StringIO.new
+          rdf<< "#{with_service_uri_prefix('#destroy',self.name)} <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> wsl:Operation ;\n"
+          rdf<< "  rdfs:label \"destroys the #{self.name} resource with id {id}\" ;\n"
+          rdf<< "  hr:hasMethod  \"DELETE\" ;\n"
+          rdf<< "  hr:hasAddress \"#{encoded}\"^^<hr:URITemplate> ;\n"
+          rdf<< "  wsl:hasInputMessage [\n"
+          rdf<< "    <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> wsl:Message ;\n"
+          rdf<< "    sawsdl:modelReference <http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}> ;\n"
+          rdf<< "    sawsdl:loweringSchemaMapping <http://#{SemanticResource::Configuration.resources_host}/schemas/lowering/#{self.name}/destroy.sparql>\n"
+          rdf<< "  ] ;\n"
+          rdf<< "  hr:hasInputParameter [\n"
+          rdf<< "    <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> hrjs:JSONPCallback ;\n"
+          rdf<< "    hr:parameterName \"callback\"\n"
+          rdf<< "  ] ;\n"
+          rdf<< "  wsl:hasOutputMessage [\n"
+          rdf<< "    <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> wsl:Message ;\n"
+          rdf<< "    sawsdl:modelReference <http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}>"
+          rdf<< "  ] .\n"
+          rdf.string
+
+        elsif(format == :html)
+
+          html = StringIO.new
+          html << "<p> Invoked using <span class='method'>DELETE</span> at <code class='address'>#{encoded}</code></p>"
+          html << "<strong>Input Messages</strong>"
+          html << "<ul>"
+          html << "<li class='input'> <a href='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}' rel='model'><code>id</code></a>"
+          html << "(<a href='http://#{SemanticResource::Configuration.resources_host}/schemas/lowering/#{self.name}/destroy.sparql'>lowering</a>)</li>"
+          html << "</ul>"
+          html << "<strong>Output Response</strong>"
+          html << "<ul>"
+          html << "<li class='output'> <a
+          href='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}' rel='model'>the destroyed #{self.name}</a></li>"
+          html << "</ul>"
+          html.string
+
+        elsif(format == :xml)
+
+          xml = StringIO.new
+          xml << "<hr:hasAddress>#{encoded}</hr:hasAddress>"
+          xml << "<hr:hasInputParameter rdf:parseType='Resource'>"
+          xml << "<rdf:type rdf:resource='http://semantic_rest.org/ns/hrests_js#JSONPCallback'/>"
+          xml << "<hr:parameterName>callback</hr:parameterName>"
+          xml << "</hr:hasInputParameter>"
+          xml << "<hr:hasMethod>DELETE</hr:hasMethod>"
+          xml << "<wsl:hasInputMessage rdf:parseType='Resource'>"
+          xml << "<rdf:type rdf:resource='http://www.wsmo.org/ns/wsmo-lite#Message'/>"
+          xml << "<sawsdl:loweringSchemaMapping rdf:resource='http://#{SemanticResource::Configuration.resources_host}/schemas/lowering/#{self.name}/destroy.sparql'/>"
+          xml << "<sawsdl:modelReference rdf:resource='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}'/>"
+          xml << "</wsl:hasInputMessage>"
+          xml << "<wsl:hasOutputMessage rdf:parseType='Resource'>"
+          xml << "<rdf:type rdf:resource='http://www.wsmo.org/ns/wsmo-lite#Message'/>"
+          xml << "<sawsdl:modelReference rdf:resource='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}'/>"
+          xml << "</wsl:hasOutputMessage>"
+          xml.string
+
+        end
+
+      end
+    end
+
+    def define_update_operation(options,params=nil)
+
+      # we store the definition parameters
+      semantic_operations[:update] = options
+
+      # we register the create lowering mechanism
+      #SemanticResource::Manager.lowering_operations[self.name]["create"] = "sparql_lowering_create"
+
+      params = @mapping.keys if params.nil?
+
+      unless params.include?(:id)
+        params.push(:id)
+      end
+
+      res_name = self.class.name.downcase
+      mapped_params = params.inject(Hash.new){|h,p| h["#{p}".to_sym] = "_#{p}_"; h}
+      encoded = url_for(options.merge(mapped_params).merge(:host => SemanticResource::Configuration.resources_host))
+
+      params.each do |p|
+        encoded = encoded.gsub(CGI.escape("_#{p}_"),"{#{p}}")
+      end
+
+      @update_operation = Proc.new do |format|
+        if(format == :n3)
+          rdf = StringIO.new
+          rdf<< "#{with_service_uri_prefix('#update',self.name)} <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> wsl:Operation ;\n"
+          rdf<< "  rdfs:label \"updates a  #{self.name} resource\" ;\n"
+          rdf<< "  hr:hasMethod  \"PUT\" ;\n"
+          rdf<< "  hr:hasAddress \"#{encoded}\"^^<hr:URITemplate> ;\n"
+          rdf<< "  wsl:hasInputMessage [\n"
+          rdf<< "    <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> wsl:Message ;\n"
+          rdf<< "    sawsdl:modelReference <http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}> ; \n"
+          rdf<< "    sawsdl:loweringSchemaMapping <http://#{SemanticResource::Configuration.resources_host}/schemas/lowering/#{self.name}/update.sparql>\n"
+          rdf<< "  ] ;\n"
+          rdf<< "  hr:hasInputParameter [\n"
+          rdf<< "    <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> hrjs:JSONPCallback ; \n"
+          rdf<< "    hr:parameterName \"callback\"\n"
+          rdf<< "  ] ;\n"
+          rdf<< "  wsl:hasOutputMessage [\n"
+          rdf<< "    <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> wsl:Message ; \n"
+          rdf<< "    sawsdl:modelReference <http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}>\n"
+          rdf<< "  ] .\n"
+
+          rdf.string
+        elsif(format == :html)
+          if(SemanticResource::Configuration.default_html_serialization == :microformat)
+            html = StringIO.new
+            html << "<p> Invoked using <span class='method'>PUT</span> at <code class='address'>#{encoded}</code></p>"
+            html << "<strong>Input Messages</strong>"
+            html << "<ul>"
+            params.each do |p|
+              html << "<li class='input'> <a href='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}' rel='model'><code>#{p}</code></a>"
+              html << "(<a href='http://#{SemanticResource::Configuration.resources_host}/schemas/lowering/#{self.name}/update.sparql'>lowering</a>)</li>"
+            end
+            html << "</ul>"
+
+            html << "<strong>Output Response</strong>"
+            html << "<ul>"
+            html << "<li class='output'> <a href='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}' rel='model'>the updated #{self.name}</a></li>"
+            html << "</ul>"
+
+            html.string
+          elsif(SemanticResource::Configuration.default_html_serialization == :rdfa)
+            html = StringIO.new
+            html << "<p> Invoked using <span property='wsl:hasMethod'>PUT</span> at <code datatype='hr:URITemplate' property='hr:hasAddress'>#{encoded}</code></p>"
+            html << "<strong>Input Messages</strong>"
+            html << "<ul>"
+            params.each do |p|
+              html << "<span rel='wsl:hasInputMessage'>"
+              html << "<li typeOf='wsl:Message'> <a href='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}' rel='sawsdl:modelReference'><code>#{p}</code></a>"
+              html << "(<a href='http://#{SemanticResource::Configuration.resources_host}/schemas/lowering/#{self.name}/update.sparql' rel='sawsdl:loweringSchemaMapping'>lowering</a>)</li>"
+              html << "</span>"
+            end
+            html << "</ul>"
+
+            html << "<strong>Output Response</strong>"
+            html << "<ul>"
+            html << "<span rel='wsl:hasOutputMessage'>"
+            html << "<li typeOf='wsl:Message'> <a href='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}' rel='sawsdl:modelReference'>the updated #{self.name}</a></li>"
+            html << "</span>"
+            html << "</ul>"
+
+            html.string
+          else
+            raise Exception.new("Unknown serialization format for html #{SemanticResource::Configuration.default_html_serialization}")
+          end
+        elsif(format == :xml)
+          xml = StringIO.new
+
+          xml << "<hr:hasAddress>#{encoded}</hr:hasAddress>"
+          xml << "<hr:hasInputParameter rdf:parseType='Resource'>"
+          xml << "<rdf:type rdf:resource='http://semantic_rest.org/ns/hrests_js#JSONPCallback'/>"
+          xml << "<hr:parameterName>callback</hr:parameterName>"
+          xml << "</hr:hasInputParameter>"
+          xml << "<hr:hasMethod>PUT</hr:hasMethod>"
+          xml << "<wsl:hasInputMessage rdf:parseType='Resource'>"
+          xml << "<rdf:type rdf:resource='http://www.wsmo.org/ns/wsmo-lite#Message'/>"
+          xml << "<sawsdl:loweringSchemaMapping rdf:resource='http://#{SemanticResource::Configuration.resources_host}/schemas/lowering/#{self.name}/update.sparql'/>"
+          xml << "<sawsdl:modelReference rdf:resource='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}'/>"
+          xml << "</wsl:hasInputMessage>"
+          xml << "<wsl:hasOutputMessage rdf:parseType='Resource'>"
+          xml << "<rdf:type rdf:resource='http://www.wsmo.org/ns/wsmo-lite#Message'/>"
+          xml << "<sawsdl:modelReference rdf:resource='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}'/>"
+          xml << "</wsl:hasOutputMessage>"
+
+          xml.string
+        end
+      end
+    end
+
+
     def show_operation
       begin
       @show_operation
       rescue NameError
         throw Exception.new("the show operation has not been defined, use #define_show_operation in the model")
+      end
+    end
+
+    def create_operation
+      begin
+        @create_operation
+      rescue NameError
+        throw Exception.new("the create operation has not been defined, use #define_create_operation in the model")
       end
     end
 
@@ -596,20 +831,20 @@ module SemanticResource
       @index_operation
     end
 
-    def define_update_operation
-      @update_operation = nil
-    end
-
     def update_operation
-      @update_operation
-    end
-
-    def define_destroy_operation
-      @destroy_operation = nil
+      begin
+        @update_operation
+      rescue NameError
+        throw Exception.new("the update operation has not been defined, use #define_create_operation in the model")
+      end
     end
 
     def destroy_operation
-      @destroy_operation
+      begin
+        @destroy_operation
+      rescue NameError
+        throw Exception.new("the destroy operation has not been defined, use #define_show_operation in the model")
+      end
     end
 
     # private methods
@@ -691,6 +926,30 @@ module SemanticResource
         #sparql_where_clause << "OPTIONAL { " if value[:optional] && value[:optional] == true
         sparql_where_clause << "?x <#{build_uri_for_property(key)}> ?#{key.to_s} . "
         #sparql_where_clause << " } " if value[:optional] && value[:optional] == true
+      end
+
+      return "#{sparql.string} WHERE { #{sparql_where_clause.string} }"
+    end
+
+    def sparql_lowering_destroy semantic_model
+      "SELECT ?id WHERE { ?x <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <#{semantic_model.resource_model_uri}>. ?x <http://semantic_rest/siesta#id> ?id. }"
+    end
+
+    def sparql_lowering_update semantic_model
+      sparql = StringIO.new
+      sparql_where_clause = StringIO.new
+
+      sparql << "SELECT "
+      resource_mapping.each_pair do |key,value|
+        sparql << "?#{key.to_s} "
+        #TODO: revert to the OPTIONAL CLAUSE
+        #sparql_where_clause << "OPTIONAL { " if value[:optional] && value[:optional] == true
+        sparql_where_clause << "?x <#{build_uri_for_property(key)}> ?#{key.to_s} . "
+        #sparql_where_clause << " } " if value[:optional] && value[:optional] == true
+      end
+
+      unless(resource_mapping.keys.include?(:id))
+        sparql_where_clause << "?x <#{SemanticResource::Configuration::SIESTA_ID}> ?id . "
       end
 
       return "#{sparql.string} WHERE { #{sparql_where_clause.string} }"

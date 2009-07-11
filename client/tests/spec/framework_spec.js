@@ -20,7 +20,7 @@ Screw.Unit(function() {
 	});
 
 
-	describe('#load',function() {
+/*	describe('#load',function() {
 
 	    it("should load the required script from the server",
                function() {
@@ -28,7 +28,7 @@ Screw.Unit(function() {
 		   expect(fooWarn()).to(equal,"foo");
 	       });
 
-	});
+	});*/
 
         describe('#registerNamespace',function() {
 
@@ -784,7 +784,7 @@ Screw.Unit(function() {
                       }
                   });
            });
-
+/*
         describe('.consume(GET)',function() {
                it("should consume the GET operation of a service",
                   function() {
@@ -841,7 +841,7 @@ Screw.Unit(function() {
                       service.connect("jsonp");
                   });
            });
-
+*/
     });
 
     describe('Siesta.Services.RestfulOperationInputParameter',function() {

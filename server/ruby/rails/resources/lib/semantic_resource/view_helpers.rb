@@ -57,7 +57,7 @@ module SemanticResource
         raise Exception.new("Unknown rdfa property #{name} for object #{self}") if key.nil?
         property_value = options[:content] || false
         property_value = self.send(name) if property_value == true
-        property_uri = "#{SemanticResource::Configuration.namespaces_map[self.class.resource_mapping[key].first]}#{self.class.resource_mapping[key].last}"
+        property_uri = "#{SemanticResource::Configuration.namespaces_map[self.class.resource_mapping[key][:uri].first]}#{self.class.resource_mapping[key][:uri].last}"
       end
       options.delete(:content)
       options.delete(:datatype)
