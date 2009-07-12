@@ -794,33 +794,38 @@ Siesta.Framework.Graph.prototype = {
 
         if(objects[identifier] != null) {
             var theTriple = objects[identifier];
-            var newObjects = [];
+            var newObjects = {};
+            var newObjsCounter = 0;
             for(var _id in objects) {
                 if(_id != identifier) {
+                    newObjsCounter++;
                     newObjects[_id] = objects[_id];
                 }
             }
-            if(newObjects.length != 0) {
+            if(newObjsCounter != 0) {
                 this.triples[subjectId][predicateId] = newObjects;
             } else {
+                var newPreds = {};
+                var newPredsCounter = 0;
                 for(var _id in this.triples[subjectId]) {
-                    var newPreds = [];
+
                     if(_id != predicateId) {
+                        newPredsCounter++;
                         newPreds[_id] = this.triples[subjectId][_id];
                     }
-
-                    if(newPreds.length != 0) {
-                        this.triples[subjectId] = newPreds;
-                    } else {
-                        var newSubjs = 0; 
-                        for(var _id in this.triples) {
-                            if(_id != subjectId) {
-                                newSubjs[_id] = this.triples[_id];                               
-                            }
-                        }
-                        this.triples = newSubjs;
-                    }
                 }
+                if(newPredsCounter != 0) {
+                    this.triples[subjectId] = newPreds;
+                } else {
+                    var newSubjs = {};
+                    for(var _id in this.triples) {
+                        if(_id != subjectId)
+                        {
+                            newSubjs[_id] = this.triples[_id];                               
+                        }
+                    }
+                    this.triples = newSubjs;
+                }            
             }
             return true;
         } else {
@@ -1729,14 +1734,20 @@ Siesta.Services.RestfulOperation.prototype = {
         var that = this;
         if(that.connected == false) {
             var sequentializer = new Siesta.Utils.Sequentializer();
+            
+            this.method();
+            this.address();
+            this.label();
 
             // let's add the closures for the requests
             for(var _i=0; _i<that.inputMessages().length; _i++) {
                 sequentializer.addRemoteRequestWithEnv(function(message){
                     var subscription = Siesta.Events.subscribe(message.EVENT_MESSAGE_LOADED,function(event,msg,myData) {
-                        Siesta.Events.unsubscribe(subscription);
-                        sequentializer.notifyRequestFinished();
-                    }, that);
+                        if(myData == message) {
+                            Siesta.Events.unsubscribe(subscription);
+                            sequentializer.notifyRequestFinished();
+                        }
+                    }, that,message);
                     message.connect(mechanism);
                 },that.inputMessages()[_i]);
             }
@@ -1745,10 +1756,12 @@ Siesta.Services.RestfulOperation.prototype = {
             var outputMessage = this.outputMessage();
             if(outputMessage != null) {
                 sequentializer.addRemoteRequest(function(){
-                    var subscription = Siesta.Events.subscribe(outputMessage.EVENT_CONNECTED,function(event,msg) {
-                        Siesta.Events.unsubscribe(subscription);
-                        sequentializer.notifyRequestFinished();
-                    });
+                    var subscription = Siesta.Events.subscribe(outputMessage.EVENT_CONNECTED,function(event,msg,myData) {
+                        if(outputMessage == myData) {
+                            Siesta.Events.unsubscribe(subscription);
+                            sequentializer.notifyRequestFinished();
+                        }
+                    },that,outputMessage);
                     outputMessage.connect(mechanism);
                 });            
             }
@@ -1801,11 +1814,11 @@ Siesta.Services.RestfulOperation.prototype = {
                     Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.data);
                     Siesta.Events.publish(that.EVENT_CONSUMED,that);
                 } else if(that.method() == 'DELETE') {
-                    Siesta.Services.Repositories.data.removeGraph(graph);
+                    Siesta.Model.Repositories.data.removeGraph(graph);
                     Siesta.Events.publish(that.EVENT_CONSUMED,that);
                 } else if(that.method() == 'PUT') {
-                    Siesta.Services.Repositories.data.removeGraph(graph);                    
-                    Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.data);
+                    Siesta.Model.Repositories.data.removeGraph(graph);                    
+                    Siesta.Model.parseAndAddToRepository(resp,Siesta.Model.Repositories.data);
                     Siesta.Events.publish(that.EVENT_CONSUMED,that);
                 }
             });
@@ -1985,10 +1998,12 @@ Siesta.Services.RestfulService.prototype = {
                 */
                 sequentializer.addRemoteRequestWithEnv(function(theOperation) {
                     
-                    var subscription = Siesta.Events.subscribe(theOperation.EVENT_CONNECTED,function(event,op) {
-                        Siesta.Events.unsubscribe(subscription);
-                        sequentializer.notifyRequestFinished();                        
-                    });
+                    var subscription = Siesta.Events.subscribe(theOperation.EVENT_CONNECTED,function(event,op,myData) {
+                        if(theOperation == myData) {
+                            Siesta.Events.unsubscribe(subscription);
+                            sequentializer.notifyRequestFinished();                        
+                        }
+                    },that,theOperation);
                     theOperation.connect(mechanism);
                 }, this.operations()[_i]);
             }
@@ -2180,14 +2195,14 @@ Siesta.Events = {
     * @type {String}
     */
     subscribe: function(name, refOrName, scope, subscriberData) {
-    //addListener: function(sender,notification,receiver,method) {
+    //addListener: function(sender,notification,receiver,method) {        
         if(this.eventsDictionary[name] == undefined) {
             this.eventsDictionary[name] = {};
         }
-        var subscriptionId = '_'+this._subscriptionsCounter++;
+        var subscriptionId = '_'+this._subscriptionsCounter++;        
         this.eventsDictionary[name][subscriptionId] = { refOrName: refOrName,
                                                         scope: scope || this,
-                                                        suscriberData: subscriberData || {} };
+                                                        subscriberData: subscriberData || {} };
         this.subscriptionsMap[subscriptionId] = name;
         return subscriptionId;
     },
@@ -2238,7 +2253,9 @@ Siesta.Events = {
         if(this.eventsDictionary[name] != undefined) {
             for(var subscriptionId in this.eventsDictionary[name]) {
                 var subscription = this.eventsDictionary[name][subscriptionId];
-                subscription.refOrName.call(subscription.scope,name,publisherData,subscription.subscriberData);
+                var theUserData = subscription.subscriberData;
+
+                subscription.refOrName.apply(subscription.scope,[name,publisherData,theUserData]);
             }
         }        
     }

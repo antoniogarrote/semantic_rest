@@ -1,3 +1,4 @@
+
 Screw.Unit(function() {
 
     describe('Siesta',function() {
@@ -701,6 +702,7 @@ Screw.Unit(function() {
 
                 try {
                     t = function() {
+                        debugger;
                         expect(Siesta.Model.Repositories.services.triplesArray().length == 0).to(equal,true);
                         Siesta.Services.onRegisteredServiceJsonp(fixtureN3Data1);
                         expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
@@ -721,7 +723,7 @@ Screw.Unit(function() {
                 var _graph = new  Siesta.Framework.Graph();            
                 try {
                     expect(_graph.triplesArray().length == 0).to(equal,true);
-                    var that = this;
+                    var that = this;                    
                     var subscription = Siesta.Events.subscribe(Siesta.Services.TRIPLET_CHANGE_EVENT,function(event,msg) {
                         Siesta.Events.unsubscribe(subscription);
                         t = function() {
@@ -829,15 +831,15 @@ Screw.Unit(function() {
                           var message = new Siesta.Services.RestfulOperationInputMessage(_uri);
                           expect(message.loweringSchemaMapping() == "http://localhost:3000/schemas/lowering/Book/create.sparql").to(equal,true);
                           var that = this;
-                          debugger;
-                          var subscription = Siesta.Events.subscribe(message.EVENT_MESSAGE_LOADED,function(event,msg) {
-                              debugger;
-                              Siesta.Events.unsubscribe(subscription);
+                          var subscription = Siesta.Events.subscribe(message.EVENT_MESSAGE_LOADED,function(event,msg,myData) {
+                              if(myData = message) {
+                                  Siesta.Events.unsubscribe(subscription);
 
-                              expect(msg.model().uri == "http://localhost:3000/schemas/models/Book").to(equal,true);
-                              expect(msg.loweringSchemaMappingContent != null).to(equal,true);
-                              expect(msg.connected).to(equal,true);
-                          });
+                                  expect(msg.model().uri == "http://localhost:3000/schemas/models/Book").to(equal,true);
+                                  expect(msg.loweringSchemaMappingContent != null).to(equal,true);
+                                  expect(msg.connected).to(equal,true);
+                              }
+                          },this, message);
                           message.connect("jsonp");
                       }
 
@@ -919,11 +921,13 @@ Screw.Unit(function() {
                           var _uri = result[1].uri.toString();
                           var message = new Siesta.Services.RestfulOperationOutputMessage(_uri);
                           var that = this;
-                          var subscription =  Siesta.Events.subscribe(message.EVENT_CONNECTED,function(event,operation) {
-                              Siesta.Events.unsubscribe(subscription);
+                          var subscription =  Siesta.Events.subscribe(message.EVENT_CONNECTED,function(event,operation,myData) {
+                              if(myData == message) {
+                                  Siesta.Events.unsubscribe(subscription);
 
-                              expect(message.liftingSchemaMappingContent != null).to(equal,true);
-                          });
+                                  expect(message.liftingSchemaMappingContent != null).to(equal,true);
+                              }
+                          }, this, message);
 
                           message.connect('jsonp');
                       }
@@ -947,43 +951,47 @@ Screw.Unit(function() {
                       //expect(service.modelReference() == "http://localhost:3000/schemas/models/Book").to(equal,true);
                       
                       var that = this;
-                      var subscription =  Siesta.Events.subscribe(service.EVENT_SERVICE_LOADED,function(event,serv) {
-                          Siesta.Events.unsubscribe(subscription);
+                      var subscription =  Siesta.Events.subscribe(service.EVENT_SERVICE_LOADED,function(event,serv,myData) {
+                          if(myData == service) {
+                              Siesta.Events.unsubscribe(subscription);
 
-                          //console.log("4");
-                          //expect(serv.model().uri == "http://localhost:3000/schemas/models/Book").to(equal,true);
-                          //console.log("5");
-                          //expect(serv.connected).to(equal,true);
-                          //console.log("5b");
-                          for(var _i=0; _i<serv.operations().length; _i++) {
-                              var op = serv.operations()[_i];
-                              //expect(op.inputMessages()[0].connected).to(equal,true);
-                              //expect(op.inputMessages()[0].loweringSchemaMappingContent != null).to(equal,true);
-                              //expect(op.outputMessage().connected).to(equal,true);
-                              if(op.uri == "http://localhost:3000/schemas/services/Book#showBook") {
-                                  //this is our operation
-                                  var toLowerGraph = new  Siesta.Framework.Graph();
-                                  toLowerGraph.addTriple(new Siesta.Framework.Triple(new Siesta.Framework.Uri("http://test.com/1"),
-                                                                                     new Siesta.Framework.Uri("http://semantic_rest/siesta#id"),
-                                                                                     new Siesta.Framework.Literal({value: "1"})));
-                                  toLowerGraph.addTriple(new Siesta.Framework.Triple(new Siesta.Framework.Uri("http://test.com/1"),
-                                                                                     new Siesta.Framework.Uri("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
-                                                                                     new Siesta.Framework.Uri("http://localhost:3000/schemas/models/Book")));
-                                  
-                                  Siesta.Model.Repositories.data = new Siesta.Framework.Graph();
+                              //console.log("4");
+                              //expect(serv.model().uri == "http://localhost:3000/schemas/models/Book").to(equal,true);
+                              //console.log("5");
+                              //expect(serv.connected).to(equal,true);
+                              //console.log("5b");
+                              for(var _i=0; _i<serv.operations().length; _i++) {
+                                  var op = serv.operations()[_i];
+                                  //expect(op.inputMessages()[0].connected).to(equal,true);
+                                  //expect(op.inputMessages()[0].loweringSchemaMappingContent != null).to(equal,true);
+                                  //expect(op.outputMessage().connected).to(equal,true);
+                                  if(op.uri == "http://localhost:3000/schemas/services/Book#showBook") {
+                                      //this is our operation
+                                      var toLowerGraph = new  Siesta.Framework.Graph();
+                                      toLowerGraph.addTriple(new Siesta.Framework.Triple(new Siesta.Framework.Uri("http://test.com/1"),
+                                                                                         new Siesta.Framework.Uri("http://semantic_rest/siesta#id"),
+                                                                                         new Siesta.Framework.Literal({value: "1"})));
+                                      toLowerGraph.addTriple(new Siesta.Framework.Triple(new Siesta.Framework.Uri("http://test.com/1"),
+                                                                                         new Siesta.Framework.Uri("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+                                                                                         new Siesta.Framework.Uri("http://localhost:3000/schemas/models/Book")));
+                                      
+                                      Siesta.Model.Repositories.data = new Siesta.Framework.Graph();
 
-                                  var subscriptionConsumed =  Siesta.Events.subscribe(op.EVENT_CONSUMED,function(event,operation) {
-                                      Siesta.Events.unsubscribe(subscriptionConsumed);
+                                      var subscriptionConsumed =  Siesta.Events.subscribe(op.EVENT_CONSUMED,function(event,operation,myData) {
+                                          if(myData == 'foo_identifier_2') {
+                                              Siesta.Events.unsubscribe(subscriptionConsumed);
 
-                                      //expect(Siesta.Model.Repositories.data.triplesArray().length>0).to(equal,true);
-                                      //console.log("6");
-                                      expect(true).to(equal,true);
-                                      //console.log("yeah!!!");
-                                  });                                  
-                                  op.consume("jsonp",toLowerGraph);
+                                              //expect(Siesta.Model.Repositories.data.triplesArray().length>0).to(equal,true);
+                                              //console.log("6");
+                                              expect(true).to(equal,true);
+                                              //console.log("yeah!!!");
+                                          }
+                                      },this,'foo_identifier_2');
+                                      op.consume("jsonp",toLowerGraph);
+                                  }
                               }
                           }
-                      });
+                      },this,service);
                       service.connect("jsonp");
                   });
            });
@@ -991,52 +999,68 @@ Screw.Unit(function() {
         describe('.consume(POST) this test may fail',function() {
                it("should consume the POST operation of a service",
                   function() {
-                      console.log("POST");
+                      //console.log("POST");
                       Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
                       Siesta.Model.Repositories.schemas = new Siesta.Framework.Graph();
-                      console.log("1");
+                      //console.log("1");
                       expect(Siesta.Model.Repositories.services.triplesArray().length == 0).to(equal,true);
                       var graph = Siesta.Formats.Turtle.parseDoc("",fixturesN3Data6);
                       Siesta.Model.Repositories.services = graph;
-                      console.log("2");
+                      //console.log("2");
                       expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
                       
                       var service = new Siesta.Services.RestfulService("http://localhost:3000/schemas/services/BookService");
-                      console.log("3");
+                      //console.log("3");
                       //expect(service.modelReference() == "http://localhost:3000/schemas/models/Book").to(equal,true);
                       
                       var that = this;
-                      var subscription =  Siesta.Events.subscribe(service.EVENT_SERVICE_LOADED,function(event,serv) {
-                          Siesta.Events.unsubscribe(subscription);
+                      var _subscription =  Siesta.Events.subscribe(service.EVENT_SERVICE_LOADED,function(event,serv,myData) {
+                          if(myData == service) {
+                              Siesta.Events.unsubscribe(_subscription);
 
-                          console.log("4");
-                          //expect(serv.model().uri == "http://localhost:3000/schemas/models/Book").to(equal,true);
-                          console.log("5");
-                          //expect(serv.connected).to(equal,true);
-                          console.log("5b");
-                          for(var _i=0; _i<serv.operations().length; _i++) {
-                              var op = serv.operations()[_i];
-                              //expect(op.inputMessages()[0].connected).to(equal,true);
-                              //expect(op.inputMessages()[0].loweringSchemaMappingContent != null).to(equal,true);
-                              //expect(op.outputMessage().connected).to(equal,true);
-                              if(op.uri == "http://localhost:3000/schemas/services/Book#createBook") {
-                                  //this is our operation
-                                  var toLowerGraph = Siesta.Formats.Turtle.parseDoc("",fixturesN3Book1);
-                                  
-                                  Siesta.Model.Repositories.data = new Siesta.Framework.Graph();
+                              //console.log("4");
+                              //expect(serv.model().uri == "http://localhost:3000/schemas/models/Book").to(equal,true);
+                              //console.log("5");
+                              //expect(serv.connected).to(equal,true);
+                              //console.log("5b");
 
-                                  var subscription = Siesta.Events.subscribe(op.EVENT_CONSUMED,function(event,operation) {
-                                      Siesta.Events.unsubscribe(subscription);
+                              var testOps = serv.operations();
+                              for(var _i=0; _i<serv.operations().length; _i++) {
+                                  var op = serv.operations()[_i];
+                                  //expect(op.inputMessages()[0].connected).to(equal,true);
+                                  //expect(op.inputMessages()[0].loweringSchemaMappingContent != null).to(equal,true);
+                                  //expect(op.outputMessage().connected).to(equal,true);
+                                  if(op.uri == "http://localhost:3000/schemas/services/Book#createBook") {
+                                      //this is our operation
+                                      var toLowerGraph = Siesta.Formats.Turtle.parseDoc("",fixturesN3Book1);
+                                      
+                                      Siesta.Model.Repositories.data = new Siesta.Framework.Graph();
 
-                                      //expect(Siesta.Model.Repositories.data.triplesArray().length>0).to(equal,true);
-                                      console.log("6");
-                                      expect(true).to(equal,true);
-                                      //console.log("yeah!!!");
-                                  });                                  
-                                  op.consume("jsonp",toLowerGraph);
+                                      var __subscription = Siesta.Events.subscribe(op.EVENT_CONSUMED,function(event,operation,myData) {
+                                          if(myData == 'foo_identifier_1') {
+                                              Siesta.Events.unsubscribe(__subscription);
+
+                                              //expect(Siesta.Model.Repositories.data.triplesArray().length>0).to(equal,true);
+                                              
+                                              for(var _j=0; _j<serv.operations().length; _j++) {
+                                                  var dop = serv.operations()[_j];
+                                                  if(dop.uri == "http://localhost:3000/schemas/services/Book#destroyBook") {
+                                                      var ___subscription = Siesta.Events.subscribe(dop.EVENT_CONSUMED,function(event,operation,myData) {
+                                                          if(myData == 'foo_identifier_3') {
+                                                          Siesta.Events.unsubscribe(___subscription);
+                                                              expect(Siesta.Model.Repositories.data.triplesArray().length).to(equal,0);
+                                                          }
+                                                      },this,'foo_identifier_3');
+                                                      dop.consume("jsonp",Siesta.Model.Repositories.data);
+                                                  }
+                                              }
+                                          }
+                                      },this,'foo_identifier_1');                                  
+                                      op.consume("jsonp",toLowerGraph);
+                                  }
                               }
                           }
-                      });
+                      },this,service);
                       service.connect("jsonp");
                   });
            });
@@ -1213,11 +1237,12 @@ Screw.Unit(function() {
                       expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
                       var operation = new Siesta.Services.RestfulOperation("http://localhost:3000/schemas/services/Book#createBook");
                       var that = this;
-                      var subscription = Siesta.Events.subscribe(operation.EVENT_CONNECTED,function(event,operation) {
+                      var subscription = Siesta.Events.subscribe(operation.EVENT_CONNECTED,function(event,operation,myData) {
                           Siesta.Events.unsubscribe(subscription);
-
-                          expect(operation.inputMessages()[0].loweringSchemaMappingContent != null).to(equal,true);
-                      });
+                          if(myData == operation) {
+                              expect(operation.inputMessages()[0].loweringSchemaMappingContent != null).to(equal,true);
+                          }
+                      },this,operation);
                       operation.connect('jsonp');
                   });
            });
@@ -1365,20 +1390,22 @@ Screw.Unit(function() {
                 
                 var that = this;
 
-                var subscription =  Siesta.Events.subscribe(service.EVENT_SERVICE_LOADED,function(event,serv) {
-                    Siesta.Events.unsubscribe(subscription);                    
+                var subscription =  Siesta.Events.subscribe(service.EVENT_SERVICE_LOADED,function(event,serv,myData) {
+                    if(myData == service) {
+                        Siesta.Events.unsubscribe(subscription);                    
 
-                    expect(serv.model().uri == "http://localhost:3000/schemas/models/Book").to(equal,true);
-                    expect(serv.connected).to(equal,true);
-                    for(var _i=0; _i<serv.operations().length; _i++) {
-                        var op = serv.operations()[_i];
-                        expect(op.inputMessages()[0].connected).to(equal,true);
-                        expect(op.inputMessages()[0].loweringSchemaMappingContent != null).to(equal,true);
-                        expect(op.outputMessage().connected).to(equal,true);
-                        //expect(op.outputMessage().liftingSchemaMappingContent != null).to(equal,true);
-                        
+                        expect(serv.model().uri == "http://localhost:3000/schemas/models/Book").to(equal,true);
+                        expect(serv.connected).to(equal,true);
+                        for(var _i=0; _i<serv.operations().length; _i++) {
+                            var op = serv.operations()[_i];
+                            expect(op.inputMessages()[0].connected).to(equal,true);
+                            expect(op.inputMessages()[0].loweringSchemaMappingContent != null).to(equal,true);
+                            expect(op.outputMessage().connected).to(equal,true);
+                            //expect(op.outputMessage().liftingSchemaMappingContent != null).to(equal,true);
+                            
+                        }
                     }
-                });
+                },this,service);
                 
                 service.connect("jsonp");
             });

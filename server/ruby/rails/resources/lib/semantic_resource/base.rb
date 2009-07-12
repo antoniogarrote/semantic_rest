@@ -18,6 +18,9 @@ module SemanticResource
       "http://#{SemanticResource::Configuration.resources_host}#{params}"
     else
       format = params[:format] || format
+      #params = params.keys.inject(Hash.new){|acum,item| acum[item] = params[item] if item != :_method && item !=
+                 #:action && item != :controller; acum}
+      params[:action] = 'show' if params[:action] == 'create'
       self.class.url_for(params.merge(:host => SemanticResource::Configuration.resources_host))
     end
     res_name = res_name.split("?").first;
@@ -156,6 +159,7 @@ module SemanticResource
       lowering_operations["show"] = "sparql_lowering_show"
       lowering_operations["create"] = "sparql_lowering_create"
       lowering_operations["destroy"] = "sparql_lowering_destroy"
+      lowering_operations["update"] = "sparql_lowering_destroy"
       SemanticResource::Manager.register_lowering_operation(self.name, lowering_operations)
     end
 

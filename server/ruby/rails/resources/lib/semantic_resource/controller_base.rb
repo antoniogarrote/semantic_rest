@@ -40,6 +40,7 @@ module SemanticResource
       end
 
       def destroy
+        default_semantic_destroy
       end
 
       # Show method is generated with a simple invocation to default_semantic_show
@@ -106,6 +107,11 @@ module SemanticResource
         self.class.semantic_resource.find(params[:id])
       end
 
+      # destroys the semantic resource
+      def semantic_destroy(resource)
+        resource.destroy
+      end
+
       # creates the semantic resource
       def semantic_create
         creation_params = {}
@@ -113,6 +119,34 @@ module SemanticResource
         self.class.semantic_resource.create(creation_params)
       end
     end
+
+    def default_semantic_destroy
+        resource = self.class.semantic_resource
+
+        format = params[:format] || :n3
+        format = format.to_sym
+
+        to_destroy = semantic_find
+        base_response = to_destroy.to_rdf(request.parameters.symbolize_keys,format)
+        base_response,content_type = check_jsonp_response(base_response)
+
+        semantic_destroy(to_destroy)
+
+        if(format == :n3 || format == :rdf)
+          if(content_type.nil?)
+            content_type = "text/rdf+n3"
+          end
+        elsif(format == :xml)
+          if(content_type.nil?)
+            content_type = "application/rdf+xml"
+          end
+        end
+
+        render(:text => base_response,
+               :content_type => content_type,
+               :status => 200)
+      end
+
 
   end
 
