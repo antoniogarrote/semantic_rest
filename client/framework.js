@@ -1059,7 +1059,7 @@ Siesta.Services.parseAndAddToRepository = function(doc,repository) {
             parsedGraph: parsedGraph
         };
 
-        Siesta.Events.notifyEvent(this,Siesta.Services.TRIPLET_CHANGE_EVENT,resp);
+        Siesta.Events.publish(Siesta.Services.TRIPLET_CHANGE_EVENT,resp);
     } else {
         formater.parseDoc("",doc, function(resBaseUri, resDoc, parsedGraph) {
             for(_i=0; _i< parsedGraph.triplesArray().length; _i++) {
@@ -1071,7 +1071,7 @@ Siesta.Services.parseAndAddToRepository = function(doc,repository) {
                 parsedGraph: parsedGraph
             };
 
-            Siesta.Events.notifyEvent(this,Siesta.Services.TRIPLET_CHANGE_EVENT,resp);
+            Siesta.Events.publish(Siesta.Services.TRIPLET_CHANGE_EVENT,resp);
         });
     }
 };
@@ -1083,7 +1083,7 @@ Siesta.Services.parseAndAddToRepository = function(doc,repository) {
 */
 Siesta.Services.onRegisteredServiceJsonp = function(serviceDescription) {
     try {
-        var formater = Siesta.Framework.Common.chooseFormaterFor(serviceDescription);
+        var formater = Siesta.Services.chooseFormaterFor(serviceDescription);
 
         var parsedGraph = formater.parseDoc("",serviceDescription);
         for(_i=0; _i< parsedGraph.triplesArray().length; _i++) {
@@ -1389,15 +1389,15 @@ Siesta.Services.RestfulOperationInputMessage.prototype = {
                         var that = this;
                         Siesta.Network.jsonpRequestForFunction(this.loweringSchemaMapping(),callback,function(res){
                             that.loweringSchemaMappingContent = res;
-                            Siesta.Events.notifyEvent(that,that.EVENT_MESSAGE_LOADED,that);
+                            Siesta.Events.publish(that.EVENT_MESSAGE_LOADED,that);
                         });
                     } else {
 
                     }
-                } catch(e) {  Siesta.Events.notifyEvent(this,this.EVENT_MESSAGE_LOADED,this); }
+                } catch(e) {  Siesta.Events.publish(this.EVENT_MESSAGE_LOADED,this); }
             }
         } else {
-            Siesta.Events.notifyEvent(this,this.EVENT_MESSAGE_LOADED,this);
+            Siesta.Events.publish(this.EVENT_MESSAGE_LOADED,this);
         }
     }
 };
@@ -1520,15 +1520,15 @@ Siesta.Services.RestfulOperationOutputMessage.prototype = {
                         var that = this;
                         Siesta.Network.jsonpRequestForFunction(this.liftingSchemaMapping(),callback,function(res){
                             that.liftingSchemaMappingContent = res;
-                            Siesta.Events.notifyEvent(that,that.EVENT_CONNECTED,that);
+                            Siesta.Events.publish(that.EVENT_CONNECTED,that);
                         });
                     } else {
                         // TODO AJAX here.
                     }
-                } catch(e) {  Siesta.Events.notifyEvent(this,this.EVENT_CONNECTED,this); }
+                } catch(e) {  Siesta.Events.publish(this.EVENT_CONNECTED,this); }
             }
         } else {
-            Siesta.Events.notifyEvent(this,this.EVENT_CONNECTED,this);
+            Siesta.Events.publish(this.EVENT_CONNECTED,this);
         }
     }
 };
@@ -1733,10 +1733,10 @@ Siesta.Services.RestfulOperation.prototype = {
             // let's add the closures for the requests
             for(var _i=0; _i<that.inputMessages().length; _i++) {
                 sequentializer.addRemoteRequestWithEnv(function(message){
-                    Siesta.Events.addListener(message,message.EVENT_MESSAGE_LOADED,that,function(event,msg) {
-                        Siesta.Events.removeListener(message,message.EVENT_MESSAGE_LOADED,that);
+                    var subscription = Siesta.Events.subscribe(message.EVENT_MESSAGE_LOADED,function(event,msg,myData) {
+                        Siesta.Events.unsubscribe(subscription);
                         sequentializer.notifyRequestFinished();
-                    });
+                    }, that);
                     message.connect(mechanism);
                 },that.inputMessages()[_i]);
             }
@@ -1745,8 +1745,8 @@ Siesta.Services.RestfulOperation.prototype = {
             var outputMessage = this.outputMessage();
             if(outputMessage != null) {
                 sequentializer.addRemoteRequest(function(){
-                    Siesta.Events.addListener(outputMessage,outputMessage.EVENT_CONNECTED,that,function(event,msg) {
-                        Siesta.Events.removeListener(outputMessage,outputMessage.EVENT_CONNECTED,that);
+                    var subscription = Siesta.Events.subscribe(outputMessage.EVENT_CONNECTED,function(event,msg) {
+                        Siesta.Events.unsubscribe(subscription);
                         sequentializer.notifyRequestFinished();
                     });
                     outputMessage.connect(mechanism);
@@ -1757,7 +1757,7 @@ Siesta.Services.RestfulOperation.prototype = {
             sequentializer.finishedCallback(function() {
                 
                 that.connected = true;
-                Siesta.Events.notifyEvent(that,that.EVENT_CONNECTED,that);
+                Siesta.Events.publish(that.EVENT_CONNECTED,that);
             });
 
             // the fun starts here
@@ -1799,15 +1799,14 @@ Siesta.Services.RestfulOperation.prototype = {
             Siesta.Network.jsonpRequestForFunction(theAddress,"callback",function(resp) {
                 if(that.method() == 'GET' || that.method() == 'POST') {
                     Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.data);
-                    Siesta.Events.notifyEvent(that,that.EVENT_CONSUMED,that);
+                    Siesta.Events.publish(that.EVENT_CONSUMED,that);
                 } else if(that.method() == 'DELETE') {
-                    // TODO: DELETE graph from repositories here
-                    Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.data);
-                    Siesta.Events.notifyEvent(that,that.EVENT_CONSUMED,that);
+                    Siesta.Services.Repositories.data.removeGraph(graph);
+                    Siesta.Events.publish(that.EVENT_CONSUMED,that);
                 } else if(that.method() == 'PUT') {
-                    // TODO: PUT remove and add graph from repositories here
+                    Siesta.Services.Repositories.data.removeGraph(graph);                    
                     Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.data);
-                    Siesta.Events.notifyEvent(that,that.EVENT_CONSUMED,that);
+                    Siesta.Events.publish(that.EVENT_CONSUMED,that);
                 }
             });
         } else {
@@ -1986,8 +1985,8 @@ Siesta.Services.RestfulService.prototype = {
                 */
                 sequentializer.addRemoteRequestWithEnv(function(theOperation) {
                     
-                    Siesta.Events.addListener(theOperation,theOperation.EVENT_CONNECTED,that,function(event,op) {
-                        Siesta.Events.removeListener(theOperation,theOperation.EVENT_CONNECTED,that);                        
+                    var subscription = Siesta.Events.subscribe(theOperation.EVENT_CONNECTED,function(event,op) {
+                        Siesta.Events.unsubscribe(subscription);
                         sequentializer.notifyRequestFinished();                        
                     });
                     theOperation.connect(mechanism);
@@ -1997,7 +1996,7 @@ Siesta.Services.RestfulService.prototype = {
             // here we set the callback for all requests done
             sequentializer.finishedCallback(function() {
                 that.connected = true;
-                Siesta.Events.notifyEvent(that,that.EVENT_SERVICE_LOADED,that);
+                Siesta.Events.publish(that.EVENT_SERVICE_LOADED,that);
             });
 
             // the fun starts here
@@ -2009,7 +2008,7 @@ Siesta.Services.RestfulService.prototype = {
         Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.schemas);
         this.model();
 
-        Siesta.Events.notifyEvent(this,this.EVENT_SERVICE_LOADED,this);
+        Siesta.Events.publish(this.EVENT_SERVICE_LOADED,this);
     },
 
     EVENT_SERVICE_LOADED: "EVENT_SERVICE_LOADED"
@@ -2155,63 +2154,92 @@ Siesta.Model.Instance.prototype = {
 */
 Siesta.Events = {
     eventsDictionary: {},
-    
-    addListener: function(sender,notification,receiver,method) {
-        if(this.eventsDictionary[sender] == undefined) {
-            this.eventsDictionary[sender] = {};
-        }
 
-        if(this.eventsDictionary[sender][notification] == undefined) {
-            this.eventsDictionary[sender][notification] = [];
-        }
+    subscriptionsMap: {},
 
-        this.eventsDictionary[sender][notification].push([receiver,method]);
+    _subscriptionsCounter: 0,
+   
+   /**
+    * Creates a subscription on the specified topic name. 
+    *
+    * @param {String} name
+    *     The name of the topic to which you want to subscribe. 
+    * @param {Function|String} refOrName
+    *     A function object reference or the name of a function 
+    *     that is invoked whenever an event is published on the topic.
+    * @param {Object} [scope]
+    *     An Object in which to execute refOrName when handling the event. 
+    *     If null, window object is used. The scope parameter will be the 
+    *     "this" object when the callback is invoked.
+    * @param {*} [subscriberData]
+    *     Client application provides this data, which is handed
+    *     back to the client application in the subscriberData
+    *     parameter of the callback function.
+    * @returns 
+    *     A String Object (a "subscription") that is unique for this particular subscription.
+    * @type {String}
+    */
+    subscribe: function(name, refOrName, scope, subscriberData) {
+    //addListener: function(sender,notification,receiver,method) {
+        if(this.eventsDictionary[name] == undefined) {
+            this.eventsDictionary[name] = {};
+        }
+        var subscriptionId = '_'+this._subscriptionsCounter++;
+        this.eventsDictionary[name][subscriptionId] = { refOrName: refOrName,
+                                                        scope: scope || this,
+                                                        suscriberData: subscriberData || {} };
+        this.subscriptionsMap[subscriptionId] = name;
+        return subscriptionId;
     },
 
-    removeListener: function(sender,notification,receiver) {
-        if(this.eventsDictionary[sender] != undefined) {
-            if(this.eventsDictionary[sender][notification] != undefined) {
-                var found = null;
-                for(_i=0; _i < this.eventsDictionary[sender][notification].length; _i++) {                    
-                    if(this.eventsDictionary[sender][notification][_i][0] == receiver) {
-                        found = _i;
-                        break;
+   /**
+    * Removes a subscription to an event.
+    *
+    * @param {String} subscription
+    *     The return value from a previous call to OpenAjax.hub.subscribe().
+    */
+    unsubscribe: function(subscription) {
+    //removeListener: function(sender,notification,receiver) {
+        var event = this.subscriptionsMap[subscription];
+        if(event != undefined) {
+            if(this.eventsDictionary[event] != undefined) {
+                //var oldSubscription = this.eventsDictionary[event][subscription];
+                //this.eventsDictionary[event].splice(this.eventsDictionary[event].indexOf(oldSubscription),1);
+                delete this.eventsDictionary[event][subscription];
+                var hasMore = false;
+                for(var _p in this.eventsDictionary[event]) {
+                    if(this.eventsDictionary[event][_p] != undefined) {
+                        hasMore = true;
                     }
                 }
-                if(found != null) {
-                    this.eventsDictionary[sender][notification].splice(_i,1);
+//                 if(this.eventsDictionary[event].length == 0) {
+//                     delete this.eventsDictionary[event];
+//                 }
+                if(hasMore == false) {
+                    delete this.eventsDictionary[event];
                 }
-
-                if(this.eventsDictionary[sender][notification].length == 0) {
-                    // delete this.eventsDictionary[sender][notification];
-                    // this.eventsDictionary[sender][notification] = undefined;
-                }
+                delete this.subscriptionsMap[subscription];
             }
         }
     },
 
-    notifyEvent: function(sender,notification,data) {
-        if(this.eventsDictionary[sender] != undefined) {
-            if(this.eventsDictionary[sender][notification] != undefined) {
-                var found = null;
-                for(_i=0; _i < this.eventsDictionary[sender][notification].length; _i++) {                    
-                    var obj = this.eventsDictionary[sender][notification][_i][0];
-                    this.eventsDictionary[sender][notification][_i][1].call(obj,notification,data);
-                }
+   /**
+    * Publishes (broadcasts) an event.
+    *
+    * @param {String} name
+    *     The name of the topic that is being published. 
+    * @param {*} [publisherData]
+    *     (Optional) An arbitrary Object holding extra information that 
+    *     will be passed as an argument to the handler function.
+    * @type {Object}
+    */
+    publish: function(name, publisherData) {
+    //notifyEvent: function(sender,notification,data) {
+        if(this.eventsDictionary[name] != undefined) {
+            for(var subscriptionId in this.eventsDictionary[name]) {
+                var subscription = this.eventsDictionary[name][subscriptionId];
+                subscription.refOrName.call(subscription.scope,name,publisherData,subscription.subscriberData);
             }
-        }        
-    },
-
-    notifyEventAndDelete: function(sender,nofitication,data) {
-        if(this.eventsDictionary[sender] != undefined) {
-            if(this.eventsDictionary[sender][notification] != undefined) {
-                var found = null;
-                for(_i=0; _i < this.eventsDictionary[sender][notification].length; _i++) {                    
-                    var obj = this.eventsDictionary[sender][notification][_i][0];
-                    this.eventsDictionary[sender][notification][_i][1].call(obj,notification,data);
-                }
-            }
-            delete this.eventsDictionary[sender][notification];
         }        
     }
 };
