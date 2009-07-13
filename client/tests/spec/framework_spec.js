@@ -702,7 +702,6 @@ Screw.Unit(function() {
 
                 try {
                     t = function() {
-                        debugger;
                         expect(Siesta.Model.Repositories.services.triplesArray().length == 0).to(equal,true);
                         Siesta.Services.onRegisteredServiceJsonp(fixtureN3Data1);
                         expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
@@ -1064,6 +1063,39 @@ Screw.Unit(function() {
                       service.connect("jsonp");
                   });
            });
+    });
+
+    describe('Siesta.Model.Namespaces',function() {
+
+	   describe('.register',function() {
+               it("should add a new namespace to the register",
+                  function() {
+                      Siesta.Model.Namespaces.map = {};
+                      Siesta.Model.Namespaces.register("test","http://test.com#")
+                      expect(Siesta.Model.Namespaces.map.test).to(equal,"http://test.com#");                      
+                  });
+           });
+
+	   describe('.unregister',function() {
+               it("should remove a namespace from the register",
+                  function() {
+                      Siesta.Model.Namespaces.map = {};
+                      Siesta.Model.Namespaces.register("test","http://test.com#")
+                      expect(Siesta.Model.Namespaces.map.test).to(equal,"http://test.com#");
+                      Siesta.Model.Namespaces.unregister("test");
+                      expect(Siesta.Model.Namespaces.map.test).to(equal,undefined);
+                  });
+           });
+	   describe('.resolve',function() {
+               it("should return the resolved uri",
+                  function() {
+                      Siesta.Model.Namespaces.map = {};
+                      Siesta.Model.Namespaces.register("test","http://test.com#")
+                      expect(Siesta.Model.Namespaces.map.test).to(equal,"http://test.com#");
+                      expect(Siesta.Model.Namespaces.resolve({test: 'hi'})).to(equal,'http://test.com#hi');
+                  });
+           });
+
     });
 
     describe('Siesta.Services.RestfulOperationInputParameter',function() {

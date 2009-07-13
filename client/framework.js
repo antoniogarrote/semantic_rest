@@ -1004,6 +1004,28 @@ String.prototype.capitalize = function(){ //v1.0
 
 // Namespaces
 Siesta.registerNamespace("Siesta","Model");
+
+Siesta.registerNamespace("Siesta","Model","Namespaces");
+Siesta.Model.Namespaces.map = {};
+Siesta.Model.Namespaces.register = function(prefix,value){
+    Siesta.Model.Namespaces.map[prefix] = value;
+};
+Siesta.Model.Namespaces.unregister = function(prefix){
+    delete Siesta.Model.Namespaces.map[prefix];
+};
+Siesta.Model.Namespaces.resolve = function(mapping){
+    if(typeof mapping == 'object') {
+        for(var _prefix in mapping) {
+            if(Siesta.Model.Namespaces.map[_prefix] != undefined) {
+                return Siesta.Model.Namespaces.map[_prefix] + mapping[_prefix];
+            }
+        }
+        throw "Unable to find registered namespace for " + mapping;
+    } else {
+        throw "Cannot resolve namespace for a "+(typeof mapping)+" an object {prefix: sufix} must be provided";
+    }
+};
+
 Siesta.registerNamespace("Siesta","Model","Repositories");
 Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
 Siesta.Model.Repositories.schemas = new Siesta.Framework.Graph();
@@ -1835,6 +1857,38 @@ Siesta.Services.RestfulOperation.prototype = {
 };
 
 Siesta.Services.RestfulService = Class.create();
+
+/**
+  A cache for the requested services.
+*/
+Siesta.Services.RestfulService.servicesCache = {};
+
+/**
+  Class methods
+*/
+Siesta.Services.RestfulService.findForSchema = function(schemaUri) {
+    var query = "SELECT ?reference WHERE { reference " + "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type> " + "<http://www.wsmo.org/ns/wsmo-lite#Service> . ";
+    query = query + "reference <http://www.w3.org/ns/sawsdl#modelReference> <"+schemaUri+"> }";
+
+    var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
+
+    if(result.length == 0) {
+        throw new Error("Error retrieving Service for modelReference:<"+schemaUri+"> uri.");
+    } else {
+        var service = Siesta.Services.RestfulService.find(result[0].reference);
+        Siesta.Services.RestfulService.servicesForSchemaCache[schemaUri] = service;
+        return service;
+    }
+}
+
+Siesta.Services.RestfulService.find = function(serviceUri) {
+    if(Siesta.Services.RestfulService.servicesCache[serviceUri] != undefined) {
+        return Siesta.Services.RestfulService.servicesCache[serviceUri];
+    } else {
+        throw "Service <"+ serviceUri +"> not found in services cache, may be it is not connected";
+    }
+}
+
 /**
   @class Siesta.Services.RestfulService
 
@@ -2010,6 +2064,7 @@ Siesta.Services.RestfulService.prototype = {
 
             // here we set the callback for all requests done
             sequentializer.finishedCallback(function() {
+                Siesta.Services.RestfulService.servicesCache[this.serviceUri] = that;
                 that.connected = true;
                 Siesta.Events.publish(that.EVENT_SERVICE_LOADED,that);
             });
@@ -2027,6 +2082,84 @@ Siesta.Services.RestfulService.prototype = {
     },
 
     EVENT_SERVICE_LOADED: "EVENT_SERVICE_LOADED"
+};
+
+Siesta.Model.Class = Class.create();
+/**
+  @class Siesta.Model.Class
+
+  A RDF model Class.
+*/
+Siesta.Model.Class.prototype = {
+
+    initialize: function(parameters) {                
+        this.uri = parameters.schemaUri;
+        if(typeof this.uri == 'object') {
+            if(schemaUri.__type == 'uri') {
+                this.uri = uri.toString();
+            } else {
+                this.uri = Siesta.Model.Namespaces.resolve(this.uri);
+            }
+        }
+
+        if(this.uri == undefined) {
+            debugger;
+            throw "Cannot initialize Siesta.Model.Schema without schemaUri";
+        }
+
+        // we get the Schema for this class
+        this.schema = new Siesta.Model.Schema(this.uri);
+
+        // let's see if serviceUri for all the operations has been provided
+        if(parameters.serviceUri != undefined) {
+            this.getServices = [parameters.serviceUri];
+            this.postServices = parameters.serviceUri;
+            this.deleteServices = parameters.serviceUri;
+            this.putServices = parameters.serviceUri;
+        } 
+        
+        // if no serviceUri is provied, services uri may be provided in a per method basis
+        this.getServices = parameters.getServicesUris || this.getServices;
+        this.postServices = parameters.postServicesUris || this.postServices;
+        this.putServices = parameters.putServicesUris || this.putServices;
+        this.deleteServices = parameters.deleteServicesUris || this.deleteServices;
+
+        // if no operations is provided yet, we will try to retrieve a service based on the schemaUri
+        if(this.getServices == undefined &&
+           this.postServices == undefined &&
+           this.putServices == undefined &&
+           this.deleteServices == undefined) {
+            try {
+                var service = Siesta.Services.RestfulService.findForSchema(schemaUri);
+
+                this.getServices = service.uri;
+                this.postServices = service.uri;
+                this.deleteServices = service.uri;
+                this.putServices = service.uri;
+
+            } catch(e) {
+                throw "Cannot initialize Siesta.Model.Schema without a backend service";
+            }
+        }
+
+        // let's transform URIs into services objects
+        if(this.getServices != undefined) {
+            var newGetServices = [];
+            for(var _i=0; _i< this.getServices.length; _i++) {
+                newGetServices.push(Siesta.Services.RestfulService.find(this.getServices[_i]));
+            }
+            this.getServices = newGetServices;
+        }
+        if(this.postServices != undefined) {
+            this.postServices = Siesta.Services.RestfulService.find(this.postServices);
+        }
+        if(this.deleteServices != undefined) {
+            this.deleteServices = Siesta.Services.RestfulService.find(this.deleteServices);
+        }
+        if(this.putServices != undefined) {
+            this.putServices = Siesta.Services.RestfulService.find(this.putServices);
+        }
+    }
 };
 
 Siesta.Model.Schema = Class.create();
@@ -2048,10 +2181,18 @@ Siesta.Model.Schema.prototype = {
      *
      * @argument serviceuri: Schema URI: a Siesta.Framework.Uri object or a String
      */
-    initialize: function(schemaUri ) {
+    initialize: function(schemaUri) {                
         this.uri = schemaUri;
-        if(schemaUri.__type == 'uri') {
-            this.uri = uri.toString();
+        if(typeof this.uri == 'object') {
+            if(schemaUri.__type == 'uri') {
+                this.uri = uri.toString();
+            } else {
+                this.uri = Siesta.Model.Namespaces.resolve(this.uri);
+            }
+        }
+
+        if(this.uri == undefined) {
+            throw "Cannot initialize Siesta.Model.Schema without schemaUri";
         }
 
         this._type = null;
@@ -2103,7 +2244,7 @@ Siesta.Model.Schema.prototype = {
             }
             return this._properties;
         }
-    },    
+    }
 };
 
 Siesta.Model.Instance = Class.create();
