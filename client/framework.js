@@ -456,7 +456,7 @@ Siesta.Framework.Graph.prototype = {
 
         var triplesToAdd = aGraph.triplesArray();
         for(var _i=0; _i<triplesToAdd.length; _i++) {
-            this.addTriple(triplesToMerge[_i]);
+            this.addTriple(triplesToAdd[_i]);
         }
     },
 
@@ -1867,8 +1867,8 @@ Siesta.Services.RestfulService.servicesCache = {};
   Class methods
 */
 Siesta.Services.RestfulService.findForSchema = function(schemaUri) {
-    var query = "SELECT ?reference WHERE { reference " + "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type> " + "<http://www.wsmo.org/ns/wsmo-lite#Service> . ";
-    query = query + "reference <http://www.w3.org/ns/sawsdl#modelReference> <"+schemaUri+"> }";
+    var query = "SELECT ?reference WHERE { ?reference " + "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type> " + "<http://www.wsmo.org/ns/wsmo-lite#Service> . ";
+    query = query + "?reference <http://www.w3.org/ns/sawsdl#modelReference> <"+schemaUri+"> }";
 
     var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
 
@@ -1876,7 +1876,6 @@ Siesta.Services.RestfulService.findForSchema = function(schemaUri) {
         throw new Error("Error retrieving Service for modelReference:<"+schemaUri+"> uri.");
     } else {
         var service = Siesta.Services.RestfulService.find(result[0].reference);
-        Siesta.Services.RestfulService.servicesForSchemaCache[schemaUri] = service;
         return service;
     }
 }
@@ -2091,11 +2090,11 @@ Siesta.Model.Class = Class.create();
   A RDF model Class.
 */
 Siesta.Model.Class.prototype = {
-
+    
     initialize: function(parameters) {                
         this.uri = parameters.schemaUri;
         if(typeof this.uri == 'object') {
-            if(schemaUri.__type == 'uri') {
+            if(this.uri.__type == 'uri') {
                 this.uri = uri.toString();
             } else {
                 this.uri = Siesta.Model.Namespaces.resolve(this.uri);
@@ -2130,9 +2129,9 @@ Siesta.Model.Class.prototype = {
            this.putServices == undefined &&
            this.deleteServices == undefined) {
             try {
-                var service = Siesta.Services.RestfulService.findForSchema(schemaUri);
+                var service = Siesta.Services.RestfulService.findForSchema(this.uri);
 
-                this.getServices = service.uri;
+                this.getServices = [service.uri];
                 this.postServices = service.uri;
                 this.deleteServices = service.uri;
                 this.putServices = service.uri;
@@ -2142,7 +2141,7 @@ Siesta.Model.Class.prototype = {
             }
         }
 
-        // let's transform URIs into services objects
+        // let's transform URIs into service objects
         if(this.getServices != undefined) {
             var newGetServices = [];
             for(var _i=0; _i< this.getServices.length; _i++) {
@@ -2158,6 +2157,52 @@ Siesta.Model.Class.prototype = {
         }
         if(this.putServices != undefined) {
             this.putServices = Siesta.Services.RestfulService.find(this.putServices);
+        }
+
+        this._propertyMapping = null;
+    },
+
+    definePropertiesNames: function(mapping) {
+        this._propertyMapping = {};
+        var propertiesNames = [];
+        for(var _i=0; _i<this.schema.properties().length; _i++) {
+            propertiesNames.push(this.schema.properties()[_i]['uri']);
+        }
+
+        for(_name in mapping) {
+            var thisProperty = mapping[_name];
+            if(typeof thisProperty == 'object') {
+                thisProperty = Siesta.Model.Namespaces.resolve(thisProperty);
+            }
+            var found = false;
+            for(var _i=0; _i<propertiesNames.length; _i++) {
+                if(propertiesNames[_i] == thisProperty) {
+                    found = true;
+                    break;
+                }
+            }
+            if(found == true) {
+                this._propertyMapping[_name]  = thisProperty
+            } else {
+                throw "Cannot define property class name for unknown property " + thisProperty ;
+            }
+        }
+    },
+
+    properties: function() {
+        return this.schema.properties();
+    },
+
+    property: function(nameOrUri) {
+        if(this._propertyMapping != null && this._propertyMapping[nameOrUri] != undefined) {
+            return this._propertyMapping[nameOrUri];
+        } else {
+            for(var _i=0; _i<this.schema.properties().length; _i++) {
+                if(this.schema.properties()[_i]['uri'] == nameOrUri) {
+                    return propertiesNames.push(this.schema.properties()[_i]);
+                }
+            }
+            throw "Uknown property " + nameOrUri ;
         }
     }
 };

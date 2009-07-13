@@ -1,4 +1,3 @@
-
 Screw.Unit(function() {
 
     describe('Siesta',function() {
@@ -1339,6 +1338,26 @@ Screw.Unit(function() {
 
     describe('Siesta.Services.RestfulService',function() {
 
+	   describe('.findForSchema',function() {
+
+            it("should retrieve the model reference associated to this service from the repository",
+            function() {
+                
+                Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
+                expect(Siesta.Model.Repositories.services.triplesArray().length == 0).to(equal,true);
+                var graph = Siesta.Formats.Turtle.parseDoc("",fixtureN3Data1);
+                Siesta.Model.Repositories.services = graph;
+                expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
+                
+                var service = new Siesta.Services.RestfulService("http://localhost:3000/schemas/services/BookService");
+                expect(service.modelReference() == "http://localhost:3000/schemas/models/Book").to(equal,true);        
+                Siesta.Services.RestfulService.servicesCache["http://localhost:3000/schemas/services/BookService"] = service;
+                var serviceFound = Siesta.Services.RestfulService.findForSchema("http://localhost:3000/schemas/models/Book")
+                expect(serviceFound).to(equal,service);
+
+            });
+           });
+
 	   describe('.modelReference',function() {
 
             it("should retrieve the model reference associated to this service from the repository",
@@ -1446,6 +1465,69 @@ Screw.Unit(function() {
 
 
 
+    });
+});
+
+Screw.Unit(function() {
+    describe('Siesta.Model.Class',function() {
+
+        describe('.initialize',function() {
+
+            it("should retrieve the model reference associated to this service from the repository",
+               function() {
+                   Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
+                   expect(Siesta.Model.Repositories.schemas.triplesArray().length == 0).to(equal,true);
+                   var graph = Siesta.Formats.Turtle.parseDoc("",fixturesN3Data6);
+                   var bookGraph = Siesta.Formats.Turtle.parseDoc("",fixturesN3BookClass);
+
+                   Siesta.Model.Repositories.schemas = bookGraph;
+                   Siesta.Model.Repositories.services = graph;
+                   expect(Siesta.Model.Repositories.schemas.triplesArray().length > 0).to(equal,true);
+
+                   var model = new Siesta.Model.Schema("http://localhost:3000/schemas/models/Book");
+                   expect(model.type() == "http://www.w3.org/2000/01/rdf-schema#Class").to(equal,true);
+
+                   var bookClass = new Siesta.Model.Class({
+                       schemaUri: "http://localhost:3000/schemas/models/Book"
+                   });
+
+                   expect(bookClass.properties() != undefined).to(equal,true);
+               });
+
+        });
+
+        describe('.definePropertiesNames',function() {
+
+            it("should retrieve the model reference associated to this service from the repository",
+               function() {
+                   Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
+                   Siesta.Model.Repositories.schemas = new Siesta.Framework.Graph();
+
+                   expect(Siesta.Model.Repositories.schemas.triplesArray().length == 0).to(equal,true);
+                   var graph = Siesta.Formats.Turtle.parseDoc("",fixturesN3Data6);
+                   var bookGraph = Siesta.Formats.Turtle.parseDoc("",fixturesN3BookClass);
+
+                   Siesta.Model.Repositories.schemas = bookGraph;
+                   Siesta.Model.Repositories.services = graph;
+                   expect(Siesta.Model.Repositories.schemas.triplesArray().length > 0).to(equal,true);
+
+                   var model = new Siesta.Model.Schema("http://localhost:3000/schemas/models/Book");
+                   expect(model.type() == "http://www.w3.org/2000/01/rdf-schema#Class").to(equal,true);
+
+                   var bookClass = new Siesta.Model.Class({
+                       schemaUri: "http://localhost:3000/schemas/models/Book"
+                   });
+
+                   expect(bookClass.properties() != undefined).to(equal,true);
+
+                   bookClass.definePropertiesNames({
+                       isbn: 'http://test.com#isbn'
+                   });
+
+                   expect(bookClass.property('isbn')).to(equal,'http://test.com#isbn');
+               });
+
+        });
     });
 });
 
