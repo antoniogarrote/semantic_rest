@@ -1319,7 +1319,6 @@ Screw.Unit(function() {
 
             it("should retrieve the properties associated to this model and its ranges",
                function() {
-                   debugger;
                    Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
                    Siesta.Model.Repositories.schemas = new Siesta.Framework.Graph();
                    expect(Siesta.Model.Repositories.schemas.triplesArray().length == 0).to(equal,true);
@@ -1342,13 +1341,15 @@ Screw.Unit(function() {
                    });
 
                    expect(bookClass.properties() != undefined).to(equal,true);
-                   var instance = Siesta.Model.Instance({
+                   var instance = new Siesta.Model.Instance({
                        type: bookClass,
                        properties: {
                            isbn: '222333'
                        }
                    });
                    var result = instance.toGraph();
+                   expect(instance.toGraph().triplesArray().length).to(equal,1);
+                   expect(instance.toGraph().triplesArray()[0].object.value).to(equal,'222333');
                });
 
         });
@@ -1514,7 +1515,7 @@ Screw.Unit(function() {
 
         });
 
-        describe('.definePropertiesNames',function() {
+        describe('.definePropertiesAliases',function() {
 
             it("should retrieve the model reference associated to this service from the repository",
                function() {
@@ -1538,7 +1539,7 @@ Screw.Unit(function() {
 
                    expect(bookClass.properties() != undefined).to(equal,true);
 
-                   bookClass.definePropertiesNames({
+                   bookClass.definePropertiesAliases({
                        isbn: 'http://test.com#isbn'
                    });
 

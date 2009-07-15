@@ -2156,7 +2156,7 @@ Siesta.Model.Class.prototype = {
                 this.putServices = service.uri;
 
             } catch(e) {
-                throw "Cannot initialize Siesta.Model.Schema without a backend service";
+                //throw "Cannot initialize Siesta.Model.Schema without a backend service";
             }
         }
 
@@ -2404,7 +2404,6 @@ Siesta.Model.Instance.prototype = {
     },
 
     set: function(property,value) {
-        debugger;
         if(this.type.property(property) != null) {
             this._properties[this.type.property(property)] = value
         } else {
