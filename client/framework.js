@@ -1072,7 +1072,7 @@ Siesta.Services.TRIPLET_CHANGE_EVENT = "TRIPLET_CHANGE_EVENT";
   @returns throw a Siesta.Services.TRIPLET_CHANGE_EVENT with an object message including the repository \
 where the triplets have been added an the graph from the document.
  */
-Siesta.Services.parseAndAddToRepository = function(doc,repository) {
+Siesta.Services.parseAndAddToRepository = function(doc,repository,callback) {
     var  formater = Siesta.Services.chooseFormaterFor(doc);
 
     if(formater.isParserAsynchronous() == false) {
@@ -1087,6 +1087,9 @@ Siesta.Services.parseAndAddToRepository = function(doc,repository) {
         };
 
         Siesta.Events.publish(Siesta.Services.TRIPLET_CHANGE_EVENT,resp);
+        if(callback != undefined) {
+            callback(resp);
+        }
     } else {
         formater.parseDoc("",doc, function(resBaseUri, resDoc, parsedGraph) {
             for(_i=0; _i< parsedGraph.triplesArray().length; _i++) {
@@ -1099,6 +1102,9 @@ Siesta.Services.parseAndAddToRepository = function(doc,repository) {
             };
 
             Siesta.Events.publish(Siesta.Services.TRIPLET_CHANGE_EVENT,resp);
+            if(callback != undefined) {
+                callback(resp);
+            }
         });
     }
 };
@@ -1832,17 +1838,21 @@ Siesta.Services.RestfulOperation.prototype = {
                 theAddress = theAddress + "?_method=" + this.method().toLowerCase();
             }
             Siesta.Network.jsonpRequestForFunction(theAddress,"callback",function(resp) {
+
+                var notifyWhenParsed = function(resp) {
+                    // It is necessary to return the parsed object
+                    Siesta.Events.publish(that.EVENT_CONSUMED,resp.parsedGraph);
+                }
+
                 if(that.method() == 'GET' || that.method() == 'POST') {
-                    Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.data);
-                    Siesta.Events.publish(that.EVENT_CONSUMED,that);
+                    Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.data,notifyWhenParsed);
                 } else if(that.method() == 'DELETE') {
                     Siesta.Model.Repositories.data.removeGraph(graph);
-                    Siesta.Events.publish(that.EVENT_CONSUMED,that);
+                    notifyWhenParsed(graph);
                 } else if(that.method() == 'PUT') {
                     Siesta.Model.Repositories.data.removeGraph(graph);                    
-                    Siesta.Model.parseAndAddToRepository(resp,Siesta.Model.Repositories.data);
-                    Siesta.Events.publish(that.EVENT_CONSUMED,that);
-                }
+                    Siesta.Model.parseAndAddToRepository(resp,Siesta.Model.Repositories.data,notifyWhenParsed);
+                }                
             });
         } else {
             // AJAX here
@@ -1907,8 +1917,9 @@ Siesta.Services.RestfulService.prototype = {
      * @see Siesta.Services.registerService
      *
      * @argument serviceuri: Service location URI, a Siesta.Framework.Uri object or a String
+     * @argument networkMechanism: what kind of network transport will be used to access this service
      */
-    initialize: function(serviceUri ) {
+    initialize: function(serviceUri,networkMechanism) {
         this.uri = serviceUri;
         if(serviceUri.__type == 'uri') {
             this.uri = uri.toString();
@@ -1920,6 +1931,11 @@ Siesta.Services.RestfulService.prototype = {
         this._modelReference = null;
         this.connected = false;
         this._model = null;
+        this._mechanism = networkMechanism;
+    },
+
+    networkMechanism: function() {
+        return this._mechanism;
     },
 
     modelReference: function() {
@@ -2009,7 +2025,10 @@ Siesta.Services.RestfulService.prototype = {
 
       @returns nothing
     */
-    connect: function(mechanism) {
+    connect: function(mechanism) {        
+        if(arguments.length == 0) {
+            mechanism = this._mechanism;
+        }
         if(this.connected == false) {
             
             var that = this;
@@ -2162,7 +2181,7 @@ Siesta.Model.Class.prototype = {
         this._propertyMapping = null;
     },
 
-    definePropertiesNames: function(mapping) {
+    definePropertiesAliases: function(mapping) {
         this._propertyMapping = {};
         var propertiesNames = [];
         for(var _i=0; _i<this.schema.properties().length; _i++) {
@@ -2202,9 +2221,26 @@ Siesta.Model.Class.prototype = {
                     return propertiesNames.push(this.schema.properties()[_i]);
                 }
             }
-            throw "Uknown property " + nameOrUri ;
+            return null;
+        }
+    },
+
+    propertiesAliases: function() {
+        var toReturn = [];
+        for(var p in this._propertyMapping) {
+            toReturn.push(p);
+        }
+        return toReturn;
+    },
+
+    isPropertyAlias: function(propertyName) {
+        if(this._propertyMapping[propertyName] == undefined) {
+            return false;
+        } else {
+            return true;
         }
     }
+
 };
 
 Siesta.Model.Schema = Class.create();
@@ -2289,10 +2325,45 @@ Siesta.Model.Schema.prototype = {
             }
             return this._properties;
         }
+    },
+
+    /*
+     * Operations
+     */
+
+    /**
+      Returns a new instance of the class without saving it into the server
+     */
+    build: function(params) {
+        return new Siesta.Model.Instance({
+            type: this,
+            properties: params
+        });
+    },
+    
+    /**
+      Invokes the POST method of the associated service for the given instance
+     */
+    post: function(instance,callback) {
+        if(this.postServices == undefined) {
+            throw "Cannot save instance for ModelClass without POST service";
+        } else {
+            var op = this.postServices;
+            var that = this;
+            var subscription = Siesta.Events.subscribe(op.EVENT_CONSUMED,function(event,graph,myData) {
+                if(myData == instance) {
+                    if(callback != undefined) {
+                        callback(graph);
+                    }
+                }
+            },that,instance);
+            op.consume(op.networkMechanism(),instance.toGraph());
+        }
     }
 };
 
 Siesta.Model.Instance = Class.create();
+
 /**
   @class Siesta.Model.Instance
 
@@ -2309,13 +2380,43 @@ Siesta.Model.Instance.prototype = {
      * @argument uri: instance URI, it can be null.
      * @argument properties: values for the properties of the instance
      */
-    initialize: function(schema, uri, properties ) {
-        this._schema = schema;
-        this.uri = uri;
-        this._properties = properties;
+    initialize: function(params) {
+
+        this.type = params.type;
+        if(this.type == undefined) {
+            throw "Cannot create instance with undefined type";
+        }
+
+        this.uri = params.uri;
+        this._properties = {};
+
         this._graph = null;
-        for(var p in properties) {
-            this[p] = properties[p];
+
+        if(this.uri == undefined) {
+            this.stored = false;
+        } else {
+            this.stored = true;
+        }
+
+        for(var p in params.properties) {
+            this.set(p,params.properties[p]);
+        }
+    },
+
+    set: function(property,value) {
+        debugger;
+        if(this.type.property(property) != null) {
+            this._properties[this.type.property(property)] = value
+        } else {
+            throw "Unknown property "+property+" for instance of class "+this.type.uri;
+        }
+    },
+
+    get: function(property) {
+        if(this.type.property(property) != null) {
+            return this._properties[this.type.property(property)];
+        } else {
+            throw "Unknown property "+property+" for instance of class "+this.type.uri;
         }
     },
 
@@ -2326,27 +2427,23 @@ Siesta.Model.Instance.prototype = {
                 this.uri = "_:0";
             }
             var subject = new Siesta.Framework.Uri(this.uri);
-            for(var _i=0; _i<this._schema.properties().length; _i++) {
-                var prop = this._schema.properties()[_i];
-                var found = null;
-                var foundUri = null;
                 for(var p in this._properties) {
-                    var pindex = prop.uri.indexOf(p);
-                    if(pindex != -1 && (pindex + p.length) == prop.uri.length) {
-                        found = p;
-                        foundUri = prop.uri;
-                        break;
-                    }
-                }
-
-                if(found != null) {
                     this._graph.addTriple(new Siesta.Framework.Triple(new Siesta.Framework.Uri(this.uri),
-                                                                      new Siesta.Framework.Uri(foundUri),
-                                                                      new Siesta.Framework.Literal({value: this._properties[found]})));
+                                                                      new Siesta.Framework.Uri(p),
+                                                                      new Siesta.Framework.Literal({value: this._properties[p]})));
                 }
-            }
         } 
         return this._graph;
+    },
+    /*
+     * Operations
+     */
+    save: function(callback) {
+        this.type.post(this,function(graph) {
+            // TODO instead of updating the uri, it is better to reload from repository.
+            this.uri = graph.triplesArray()[0].subject.value;
+            callback(this);
+        });
     }
 };
 

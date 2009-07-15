@@ -1319,17 +1319,35 @@ Screw.Unit(function() {
 
             it("should retrieve the properties associated to this model and its ranges",
                function() {
+                   debugger;
+                   Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
                    Siesta.Model.Repositories.schemas = new Siesta.Framework.Graph();
                    expect(Siesta.Model.Repositories.schemas.triplesArray().length == 0).to(equal,true);
-                   var graph = Siesta.Formats.Turtle.parseDoc("",fixtureN3Data3);
-                   Siesta.Model.Repositories.schemas = graph;
+                   var graph = Siesta.Formats.Turtle.parseDoc("",fixturesN3Data6);
+                   var bookGraph = Siesta.Formats.Turtle.parseDoc("",fixturesN3BookClass);
+
+                   Siesta.Model.Repositories.schemas = bookGraph;
+                   Siesta.Model.Repositories.services = graph;
                    expect(Siesta.Model.Repositories.schemas.triplesArray().length > 0).to(equal,true);
 
                    var model = new Siesta.Model.Schema("http://localhost:3000/schemas/models/Book");
-                   expect(model.properties().length == 7).to(equal,true);
+                   expect(model.type() == "http://www.w3.org/2000/01/rdf-schema#Class").to(equal,true);
 
-                   var instance = new Siesta.Model.Instance(model,null,{id: 1, isbn: 2});
+                   var bookClass = new Siesta.Model.Class({
+                       schemaUri: "http://localhost:3000/schemas/models/Book"
+                   });
 
+                   bookClass.definePropertiesAliases({
+                       isbn:"http://test.com#isbn"
+                   });
+
+                   expect(bookClass.properties() != undefined).to(equal,true);
+                   var instance = Siesta.Model.Instance({
+                       type: bookClass,
+                       properties: {
+                           isbn: '222333'
+                       }
+                   });
                    var result = instance.toGraph();
                });
 
