@@ -6,7 +6,7 @@ wait = function(name,callback) {
             console.log("MUTEX:"+name);
             callback();
         } else {
-            setTimeout(timeout,500);            
+            setTimeout(timeout,500);
         }
     };
 
@@ -737,10 +737,10 @@ Screw.Unit(function() {
             it("should inmediately parse the doc and send a notification if the parser is syncrhonous",
             function() {
                 wait('.parseAndAddToRepository',function(){
-                var _graph = new  Siesta.Framework.Graph();            
+                var _graph = new  Siesta.Framework.Graph();
                 try {
                     expect(_graph.triplesArray().length == 0).to(equal,true);
-                    var that = this;                    
+                    var that = this;
                     var subscription = Siesta.Events.subscribe(Siesta.Services.TRIPLET_CHANGE_EVENT,function(event,msg) {
                         Siesta.Events.unsubscribe(subscription);
                         t = function() {
@@ -759,13 +759,13 @@ Screw.Unit(function() {
             it("should parse the doc and send an asynchronous notification if the parser is syncrhonous",
             function() {
                 wait('should parse the doc and send an asynchronous notification if the parser is syncrhonous',function(){
-                var _graph = new  Siesta.Framework.Graph();            
+                var _graph = new  Siesta.Framework.Graph();
                 try {
                     expect(_graph.triplesArray().length == 0).to(equal,true);
                     var that = this;
                     var subscription = Siesta.Events.subscribe(Siesta.Services.TRIPLET_CHANGE_EVENT,function(event,msg) {
                         Siesta.Events.unsubscribe(subscription);
-                        t = function() { 
+                        t = function() {
                             expect(_graph.triplesArray().length > 0).to(equal,true);
                             GLOBAL_MUTEX = false;
                         };
@@ -980,11 +980,11 @@ Screw.Unit(function() {
                       Siesta.Model.Repositories.services = graph;
                       //console.log("2");
                       expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
-                      
+
                       var service = new Siesta.Services.RestfulService("http://localhost:3000/schemas/services/BookService");
                       //console.log("3");
                       //expect(service.modelReference() == "http://localhost:3000/schemas/models/Book").to(equal,true);
-                      
+
                       var that = this;
                       var subscription =  Siesta.Events.subscribe(service.EVENT_SERVICE_LOADED,function(event,serv,myData) {
                           if(myData == service) {
@@ -1009,7 +1009,7 @@ Screw.Unit(function() {
                                       toLowerGraph.addTriple(new Siesta.Framework.Triple(new Siesta.Framework.Uri("http://test.com/1"),
                                                                                          new Siesta.Framework.Uri("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
                                                                                          new Siesta.Framework.Uri("http://localhost:3000/schemas/models/Book")));
-                                      
+
                                       Siesta.Model.Repositories.data = new Siesta.Framework.Graph();
 
                                       var subscriptionConsumed =  Siesta.Events.subscribe(op.EVENT_CONSUMED,function(event,operation,myData) {
@@ -1048,11 +1048,11 @@ Screw.Unit(function() {
                       Siesta.Model.Repositories.services = graph;
                       //console.log("2");
                       expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
-                      
+
                       var service = new Siesta.Services.RestfulService("http://localhost:3000/schemas/services/BookService");
                       //console.log("3");
                       //expect(service.modelReference() == "http://localhost:3000/schemas/models/Book").to(equal,true);
-                      
+
                       var that = this;
                       var _subscription =  Siesta.Events.subscribe(service.EVENT_SERVICE_LOADED,function(event,serv,myData) {
                           if(myData == service) {
@@ -1073,7 +1073,7 @@ Screw.Unit(function() {
                                   if(op.uri == "http://localhost:3000/schemas/services/Book#createBook") {
                                       //this is our operation
                                       var toLowerGraph = Siesta.Formats.Turtle.parseDoc("",fixturesN3Book1);
-                                      
+
                                       Siesta.Model.Repositories.data = new Siesta.Framework.Graph();
 
                                       var __subscription = Siesta.Events.subscribe(op.EVENT_CONSUMED,function(event,operation,myData) {
@@ -1081,7 +1081,7 @@ Screw.Unit(function() {
                                               Siesta.Events.unsubscribe(__subscription);
 
                                               //expect(Siesta.Model.Repositories.data.triplesArray().length>0).to(equal,true);
-                                              
+
                                               for(var _j=0; _j<serv.operations().length; _j++) {
                                                   var dop = serv.operations()[_j];
                                                   if(dop.uri == "http://localhost:3000/schemas/services/Book#destroyBook") {
@@ -1096,7 +1096,7 @@ Screw.Unit(function() {
                                                   }
                                               }
                                           }
-                                      },this,'foo_identifier_1');                                  
+                                      },this,'foo_identifier_1');
                                       op.consume("jsonp",toLowerGraph);
                                   }
                               }
@@ -1116,7 +1116,7 @@ Screw.Unit(function() {
                       wait('.register',function(){
                       Siesta.Model.Namespaces.map = {};
                       Siesta.Model.Namespaces.register("test","http://test.com#")
-                      expect(Siesta.Model.Namespaces.map.test).to(equal,"http://test.com#");                      
+                      expect(Siesta.Model.Namespaces.map.test).to(equal,"http://test.com#");
                           GLOBAL_MUTEX = false;
                       });
                   });
@@ -1383,32 +1383,31 @@ Screw.Unit(function() {
 
         });
 
-   describe('.save this test may fail',function() {
+   describe('.save',function() {
        it("should build a new instance and save it into the server",
           function() {
-              wait('save',function(){              
+              wait('save',function(){
               Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
               Siesta.Model.Repositories.schemas = new Siesta.Framework.Graph();
-              
+
               expect(Siesta.Model.Repositories.services.triplesArray().length == 0).to(equal,true);
               var graph = Siesta.Formats.Turtle.parseDoc("",fixturesN3Data6);
               Siesta.Model.Repositories.services = graph;
               expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
-                      
+
               var service = new Siesta.Services.RestfulService("http://localhost:3000/schemas/services/BookService");
-                      //console.log("3");
-                      //expect(service.modelReference() == "http://localhost:3000/schemas/models/Book").to(equal,true);
-                      
+
               var that = this;
               var _subscription =  Siesta.Events.subscribe(service.EVENT_SERVICE_LOADED,function(event,serv,myData) {
                   Siesta.Services.RestfulService.servicesCache["http://localhost:3000/schemas/services/BookService"] = serv;
 
                   Siesta.Events.unsubscribe(_subscription);
+
                   var Book = new Siesta.Model.Class({
                       schemaUri: "http://localhost:3000/schemas/models/Book",
                       serviceUri:"http://localhost:3000/schemas/services/BookService"
                   });
-                  
+
                   Book.definePropertiesAliases({
                       id:"http://semantic_rest/siesta#id",
                       isbn:"http://test.com#isbn",
@@ -1429,7 +1428,8 @@ Screw.Unit(function() {
                   });
 
                   myBook.save(function(savedBook){
-                      console.log(savedBook.get('id'));                      
+                      //console.log(savedBook.get('id'));
+                      expect(savedBook.get('id')!=undefined).to(equal,true);
                       GLOBAL_MUTEX = false;
                   });
 
@@ -1488,15 +1488,15 @@ Screw.Unit(function() {
 
             it("should retrieve the model reference associated to this service from the repository",
             function() {
-                
+
                 Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
                 expect(Siesta.Model.Repositories.services.triplesArray().length == 0).to(equal,true);
                 var graph = Siesta.Formats.Turtle.parseDoc("",fixtureN3Data1);
                 Siesta.Model.Repositories.services = graph;
                 expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
-                
+
                 var service = new Siesta.Services.RestfulService("http://localhost:3000/schemas/services/BookService");
-                expect(service.modelReference() == "http://localhost:3000/schemas/models/Book").to(equal,true);        
+                expect(service.modelReference() == "http://localhost:3000/schemas/models/Book").to(equal,true);
                 Siesta.Services.RestfulService.servicesCache["http://localhost:3000/schemas/services/BookService"] = service;
                 var serviceFound = Siesta.Services.RestfulService.findForSchema("http://localhost:3000/schemas/models/Book")
                 expect(serviceFound).to(equal,service);
@@ -1585,12 +1585,12 @@ Screw.Unit(function() {
 
                 var service = new Siesta.Services.RestfulService("http://localhost:3000/schemas/services/BookService");
                 expect(service.modelReference() == "http://localhost:3000/schemas/models/Book").to(equal,true);
-                
+
                 var that = this;
 
                 var subscription =  Siesta.Events.subscribe(service.EVENT_SERVICE_LOADED,function(event,serv,myData) {
                     if(myData == service) {
-                        Siesta.Events.unsubscribe(subscription);                    
+                        Siesta.Events.unsubscribe(subscription);
 
                         expect(serv.model().uri == "http://localhost:3000/schemas/models/Book").to(equal,true);
                         expect(serv.connected).to(equal,true);
@@ -1599,13 +1599,12 @@ Screw.Unit(function() {
                             expect(op.inputMessages()[0].connected).to(equal,true);
                             expect(op.inputMessages()[0].loweringSchemaMappingContent != null).to(equal,true);
                             expect(op.outputMessage().connected).to(equal,true);
-                            //expect(op.outputMessage().liftingSchemaMappingContent != null).to(equal,true);                            
-                            
+                            //expect(op.outputMessage().liftingSchemaMappingContent != null).to(equal,true);
                         }
                         GLOBAL_MUTEX = false;
                     }
                 },this,service);
-                
+
                 service.connect("jsonp");
                 });
             });
@@ -1625,6 +1624,7 @@ Screw.Unit(function() {
             it("should retrieve the model reference associated to this service from the repository",
                function() {
                    Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
+                   Siesta.Model.Repositories.schemas = new Siesta.Framework.Graph();
                    expect(Siesta.Model.Repositories.schemas.triplesArray().length == 0).to(equal,true);
                    var graph = Siesta.Formats.Turtle.parseDoc("",fixturesN3Data6);
                    var bookGraph = Siesta.Formats.Turtle.parseDoc("",fixturesN3BookClass);

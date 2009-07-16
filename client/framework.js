@@ -2381,6 +2381,31 @@ Siesta.Model.Class.prototype = {
             var g = instance.toGraph();
             op.consume(service.networkMechanism(),g);
         }
+    },
+    delete: function(instance,callback) {
+        if(this.deleteServices == undefined) {
+            throw "Cannot destroy instance for ModelClass without DELETE service";
+        } else {
+            var service = this.deleteServices;
+            var op = null;
+            var operations = service.operations();
+            for(var _i=0; _i<operations.length; _i++) {
+                if(operations[_i].method() == Siesta.Services.RestfulOperation.DELETE) {
+                    op = operations[_i];
+                    break;
+                }
+            }
+            var that = this;
+            var subscription = Siesta.Events.subscribe(op.EVENT_CONSUMED,function(event,graph,myData) {
+                if(myData == instance) {
+                    if(callback != undefined) {
+                        callback(graph);
+                    }
+                }
+            },that,instance);
+            var g = instance.toGraph();
+            op.consume(service.networkMechanism(),g);
+        }
     }
 };
 
@@ -2459,11 +2484,34 @@ Siesta.Model.Instance.prototype = {
     /*
      * Operations
      */
+
+    /**
+      Saves or updates this instance using the provided backend service.
+
+      @argument callback, a callback function that will be invoked when the save
+                operation had finished passing as a parameter the saved instance.
+    */
     save: function(callback) {
         var that = this;
         this.type.post(this,function(graph) {
             // TODO instead of updating the uri, it is better to reload from repository.
             that.uri = graph.triplesArray()[0].subject.value;
+            this.stored = true;
+            callback(that);
+        });
+    },
+
+    /**
+      Destroys this instance using the provided backend service.
+
+      @argument callback, a callback function that will be invoked when the destroy
+                operation had finished passing as a parameter the destroyed instance.
+    */
+    destroy: function(callback) {
+        var that = this;
+        this.type.delete(this,function(graph) {
+            that.uri = undefined;
+            this.stored = false;
             callback(that);
         });
     }
