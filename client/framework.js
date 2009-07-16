@@ -1567,6 +1567,13 @@ Siesta.Services.RestfulOperationOutputMessage.prototype = {
 };
 
 Siesta.Services.RestfulOperation = Class.create();
+
+//Constants
+Siesta.Services.RestfulOperation.GET = 'GET',
+Siesta.Services.RestfulOperation.POST = 'POST',
+Siesta.Services.RestfulOperation.PUT = 'PUT',
+Siesta.Services.RestfulOperation.DELETE = 'DELETE',
+
 /**
   @class Siesta.Services.RestfulOperation
 
@@ -1592,7 +1599,7 @@ Siesta.Services.RestfulOperation.prototype = {
         if(operationUri.__type == 'uri') {
             this.uri = uri.toString();
         }
-
+        
         this._label = null;
         this._method = null;
         this._address = null;
@@ -1815,7 +1822,11 @@ Siesta.Services.RestfulOperation.prototype = {
         var inputMsgs = this.inputMessages();
         for(var _i=0; _i<inputMsgs.length; _i++) {
             var inputMsg = inputMsgs[_i];
+            try{
             var result = Siesta.Sparql.query(graph,inputMsg.loweringSchemaMappingContent);
+            } catch(e) {
+                debugger;
+            }
             for(var v in result[0]) {
                 if((typeof result[0][v]) == "object") {
                     loweredParametersMap[v] = result[0][v];
@@ -2026,6 +2037,9 @@ Siesta.Services.RestfulService.prototype = {
       @returns nothing
     */
     connect: function(mechanism) {        
+        if(this._mechanism == undefined) {
+            this._mechanism = mechanism;
+        }
         if(arguments.length == 0) {
             mechanism = this._mechanism;
         }
@@ -2102,6 +2116,91 @@ Siesta.Services.RestfulService.prototype = {
     EVENT_SERVICE_LOADED: "EVENT_SERVICE_LOADED"
 };
 
+Siesta.Model.Schema = Class.create();
+/**
+  @class Siesta.Model.Schema
+
+  A RDF model schema.
+*/
+Siesta.Model.Schema.prototype = {
+    /**
+     * @constructor
+     *
+     * Initiates a new model schema object with the
+     * the data associated to the URI passed as an
+     * argument in the constructor.
+     *
+     * Triplets are looked up in the Siesta.Model.Repositories.schemas repository,
+     * they must have been retrieved before initating the schema object.
+     *
+     * @argument serviceuri: Schema URI: a Siesta.Framework.Uri object or a String
+     */
+    initialize: function(schemaUri) {                
+        this.uri = schemaUri;
+        if(typeof this.uri == 'object') {
+            if(schemaUri.__type == 'uri') {
+                this.uri = uri.toString();
+            } else {
+                this.uri = Siesta.Model.Namespaces.resolve(this.uri);
+            }
+        }
+
+        if(this.uri == undefined) {
+            throw "Cannot initialize Siesta.Model.Schema without schemaUri";
+        }
+
+        this._type = null;
+        this._properties = null;
+    },
+
+    /**
+      Retrieves the type of this model schema.
+
+      @returns The URI of the type associated to this schema model
+    */
+    type: function() {
+        if(this._type != null) {
+            return this._type;
+        } else {
+            var query = "SELECT ?type WHERE { <"+this.uri+"> " + "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type> " + "?type }";
+
+            var result = Siesta.Sparql.query(Siesta.Model.Repositories.schemas,query);
+
+            if(result.length != 1) {
+                throw new Error("Error retrieving rdfs#type for <"+this.uri+"> uri. Found "+result.length+" results instead of 1");
+            } else {
+                this._type = result[0].type.value;
+                return this._type;
+            }
+        }
+    },
+
+    /**
+      Retrieves all the properties associated to this schema URI by a rdfs:domain predicate.
+
+      @returns A hash of URIs -> range for the properties of the model schema.
+    */
+    properties: function() {
+        if(this._properties != null) {
+            return this._properties;
+        } else {
+            var query = "SELECT ?prop ?range WHERE { ?prop  <http://www.w3.org/2000/01/rdf-schema#domain> <"+ this.uri +"> . ?prop <http://www.w3.org/2000/01/rdf-schema#range> ?range}";
+            var result = Siesta.Sparql.query(Siesta.Model.Repositories.schemas,query);
+
+            this._properties = [];
+
+            for(_i=0; _i<result.length; _i++) {
+                var prop = {};
+                prop['uri'] = result[_i].prop.value;
+                prop['range'] = result[_i].range.value;
+
+                this._properties.push(prop);
+            }
+            return this._properties;
+        }
+    }
+};
+
 Siesta.Model.Class = Class.create();
 /**
   @class Siesta.Model.Class
@@ -2121,7 +2220,6 @@ Siesta.Model.Class.prototype = {
         }
 
         if(this.uri == undefined) {
-            debugger;
             throw "Cannot initialize Siesta.Model.Schema without schemaUri";
         }
 
@@ -2239,93 +2337,8 @@ Siesta.Model.Class.prototype = {
         } else {
             return true;
         }
-    }
-
-};
-
-Siesta.Model.Schema = Class.create();
-/**
-  @class Siesta.Model.Schema
-
-  A RDF model schema.
-*/
-Siesta.Model.Schema.prototype = {
-    /**
-     * @constructor
-     *
-     * Initiates a new model schema object with the
-     * the data associated to the URI passed as an
-     * argument in the constructor.
-     *
-     * Triplets are looked up in the Siesta.Model.Repositories.schemas repository,
-     * they must have been retrieved before initating the schema object.
-     *
-     * @argument serviceuri: Schema URI: a Siesta.Framework.Uri object or a String
-     */
-    initialize: function(schemaUri) {                
-        this.uri = schemaUri;
-        if(typeof this.uri == 'object') {
-            if(schemaUri.__type == 'uri') {
-                this.uri = uri.toString();
-            } else {
-                this.uri = Siesta.Model.Namespaces.resolve(this.uri);
-            }
-        }
-
-        if(this.uri == undefined) {
-            throw "Cannot initialize Siesta.Model.Schema without schemaUri";
-        }
-
-        this._type = null;
-        this._properties = null;
     },
 
-    /**
-      Retrieves the type of this model schema.
-
-      @returns The URI of the type associated to this schema model
-    */
-    type: function() {
-        if(this._type != null) {
-            return this._type;
-        } else {
-            var query = "SELECT ?type WHERE { <"+this.uri+"> " + "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type> " + "?type }";
-
-            var result = Siesta.Sparql.query(Siesta.Model.Repositories.schemas,query);
-
-            if(result.length != 1) {
-                throw new Error("Error retrieving rdfs#type for <"+this.uri+"> uri. Found "+result.length+" results instead of 1");
-            } else {
-                this._type = result[0].type.value;
-                return this._type;
-            }
-        }
-    },
-
-    /**
-      Retrieves all the properties associated to this schema URI by a rdfs:domain predicate.
-
-      @returns A hash of URIs -> range for the properties of the model schema.
-    */
-    properties: function() {
-        if(this._properties != null) {
-            return this._properties;
-        } else {
-            var query = "SELECT ?prop ?range WHERE { ?prop  <http://www.w3.org/2000/01/rdf-schema#domain> <"+ this.uri +"> . ?prop <http://www.w3.org/2000/01/rdf-schema#range> ?range}";
-            var result = Siesta.Sparql.query(Siesta.Model.Repositories.schemas,query);
-
-            this._properties = [];
-
-            for(_i=0; _i<result.length; _i++) {
-                var prop = {};
-                prop['uri'] = result[_i].prop.value;
-                prop['range'] = result[_i].range.value;
-
-                this._properties.push(prop);
-            }
-            return this._properties;
-        }
-    },
 
     /*
      * Operations
@@ -2348,7 +2361,15 @@ Siesta.Model.Schema.prototype = {
         if(this.postServices == undefined) {
             throw "Cannot save instance for ModelClass without POST service";
         } else {
-            var op = this.postServices;
+            var service = this.postServices;
+            var op = null;
+            var operations = service.operations();
+            for(var _i=0; _i<operations.length; _i++) {
+                if(operations[_i].method() == Siesta.Services.RestfulOperation.POST) {
+                    op = operations[_i];
+                    break;
+                }
+            }
             var that = this;
             var subscription = Siesta.Events.subscribe(op.EVENT_CONSUMED,function(event,graph,myData) {
                 if(myData == instance) {
@@ -2357,7 +2378,8 @@ Siesta.Model.Schema.prototype = {
                     }
                 }
             },that,instance);
-            op.consume(op.networkMechanism(),instance.toGraph());
+            var g = instance.toGraph();
+            op.consume(service.networkMechanism(),g);
         }
     }
 };
@@ -2438,10 +2460,11 @@ Siesta.Model.Instance.prototype = {
      * Operations
      */
     save: function(callback) {
+        var that = this;
         this.type.post(this,function(graph) {
             // TODO instead of updating the uri, it is better to reload from repository.
-            this.uri = graph.triplesArray()[0].subject.value;
-            callback(this);
+            that.uri = graph.triplesArray()[0].subject.value;
+            callback(that);
         });
     }
 };
