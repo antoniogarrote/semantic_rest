@@ -2440,6 +2440,7 @@ Siesta.Model.Class.prototype = {
 
             var that = this;
             var subscription = Siesta.Events.subscribe(op.EVENT_CONSUMED,function(event,graph,myData) {
+                Siesta.Events.unsubscribe(subscription);                
                 if(myData == instance) {
                     if(callback != undefined) {
                         callback(graph);
@@ -2478,6 +2479,7 @@ Siesta.Model.Class.prototype = {
 
             var that = this;
             var subscription = Siesta.Events.subscribe(op.EVENT_CONSUMED,function(event,graph,myData) {
+                Siesta.Events.unsubscribe(subscription);                
                 if(myData == instance) {
                     if(callback != undefined) {
                         callback(graph);
@@ -2544,6 +2546,8 @@ Siesta.Model.Class.prototype = {
         if(this.getServices == undefined) {
             throw "Cannot find instance for ModelClass without GET service";
         } else {
+            debugger;
+            var instance = this.build(mapping);
             var service = this.getServices;
             var op = null;
             var operations = service.operations();
@@ -2563,10 +2567,15 @@ Siesta.Model.Class.prototype = {
             }
             var that = this;
             var subscription = Siesta.Events.subscribe(op.EVENT_CONSUMED,function(event,graph,myData) {
+                Siesta.Events.unsubscribe(subscription);                
                 if(myData == instance) {
                     // TODO: transform graph into instances
+                    instance.uri = graph.triplesArray()[0].subject.value;
+                    instance._graph = null;
+                    instance.type._updateInstance(graph,instance);
+                    instance.stored = true;
                     if(callback != undefined) {
-                        callback(graph);
+                        callback(instance);
                     }
                 }
             },that,instance);
@@ -2598,6 +2607,7 @@ Siesta.Model.Class.prototype = {
             }
             var that = this;
             var subscription = Siesta.Events.subscribe(op.EVENT_CONSUMED,function(event,graph,myData) {
+                Siesta.Events.unsubscribe(subscription);                
                 if(myData == instance) {
                     // TODO: transform graph into instances
                     if(callback != undefined) {
@@ -2633,6 +2643,7 @@ Siesta.Model.Class.prototype = {
             }
             var that = this;
             var subscription = Siesta.Events.subscribe(op.EVENT_CONSUMED,function(event,graph,myData) {
+                Siesta.Events.unsubscribe(subscription);                
                 if(myData == instance) {
                     if(callback != undefined) {
                         callback(graph);
@@ -2738,20 +2749,20 @@ Siesta.Model.Instance.prototype = {
     save: function(callback) {
         var that = this;
         if(this.stored == false) { // no saved, we use POST to create and save
-            this.type.post(this,function(graph) {
+            that.type.post(that,function(graph) {
                 // TODO instead of updating the uri, it is better to reload from repository.
                 that.uri = graph.triplesArray()[0].subject.value;
                 that._graph = null;
                 that.type._updateInstance(graph,that);
-                this.stored = true;
+                that.stored = true;
                 callback(that);
             });
         } else { // already saved, we use PUT to update
-            this.type.put(this,function(graph) {
+            that.type.put(that,function(graph) {
                 // TODO update properties???
                 that._graph = null;
                 that.type._updateInstance(graph,that);
-                this.stored = true;
+                that.stored = true;
                 callback(that);
             });
         }
