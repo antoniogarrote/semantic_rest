@@ -159,7 +159,7 @@ module SemanticResource
       lowering_operations["show"] = "sparql_lowering_show"
       lowering_operations["create"] = "sparql_lowering_create"
       lowering_operations["destroy"] = "sparql_lowering_destroy"
-      lowering_operations["update"] = "sparql_lowering_destroy"
+      lowering_operations["update"] = "sparql_lowering_update"
       SemanticResource::Manager.register_lowering_operation(self.name, lowering_operations)
     end
 
@@ -955,6 +955,7 @@ module SemanticResource
       end
 
       unless(resource_mapping.keys.include?(:id))
+        sparql << "?id "
         sparql_where_clause << "?x <#{SemanticResource::Configuration::SIESTA_ID}> ?id . "
       end
 
