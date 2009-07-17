@@ -4,7 +4,11 @@ wait = function(name,callback) {
         if(GLOBAL_MUTEX == false) {
             GLOBAL_MUTEX = name
             console.log("MUTEX:"+name);
-            callback();
+            try{
+                callback();
+            } catch(e) {
+                console.log('Exception:'+e+'in '+name);
+           }
         } else {
             setTimeout(timeout,500);
         }
@@ -1438,6 +1442,65 @@ Screw.Unit(function() {
               });
        });
    });
+
+
+   describe('.destroy',function() {
+       it("should destroy an existent instance from the remote server",
+          function() {
+              wait('destroy',function(){
+                  Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
+                  Siesta.Model.Repositories.schemas = new Siesta.Framework.Graph();
+
+                  expect(Siesta.Model.Repositories.services.triplesArray().length == 0).to(equal,true);
+                  var graph = Siesta.Formats.Turtle.parseDoc("",fixturesN3Data6);
+                  Siesta.Model.Repositories.services = graph;
+                  expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
+
+                  var service = new Siesta.Services.RestfulService("http://localhost:3000/schemas/services/BookService");
+
+                  var that = this;
+                  var _subscription =  Siesta.Events.subscribe(service.EVENT_SERVICE_LOADED,function(event,serv,myData) {
+                      Siesta.Services.RestfulService.servicesCache["http://localhost:3000/schemas/services/BookService"] = serv;
+
+                      Siesta.Events.unsubscribe(_subscription);
+
+                      var Book = new Siesta.Model.Class({
+                          schemaUri: "http://localhost:3000/schemas/models/Book",
+                          serviceUri:"http://localhost:3000/schemas/services/BookService"
+                      });
+
+                      Book.definePropertiesAliases({
+                          id:"http://semantic_rest/siesta#id",
+                          isbn:"http://test.com#isbn",
+                          numberOfPages:"http://test.com#numberOfPages",
+                          category:"http://test.com#category",
+                          editorial:"http://test.com#editorial",
+                          published:"http://test.com#published",
+                          title:"http://test.com#title"
+                      });
+
+                      var myBook = Book.build({
+                          isbn: 3323,
+                          numberOfPages: 12,
+                          category: 'drama',
+                          editorial: 'no one',
+                          published: '01-05-1982',
+                          title: 'habemus res'
+                      });
+
+                      myBook.save(function(savedBook){
+                          savedBook.destroy(function(destroyedBook) {
+                              expect(destroyedBook.uri==undefined).to(equal,true);
+                              GLOBAL_MUTEX = false;
+                          });
+                      });
+
+                  },this,service);
+                  service.connect("jsonp");
+              });
+          });
+   });
+
 
 	describe('.toGraph',function() {
 
