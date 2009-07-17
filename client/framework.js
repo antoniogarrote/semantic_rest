@@ -1855,14 +1855,25 @@ Siesta.Services.RestfulOperation.prototype = {
                     Siesta.Events.publish(that.EVENT_CONSUMED,resp.parsedGraph);
                 }
 
-                if(that.method() == 'GET' || that.method() == 'POST') {
+                if(that._repositoryMethod == Siesta.Services.RestfulOperation.GET ||
+                   that._repositoryMethod == Siesta.Services.RestfulOperation.POST ||
+                   that.method() == 'GET' || 
+                   that.method() == 'POST') {
+                    
                     Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.data,notifyWhenParsed);
-                } else if(that.method() == 'DELETE') {
+
+                } else if(that._repositoryMethod == Siesta.Services.RestfulOperation.DELETE || 
+                          that.method() == 'DELETE') {
+                    
                     Siesta.Model.Repositories.data.removeGraph(graph);
                     notifyWhenParsed(graph);
-                } else if(that.method() == 'PUT') {
+
+                } else if(that._repositoryMethod == Siesta.Services.RestfulOperation.PUT ||
+                          that.method() == 'PUT') {
+                    
                     Siesta.Model.Repositories.data.removeGraph(graph);                    
                     Siesta.Model.parseAndAddToRepository(resp,Siesta.Model.Repositories.data,notifyWhenParsed);
+
                 }                
             });
         } else {
@@ -2228,27 +2239,31 @@ Siesta.Model.Class.prototype = {
 
         // let's see if serviceUri for all the operations has been provided
         if(parameters.serviceUri != undefined) {
-            this.getServices = [parameters.serviceUri];
+            this.indexServices = parameters.serviceUri;
+            this.getServices = parameters.serviceUri;
             this.postServices = parameters.serviceUri;
             this.deleteServices = parameters.serviceUri;
             this.putServices = parameters.serviceUri;
         } 
         
         // if no serviceUri is provied, services uri may be provided in a per method basis
-        this.getServices = parameters.getServicesUris || this.getServices;
+        this.indexServices = parameters.indexServiceUri || this.indexServices;
+        this.getServices = parameters.getServiceUris || this.getServices;
         this.postServices = parameters.postServicesUris || this.postServices;
         this.putServices = parameters.putServicesUris || this.putServices;
         this.deleteServices = parameters.deleteServicesUris || this.deleteServices;
 
         // if no operations is provided yet, we will try to retrieve a service based on the schemaUri
-        if(this.getServices == undefined &&
+        if(this.indexServices == undefined &&
+           this.getServices == undefined &&
            this.postServices == undefined &&
            this.putServices == undefined &&
            this.deleteServices == undefined) {
             try {
                 var service = Siesta.Services.RestfulService.findForSchema(this.uri);
 
-                this.getServices = [service.uri];
+                this.indexServices = service.uri;
+                this.getServices = service.uri;
                 this.postServices = service.uri;
                 this.deleteServices = service.uri;
                 this.putServices = service.uri;
@@ -2259,12 +2274,11 @@ Siesta.Model.Class.prototype = {
         }
 
         // let's transform URIs into service objects
+        if(this.indexServices != undefined) {
+            this.indexServices = Siesta.Services.RestfulService.find(this.indexServices);
+        }
         if(this.getServices != undefined) {
-            var newGetServices = [];
-            for(var _i=0; _i< this.getServices.length; _i++) {
-                newGetServices.push(Siesta.Services.RestfulService.find(this.getServices[_i]));
-            }
-            this.getServices = newGetServices;
+            this.getServices = Siesta.Services.RestfulService.find(this.getServices);
         }
         if(this.postServices != undefined) {
             this.postServices = Siesta.Services.RestfulService.find(this.postServices);
@@ -2274,6 +2288,52 @@ Siesta.Model.Class.prototype = {
         }
         if(this.putServices != undefined) {
             this.putServices = Siesta.Services.RestfulService.find(this.putServices);
+        }
+
+        this.indexOperationUri = parameters.indexOperationUri;
+        this.getOperationUri = parameters.getOperationUri;
+        this.putOperationUri = parameters.putOperationUri;
+        this.postOperationUri = parameters.postOperationUri;
+        this.deleteOperationUri = parameters.deleteOperationUri;
+
+        if(this.indexServices != undefined) {
+            var indexServicesGET = 0;
+            var candidateIndex = null;
+            for(var _i=0;_i< indexServices.operations().length;_i++) {
+                if(indexServices.operations()[_i].method() == Siesta.Services.RestfulOperation.GET) {
+                    indexServicesGET++;
+                    candidateIndex = indexServices.operations()[_i];
+                }
+            }
+            if(indexServicesGET > 1) {
+                if(this.indexOperationUri == undefined) {
+                    throw 'several posible GET operations for index';
+                }
+            } else {
+                if(this.indexOperationUri == undefined) {
+                    this.indexOperationUri = candiateIndex.method().uri;
+                }
+            }
+        }
+
+        if(this.getServices != undefined) {
+            var getServicesGET = 0;
+            var candidateGet = null;
+            for(var _i=0;_i< getServices.operations().length;_i++) {
+                if(getServices.operations()[_i].method() == Siesta.Services.RestfulOperation.GET) {
+                    getServicesGET++;
+                    candidateGet = getServices.operations()[_i];
+                }
+            }
+            if(getServicesGET > 1) {
+                if(this.getOperationUri == undefined) {
+                    throw 'several posible GET operations for find';
+                }
+            } else {
+                if(this.getOperationUri == undefined) {
+                    this.getOperationUri = candiateGet.method().uri;
+                }
+            }
         }
 
         this._propertyMapping = null;
@@ -2365,11 +2425,20 @@ Siesta.Model.Class.prototype = {
             var op = null;
             var operations = service.operations();
             for(var _i=0; _i<operations.length; _i++) {
-                if(operations[_i].method() == Siesta.Services.RestfulOperation.POST) {
-                    op = operations[_i];
-                    break;
+                if(this.postOperationUri == undefined) { // no URI look for the HTTP method
+                    if(operations[_i].method() == Siesta.Services.RestfulOperation.POST) {
+                        op = operations[_i];
+                        break;
+                    }
+                } else{ // URI, we don't care about the HTTP method
+                    if(operations[_i].uri == this.postOperationUri) {
+                        op = operations[_i];
+                        op._repositoryMethod = Siesta.Services.RestfulOperation.POST;
+                        break;
+                    }
                 }
             }
+
             var that = this;
             var subscription = Siesta.Events.subscribe(op.EVENT_CONSUMED,function(event,graph,myData) {
                 if(myData == instance) {
@@ -2382,6 +2451,142 @@ Siesta.Model.Class.prototype = {
             op.consume(service.networkMechanism(),g);
         }
     },
+
+    /**
+      Invokes the PUT method of the associated service for the given instance
+     */
+    put: function(instance,callback) {
+        if(this.putServices == undefined) {
+            throw "Cannot save instance for ModelClass without PUT service";
+        } else {
+            var service = this.putServices;
+            var op = null;
+            var operations = service.operations();
+            for(var _i=0; _i<operations.length; _i++) {
+                if(this.putOperationUri == undefined) { // no URI look for the HTTP method
+                    if(operations[_i].method() == Siesta.Services.RestfulOperation.PUT) {
+                        op = operations[_i];
+                        break;
+                    }
+                } else{ // URI, we don't care about the HTTP method
+                    if(operations[_i].uri == this.putOperationUri) {
+                        op = operations[_i];
+                        op._repositoryMethod = Siesta.Services.RestfulOperation.PUT;
+                        break;
+                    }
+                }
+            }
+
+            var that = this;
+            var subscription = Siesta.Events.subscribe(op.EVENT_CONSUMED,function(event,graph,myData) {
+                if(myData == instance) {
+                    if(callback != undefined) {
+                        callback(graph);
+                    }
+                }
+            },that,instance);
+            var g = instance.toGraph();
+            op.consume(service.networkMechanism(),g);
+        }
+    },
+
+    _findUrisInGraph:function(graph){
+        var uris = [];
+        for(var _id in graph.triples) {
+            for(var _pred in graph.triples[_id]) {
+                if(_pred == 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type') {
+                    for(_obj in graph.triples[_id][_pred]){
+                        if(_obj == this.uri) {
+                            uris.push(_id);
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        return uris;
+    },
+    /**
+      Does a remote request to the server with the GET operation
+      of the service matching the property mapping passed as a 
+      parameter.
+
+      @argument: mapping, a JS object containing pairs of key-value or a Model.Instance
+                 object that will be used to retrieve the parameters for the query.
+      @argument: callback, a function that will be invoked with the objects
+                 returned from the serer in an array as argument.
+    */
+    find: function(mapping,callback) {
+        if(this.getServices == undefined) {
+            throw "Cannot find instance for ModelClass without GET service";
+        } else {
+            var service = this.getServices;
+            var op = null;
+            var operations = service.operations();
+            for(var _i=0; _i<operations.length; _i++) {
+                if(this.getOperationUri == undefined) {
+                    if(operations[_i].method() == Siesta.Services.RestfulOperation.GET) {
+                        op = operations[_i];
+                        break;
+                    }
+                } else {
+                    if(operations[_i].uri == this.getOperationUri) {
+                        op = operations[_i];
+                        op._repositoryMethod = Siesta.Services.RestfulOperation.GET;
+                        break;
+                    }
+                }
+            }
+            var that = this;
+            var subscription = Siesta.Events.subscribe(op.EVENT_CONSUMED,function(event,graph,myData) {
+                if(myData == instance) {
+                    // TODO: transform graph into instances
+                    if(callback != undefined) {
+                        callback(graph);
+                    }
+                }
+            },that,instance);
+            var g = instance.toGraph();
+            op.consume(service.networkMechanism(),g);
+        }
+    },
+
+    findAll: function(mapping,callback) {
+        if(this.indexServices == undefined) {
+            throw "Cannot index instances for ModelClass without INDEX service";
+        } else {
+            var service = this.indexServices;
+            var op = null;
+            var operations = service.operations();
+            for(var _i=0; _i<operations.length; _i++) {
+                if(this.indexOperationUri == undefined) {
+                    if(operations[_i].method() == Siesta.Services.RestfulOperation.GET) {
+                        op = operations[_i];
+                        break;
+                    }
+                } else {
+                    if(operations[_i].uri == this.indexOperationUri) {
+                        op = operations[_i];
+                        op._repositoryMethod = Siesta.Services.RestfulOperation.GET;
+                        break;
+                    }
+                }
+            }
+            var that = this;
+            var subscription = Siesta.Events.subscribe(op.EVENT_CONSUMED,function(event,graph,myData) {
+                if(myData == instance) {
+                    // TODO: transform graph into instances
+                    if(callback != undefined) {
+                        callback(graph);
+                    }
+                }
+            },that,instance);
+            var g = instance.toGraph();
+            op.consume(service.networkMechanism(),g);
+        }
+    },
+
     delete: function(instance,callback) {
         if(this.deleteServices == undefined) {
             throw "Cannot destroy instance for ModelClass without DELETE service";
@@ -2390,9 +2595,17 @@ Siesta.Model.Class.prototype = {
             var op = null;
             var operations = service.operations();
             for(var _i=0; _i<operations.length; _i++) {
-                if(operations[_i].method() == Siesta.Services.RestfulOperation.DELETE) {
-                    op = operations[_i];
-                    break;
+                if(this.deleteOperationUri == undefined) { // if no URI look for HTTP method
+                    if(operations[_i].method() == Siesta.Services.RestfulOperation.DELETE) {
+                        op = operations[_i];
+                        break;
+                    }
+                } else { // we have URI we don't care about the HTTP method
+                    if(operations[_i].uri == this.deleteOperationUri) {
+                        op = operations[_i];
+                        op._repositoryMethod = Siesta.Services.RestfulOperation.DELETE;
+                        break;
+                    }
                 }
             }
             var that = this;
@@ -2493,12 +2706,21 @@ Siesta.Model.Instance.prototype = {
     */
     save: function(callback) {
         var that = this;
-        this.type.post(this,function(graph) {
-            // TODO instead of updating the uri, it is better to reload from repository.
-            that.uri = graph.triplesArray()[0].subject.value;
-            this.stored = true;
-            callback(that);
-        });
+        if(this.stored == false) { // no saved, we use POST to create and save
+            this.type.post(this,function(graph) {
+                // TODO instead of updating the uri, it is better to reload from repository.
+                that.uri = graph.triplesArray()[0].subject.value;
+                this.stored = true;
+                callback(that);
+            });
+        } else { // already saved, we use PUT to update
+            this.type.put(this,function(graph) {
+                // TODO update properties???
+                that.uri = graph.triplesArray()[0].subject.value;
+                this.stored = true;
+                callback(that);
+            });
+        }
     },
 
     /**
