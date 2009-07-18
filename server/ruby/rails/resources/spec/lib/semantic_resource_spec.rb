@@ -1,24 +1,13 @@
 require File.dirname(__FILE__) + '/../spec_helper'
 require File.dirname(__FILE__) + '/../../lib/semantic_resource'
 
+require 'ostruct'
+
 SemanticResource::Configuration.set_resources_host("http://localhost")
 
 class TestActiveRecord < ActiveRecord::Base
 
   include SemanticResource
-
-  set_resource_namespace :test, "http://test.com"
-
-  set_resource_mapping do |resource|
-    resource[:foo] = {:uri => [:test, "#foo"],
-                      :optional => true}
-
-  end
-
-  define_create_operation(:controller => 'tests', :action => 'create')
-  define_show_operation(:controller => 'tests', :action => 'show')
-  define_destroy_operation(:controller => 'tests', :action => 'destroy')
-  define_update_operation(:controller => 'tests', :action => 'update')
 
   def initialize
   end
@@ -28,6 +17,11 @@ class TestActiveRecord < ActiveRecord::Base
   end
 
   def self.columns
+    []
+  end
+
+  def self.reflect_on_all_associations
+    []
   end
 
   def id
@@ -37,6 +31,20 @@ class TestActiveRecord < ActiveRecord::Base
   def foo
     2
   end
+
+  set_resource_namespace :test, "http://test.com"
+
+  set_resource_mapping do |resource|
+    resource[:foo] = { :uri => [:test, "#foo"],
+                       :optional => true,
+                       :datatype => :integer }
+
+  end
+
+  define_create_operation(:controller => 'tests', :action => 'create')
+  define_show_operation(:controller => 'tests', :action => 'show')
+  define_destroy_operation(:controller => 'tests', :action => 'destroy')
+  define_update_operation(:controller => 'tests', :action => 'update')
 end
 
 
@@ -53,20 +61,6 @@ describe SemanticResource,"ActiveRecord inclusion" do
 
     class TestActiveRecordFoo < ActiveRecord::Base
 
-      include SemanticResource
-
-      set_resource_namespace :test, "http://test.com"
-
-      set_resource_mapping do |resource|
-        resource[:foo] = {:uri =>  [:test, "#foo"],
-                          :optional => true}
-      end
-
-      define_create_operation(:controller => 'tests', :action => 'create')
-      define_show_operation(:controller => 'tests', :action => 'show')
-      define_destroy_operation(:controller => 'tests', :action => 'destroy')
-      define_update_operation(:controller => 'tests', :action => 'update')
-
       def initialize
       end
 
@@ -75,6 +69,15 @@ describe SemanticResource,"ActiveRecord inclusion" do
       end
 
       def self.columns
+        column_foo = OpenStruct.new
+        column_foo.name = "foo"
+        column_foo.type = :integer
+
+        column_id = OpenStruct.new
+        column_id.name = "id"
+        column_id.type = :integer
+
+        [column_foo, column_id]
       end
 
       def id
@@ -84,6 +87,22 @@ describe SemanticResource,"ActiveRecord inclusion" do
       def foo
         2
       end
+
+
+      include SemanticResource
+
+      set_resource_namespace :test, "http://test.com"
+
+      set_resource_mapping do |resource|
+        resource[:foo] = {:uri =>  [:test, "#foo"],
+                          :optional => true,
+                          :datatype => :integer }
+      end
+
+      define_create_operation(:controller => 'tests', :action => 'create')
+      define_show_operation(:controller => 'tests', :action => 'show')
+      define_destroy_operation(:controller => 'tests', :action => 'destroy')
+      define_update_operation(:controller => 'tests', :action => 'update')
     end
 
     SemanticResource::Manager.resources.include?(TestActiveRecordFoo).should be_true
@@ -195,7 +214,6 @@ describe SemanticResource,"::to_rdf" do
     puts ":::::::::::::::::::::::::::::::::::::"
 
     rdf_n3.index("http://http://").should be_nil
-
     p = Reddy::N3Parser.new(rdf_n3,"http://test.com/")
     p.graph.should have(7).triples
   end
@@ -263,21 +281,6 @@ describe SemanticResource,".build_uri_for_property" do
 
     class TestActiveRecordFoo2 < ActiveRecord::Base
 
-      include SemanticResource
-
-      set_resource_namespace :test, "http://test.com"
-
-      set_resource_mapping do |resource|
-        resource[:foo_a] = {:uri =>  [:test, "#foo_a"],
-                            :optional => true}
-
-        resource[:foo_b] = {:uri =>  [:test, "#foo_b"]}
-        resource[:foo_c] = {:uri =>  "http://test.com#foo_c"}
-      end
-
-      define_create_operation(:controller => 'tests', :action => 'create')
-      define_show_operation(:controller => 'tests', :action => 'show')
-
       def initialize
       end
 
@@ -286,6 +289,27 @@ describe SemanticResource,".build_uri_for_property" do
       end
 
       def self.columns
+        column_foo_a = OpenStruct.new
+        column_foo_a.name = "foo_a"
+        column_foo_a.datatype = :integer
+
+        column_foo_b = OpenStruct.new
+        column_foo_b.name = "foo_b"
+        column_foo_b.datatype = :integer
+
+        column_foo_c = OpenStruct.new
+        column_foo_c.name = "foo_c"
+        column_foo_c.datatype = :integer
+
+        column_foo_d = OpenStruct.new
+        column_foo_d.name = "foo_d"
+        column_foo_d.datatype = :integer
+
+        column_id = OpenStruct.new
+        column_id.name = "id"
+        column_id.datatype = :integer
+
+        [column_foo_a, column_foo_b, column_foo_c, column_foo_d, column_id]
       end
 
       def id
@@ -307,6 +331,25 @@ describe SemanticResource,".build_uri_for_property" do
       def foo_d
         2
       end
+
+      include SemanticResource
+
+      set_resource_namespace :test, "http://test.com"
+
+      set_resource_mapping do |resource|
+        resource[:foo_a] = {:uri =>  [:test, "#foo_a"],
+                            :optional => true,
+                            :datatype => :integer }
+
+        resource[:foo_b] = {:uri =>  [:test, "#foo_b"],
+                            :datatype => :integer }
+        resource[:foo_c] = {:uri =>  "http://test.com#foo_c",
+                            :datatype => :integer }
+      end
+
+      define_create_operation(:controller => 'tests', :action => 'create')
+      define_show_operation(:controller => 'tests', :action => 'show')
+
     end
 
     TestActiveRecordFoo2.build_uri_for_property(:foo_a).should be_eql("http://test.com#foo_a")

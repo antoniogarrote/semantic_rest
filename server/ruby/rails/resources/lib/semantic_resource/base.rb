@@ -299,7 +299,7 @@ module SemanticResource
           column = self.columns.detect{|column| column.name.to_sym == key.to_sym}
           if @mapping[key][:datatype].nil?
             @mapping[key][:datatype] = SemanticResource::XSD.send(column.type) 
-          elsif !@mapping[key][:datatype].instance_of? Symbol
+          elsif @mapping[key][:datatype].instance_of? Symbol
             @mapping[key][:datatype] = SemanticResource::XSD.send(@mapping[key][:datatype])             
           end
         end
@@ -980,7 +980,11 @@ module SemanticResource
         if self.columns.detect{|column| column.name.to_sym == key.to_sym}
           rdf << "<#{build_uri_for_property(key)}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> rdfs:Property .\n"
           rdf << "<#{build_uri_for_property(key)}> rdfs:domain <#{resource_model_uri}> .\n"
-          rdf << "<#{build_uri_for_property(key)}> rdfs:range #{value[:datatype]} .\n"
+          if(value[:datatype].index('http://').nil?)
+            rdf << "<#{build_uri_for_property(key)}> rdfs:range #{value[:datatype]} .\n"
+          else 
+            rdf << "<#{build_uri_for_property(key)}> rdfs:range <#{value[:datatype]}> .\n"            
+          end
         elsif !value[:relation].nil?
           rdf << "<#{build_uri_for_property(key)}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> rdfs:Property .\n"
           rdf << "<#{build_uri_for_property(key)}> rdfs:domain <#{resource_model_uri}> .\n"
@@ -1031,7 +1035,6 @@ module SemanticResource
         sparql << "?id "
         sparql_where_clause << "?x <#{SemanticResource::Configuration::SIESTA_ID}> ?id . "
       end
-      debugger
       resource_mapping.each_pair do |key,value|
         if(!value[:relation].nil? && resource_path.include?(value[:relation_key].to_sym))
           sparql << "?#{value[:relation_key]} "

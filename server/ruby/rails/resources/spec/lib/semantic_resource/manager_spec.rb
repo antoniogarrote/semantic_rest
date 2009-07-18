@@ -16,17 +16,6 @@ describe SemanticResource::Manager, "#register_resource" do
 
     class TestBaseToFind < ActiveRecord::Base
 
-      include SemanticResource
-
-      set_resource_namespace :test, "http://test.com"
-
-      set_resource_mapping do |resource|
-        resource[:foo] = [:test, "#foo"]
-      end
-
-      define_create_operation(:controller => 'test_semantic_to_find', :action => 'create')
-      define_show_operation(:controller => 'test_semantic_to_find', :action => 'show')
-
       def initialize
       end
 
@@ -35,6 +24,15 @@ describe SemanticResource::Manager, "#register_resource" do
       end
 
       def self.columns
+        column_foo = OpenStruct.new
+        column_foo.name = "foo"
+        column_foo.datatype = :string
+
+        column_id = OpenStruct.new
+        column_id.name = "id"
+        column_id.datatype = :integer
+
+        [column_foo, column_id]
       end
 
       def id
@@ -44,6 +42,18 @@ describe SemanticResource::Manager, "#register_resource" do
       def foo
         2
       end
+
+      include SemanticResource
+
+      set_resource_namespace :test, "http://test.com"
+
+      set_resource_mapping do |resource|
+        resource[:foo] = { :uri => [:test, "#foo"],
+                           :datatype => :string }
+      end
+
+      define_create_operation(:controller => 'test_semantic_to_find', :action => 'create')
+      define_show_operation(:controller => 'test_semantic_to_find', :action => 'show')
     end
 
     SemanticResource::Manager.register_resource TestBaseToFind
@@ -66,17 +76,6 @@ describe SemanticResource::Manager, "#register_model" do
 
     class TestBaseToFind < ActiveRecord::Base
 
-      include SemanticResource
-
-      set_resource_namespace :test, "http://test.com"
-
-      set_resource_mapping do |resource|
-        resource[:foo] = [:test, "#foo"]
-      end
-
-      define_create_operation(:controller => 'test_semantic_to_find', :action => 'create')
-      define_show_operation(:controller => 'test_semantic_to_find', :action => 'show')
-
       def initialize
       end
 
@@ -85,6 +84,15 @@ describe SemanticResource::Manager, "#register_model" do
       end
 
       def self.columns
+        column_foo = OpenStruct.new
+        column_foo.name = "foo"
+        column_foo.datatype = :string
+
+        column_id = OpenStruct.new
+        column_id.name = "id"
+        column_id.datatype = :integer
+
+        [column_foo, column_id]
       end
 
       def id
@@ -94,6 +102,18 @@ describe SemanticResource::Manager, "#register_model" do
       def foo
         2
       end
+
+      include SemanticResource
+
+      set_resource_namespace :test, "http://test.com"
+
+      set_resource_mapping do |resource|
+        resource[:foo] = { :uri => [:test, "#foo"],
+                           :datatype => :integer }
+      end
+
+      define_create_operation(:controller => 'test_semantic_to_find', :action => 'create')
+      define_show_operation(:controller => 'test_semantic_to_find', :action => 'show')
     end
 
     SemanticResource::Manager.register_model TestBaseToFind.name,TestBaseToFind
@@ -116,17 +136,6 @@ describe SemanticResource::Manager, "#register_service" do
 
     class TestBaseToFind < ActiveRecord::Base
 
-      include SemanticResource
-
-      set_resource_namespace :test, "http://test.com"
-
-      set_resource_mapping do |resource|
-        resource[:foo] = [:test, "#foo"]
-      end
-
-      define_create_operation(:controller => 'test_semantic_to_find', :action => 'create')
-      define_show_operation(:controller => 'test_semantic_to_find', :action => 'show')
-
       def initialize
       end
 
@@ -135,6 +144,15 @@ describe SemanticResource::Manager, "#register_service" do
       end
 
       def self.columns
+        column_foo = OpenStruct.new
+        column_foo.name = "foo"
+        column_foo.datatype = :string
+
+        column_id = OpenStruct.new
+        column_id.name = "id"
+        column_id.datatype = :integer
+
+        [column_foo, column_id]
       end
 
       def id
@@ -144,6 +162,19 @@ describe SemanticResource::Manager, "#register_service" do
       def foo
         2
       end
+
+      include SemanticResource
+
+      set_resource_namespace :test, "http://test.com"
+
+      set_resource_mapping do |resource|
+        resource[:foo] = { :uri => [:test, "#foo"],
+                           :datatype => :integer }
+      end
+
+      define_create_operation(:controller => 'test_semantic_to_find', :action => 'create')
+      define_show_operation(:controller => 'test_semantic_to_find', :action => 'show')
+
     end
 
     SemanticResource::Manager.register_service TestBaseToFind.name,TestBaseToFind

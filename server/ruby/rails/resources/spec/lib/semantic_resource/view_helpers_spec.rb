@@ -9,17 +9,6 @@ describe SemanticResource::ViewHelpers do
   before do
     class TestActiveRecordForController < ActiveRecord::Base
 
-      include SemanticResource
-
-      set_resource_namespace :test, "http://test.com"
-
-      set_resource_mapping do |resource|
-        resource[:foo] = {:uri => [:test, "#foo"] }
-      end
-
-      define_create_operation(:controller => 'test_semantic', :action => 'create')
-      define_show_operation(:controller => 'test_semantic', :action => 'show')
-
       def initialize
       end
 
@@ -30,9 +19,11 @@ describe SemanticResource::ViewHelpers do
       def self.columns
         column_foo = OpenStruct.new
         column_foo.name = "foo"
+        column_foo.datatype = :string
 
         column_id = OpenStruct.new
         column_id.name = "id"
+        column_id.datatype = :integer
 
         [column_foo, column_id]
       end
@@ -44,6 +35,19 @@ describe SemanticResource::ViewHelpers do
       def foo
         2
       end
+
+      include SemanticResource
+
+      set_resource_namespace :test, "http://test.com"
+
+      set_resource_mapping do |resource|
+        resource[:foo] = {:uri => [:test, "#foo"],
+                          :datatype => :integer }
+      end
+
+      define_create_operation(:controller => 'test_semantic', :action => 'create')
+      define_show_operation(:controller => 'test_semantic', :action => 'show')
+
     end
 
   end
