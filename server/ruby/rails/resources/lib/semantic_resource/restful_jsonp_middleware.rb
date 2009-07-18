@@ -29,7 +29,6 @@ module SemanticResource
         env["REQUEST_METHOD"] = "POST"
         env[HTTP_METHOD_OVERRIDE_HEADER] = method
       end
-
       @app.call(env)
     end
   end

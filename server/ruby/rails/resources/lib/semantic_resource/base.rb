@@ -1,3 +1,5 @@
+require 'semantic_resource/xsd_datatypes'
+
 module SemanticResource
 
 
@@ -269,9 +271,39 @@ module SemanticResource
       return @siesta_base_namespace_name, @siesta_base_namespace_uri
     end
 
+    def set_resource_path(*resources)
+      @resource_path = resources
+    end
+
+    def resource_path
+      if @resource_path
+        return @resource_path
+      else
+        return []
+      end
+    end
+
     def set_resource_mapping
       @mapping = Hash.new
       yield @mapping
+      @mapping.each_pair do |key,value|
+        if reflect_on_all_associations.detect{|association| association.name.to_sym == key.to_sym}
+          if @mapping[key][:relation].nil?
+            @mapping[key][:relation] = reflect_on_all_associations.detect{|association| association.name.to_sym == key.to_sym}.klass
+          end
+          if @mapping[key][:arity].nil?
+            @mapping[key][:arity] = reflect_on_all_associations.detect{|association| association.name.to_sym == key.to_sym}.macro
+          end
+          @mapping[key][:relation_key] = reflect_on_all_associations.detect{|association| association.name.to_sym == key.to_sym}.association_foreign_key
+        else
+          column = self.columns.detect{|column| column.name.to_sym == key.to_sym}
+          if @mapping[key][:datatype].nil?
+            @mapping[key][:datatype] = SemanticResource::XSD.send(column.type) 
+          elsif !@mapping[key][:datatype].instance_of? Symbol
+            @mapping[key][:datatype] = SemanticResource::XSD.send(@mapping[key][:datatype])             
+          end
+        end
+      end
     end
 
     def resource_mapping
@@ -445,9 +477,22 @@ module SemanticResource
 
       params = @mapping.keys if params.nil?
       res_name = self.class.name.downcase
+
+      # building the path to the resource
+
+      resource_path.each do |identifier|
+        options = options.merge(identifier => "__#{identifier}__")
+      end
+      
+      params = params.reject{ |k| @mapping[k] && @mapping[k][:relation] != nil }      
       mapped_params = params.inject(Hash.new){|h,p| h["#{p}".to_sym] = "_#{p}_"; h}
       encoded = url_for(options.merge(mapped_params).merge(:host => SemanticResource::Configuration.resources_host))
 
+      # building the path to the resource
+      resource_path.each do |identifier|
+        encoded = encoded.gsub(CGI.escape("__#{identifier}__"),"{#{identifier}}")
+      end
+      
       params.each do |p|
         encoded = encoded.gsub(CGI.escape("_#{p}_"),"{#{p}}")
       end
@@ -490,8 +535,13 @@ module SemanticResource
             html << "<strong>Input Messages</strong>"
             html << "<ul>"
             params.each do |p|
-              html << "<li class='input'> <a href='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}' rel='model'><code>#{p}</code></a>"
-              html << "(<a href='http://#{SemanticResource::Configuration.resources_host}/schemas/lowering/#{self.name}/create.sparql'>lowering</a>)</li>"
+              if(@mapping[p]['relation'].nil?)
+                html << "<li class='input'> <a href='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}' rel='model'><code>#{p}</code></a>"
+                html << "(<a href='http://#{SemanticResource::Configuration.resources_host}/schemas/lowering/#{self.name}/create.sparql'>lowering</a>)</li>"
+              else
+                html << "<li class='input'> <a href='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{@mapping[p][:relation].name}' rel='model'><code>#{p}</code></a>"
+                html << "(<a href='http://#{SemanticResource::Configuration.resources_host}/schemas/lowering/#{self.name}/create.sparql'>lowering</a>)</li>"
+              end
             end
             html << "</ul>"
 
@@ -508,8 +558,13 @@ module SemanticResource
             html << "<ul>"
             params.each do |p|
               html << "<span rel='wsl:hasInputMessage'>"
-              html << "<li typeOf='wsl:Message'> <a href='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}' rel='sawsdl:modelReference'><code>#{p}</code></a>"
-              html << "(<a href='http://#{SemanticResource::Configuration.resources_host}/schemas/lowering/#{self.name}/create.sparql' rel='sawsdl:loweringSchemaMapping'>lowering</a>)</li>"
+              if(@mapping[p]['relation'].nil?)
+                html << "<li typeOf='wsl:Message'> <a href='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}' rel='sawsdl:modelReference'><code>#{p}</code></a>"
+                html << "(<a href='http://#{SemanticResource::Configuration.resources_host}/schemas/lowering/#{self.name}/create.sparql' rel='sawsdl:loweringSchemaMapping'>lowering</a>)</li>"
+              else
+                html << "<li typeOf='wsl:Message'> <a href='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{@mapping[p][:relation].name}' rel='sawsdl:modelReference'><code>#{p}</code></a>"
+                html << "(<a href='http://#{SemanticResource::Configuration.resources_host}/schemas/lowering/#{self.name}/create.sparql' rel='sawsdl:loweringSchemaMapping'>lowering</a>)</li>"
+              end
               html << "</span>"
             end
             html << "</ul>"
@@ -559,10 +614,19 @@ module SemanticResource
 
       res_name = self.class.name.downcase
       @show_operation = Proc.new do |format|
-
+        # building the path to the resource
+        resource_path.each do |identifier|
+          options = options.merge(identifier => "__#{identifier}__")
+        end
         encoded = url_for(options.merge({:id => "_id_"}).merge(:host => SemanticResource::Configuration.resources_host))
+        
+        # building the path to the resource
+        resource_path.each do |identifier|
+          encoded = encoded.gsub(CGI.escape("__#{identifier}__"),"{#{identifier}}")
+        end
+        
         encoded = encoded.gsub(CGI.escape("_id_"),"{id}")
-
+        
         if(format == :n3)
 
           rdf = StringIO.new
@@ -635,10 +699,20 @@ module SemanticResource
 
       res_name = self.class.name.downcase
       @destroy_operation = Proc.new do |format|
-
+        # building the path to the resource
+        resource_path.each do |identifier|
+          options = options.merge(identifier => "__#{identifier}__")
+        end
+                
         encoded = url_for(options.merge({:id => "_id_"}).merge(:host => SemanticResource::Configuration.resources_host))
-        encoded = encoded.gsub(CGI.escape("_id_"),"{id}")
 
+        # building the path to the resource
+        resource_path.each do |identifier|
+          encoded = encoded.gsub(CGI.escape("__#{identifier}__"),"{#{identifier}}")
+        end
+        
+        encoded = encoded.gsub(CGI.escape("_id_"),"{id}")
+        
         if(format == :n3)
 
           rdf = StringIO.new
@@ -715,11 +789,23 @@ module SemanticResource
       unless params.include?(:id)
         params.push(:id)
       end
-
+      
+      # building the path to the resource
+      resource_path.each do |identifier|
+        options = options.merge(identifier => "__#{identifier}__")
+      end
+      
       res_name = self.class.name.downcase
+      params = params.reject{ |k| @mapping[k] && @mapping[k][:relation] != nil }
       mapped_params = params.inject(Hash.new){|h,p| h["#{p}".to_sym] = "_#{p}_"; h}
       encoded = url_for(options.merge(mapped_params).merge(:host => SemanticResource::Configuration.resources_host))
 
+
+      # building the path to the resource
+      resource_path.each do |identifier|
+        encoded = encoded.gsub(CGI.escape("__#{identifier}__"),"{#{identifier}}")
+      end
+      
       params.each do |p|
         encoded = encoded.gsub(CGI.escape("_#{p}_"),"{#{p}}")
       end
@@ -753,8 +839,15 @@ module SemanticResource
             html << "<strong>Input Messages</strong>"
             html << "<ul>"
             params.each do |p|
-              html << "<li class='input'> <a href='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}' rel='model'><code>#{p}</code></a>"
-              html << "(<a href='http://#{SemanticResource::Configuration.resources_host}/schemas/lowering/#{self.name}/update.sparql'>lowering</a>)</li>"
+              html << "<span rel='wsl:hasInputMessage'>"
+              if(@mapping[p]['relation'].nil?)
+                html << "<li typeOf='wsl:Message'> <a href='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{self.name}' rel='sawsdl:modelReference'><code>#{p}</code></a>"
+                html << "(<a href='http://#{SemanticResource::Configuration.resources_host}/schemas/lowering/#{self.name}/create.sparql' rel='sawsdl:loweringSchemaMapping'>lowering</a>)</li>"
+              else
+                html << "<li typeOf='wsl:Message'> <a href='http://#{SemanticResource::Configuration.resources_host}/schemas/models/#{@mapping[p][:relation].name}' rel='sawsdl:modelReference'><code>#{p}</code></a>"
+                html << "(<a href='http://#{SemanticResource::Configuration.resources_host}/schemas/lowering/#{self.name}/create.sparql' rel='sawsdl:loweringSchemaMapping'>lowering</a>)</li>"
+              end
+              html << "</span>"
             end
             html << "</ul>"
 
@@ -887,7 +980,11 @@ module SemanticResource
         if self.columns.detect{|column| column.name.to_sym == key.to_sym}
           rdf << "<#{build_uri_for_property(key)}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> rdfs:Property .\n"
           rdf << "<#{build_uri_for_property(key)}> rdfs:domain <#{resource_model_uri}> .\n"
-          rdf << "<#{build_uri_for_property(key)}> rdfs:range rdfs:Datatype .\n"
+          rdf << "<#{build_uri_for_property(key)}> rdfs:range #{value[:datatype]} .\n"
+        elsif !value[:relation].nil?
+          rdf << "<#{build_uri_for_property(key)}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> rdfs:Property .\n"
+          rdf << "<#{build_uri_for_property(key)}> rdfs:domain <#{resource_model_uri}> .\n"
+          rdf << "<#{build_uri_for_property(key)}> rdfs:range <#{value[:relation].resource_model_uri}> .\n"
         elsif association = self.reflect_on_all_associations.detect{|association| association.name.to_sym == key.to_sym}
           rdf << "<#{build_uri_for_property(key)}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> rdfs:Property .\n"
           rdf << "<#{build_uri_for_property(key)}> rdfs:domain <#{resource_model_uri}> .\n"
@@ -902,7 +999,13 @@ module SemanticResource
           xml << "<rdf:Description rdf:about='#{build_uri_for_property(key)}'>"
           xml << "<rdf:type rdf:resource='http://www.w3.org/2000/01/rdf-schema#Property'/>"
           xml << "<rdfs:domain rdf:resource='#{resource_model_uri_xml}'/>"
-          xml << "<rdfs:range rdf:resource='http://www.w3.org/2000/01/rdf-schema#Datatype'/>"
+          xml << "<rdfs:range rdf:resource='#{value[:datatype]}'/>"
+          xml << "</rdf:Description>"
+        elsif !value[:relation].nil?
+          xml << "<rdf:Description rdf:about='#{build_uri_for_property(key)}'>"
+          xml << "<rdf:type rdf:resource='http://www.w3.org/2000/01/rdf-schema#Property'/>"
+          xml << "<rdfs:domain rdf:resource='#{resource_model_uri_xml}'/>"
+          xml << "<rdfs:range rdf:resource='#{value[:relation].resource_model_uri}'/>"
           xml << "</rdf:Description>"
         elsif association = self.reflect_on_all_associations.detect{|association| association.name.to_sym == key.to_sym}
           xml << "<rdf:Description rdf:about='#{build_uri_for_property(key)}'>"
@@ -918,7 +1021,25 @@ module SemanticResource
 
     # SPARQL generators
     def sparql_lowering_show semantic_model
-      "SELECT ?id WHERE { ?x <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <#{semantic_model.resource_model_uri}>. ?x <http://semantic_rest/siesta#id> ?id. }"
+
+      sparql = StringIO.new
+      sparql_where_clause = StringIO.new
+
+      sparql << "SELECT "
+
+      unless(resource_mapping.keys.include?(:id))
+        sparql << "?id "
+        sparql_where_clause << "?x <#{SemanticResource::Configuration::SIESTA_ID}> ?id . "
+      end
+      debugger
+      resource_mapping.each_pair do |key,value|
+        if(!value[:relation].nil? && resource_path.include?(value[:relation_key].to_sym))
+          sparql << "?#{value[:relation_key]} "
+          sparql_where_clause << "?x <#{build_uri_for_property(key)}> ?#{value[:relation_key]} . "
+        end
+      end
+
+      return "#{sparql.string} WHERE { #{sparql_where_clause.string} }"
     end
 
     def sparql_lowering_create semantic_model
@@ -926,11 +1047,17 @@ module SemanticResource
       sparql_where_clause = StringIO.new
 
       sparql << "SELECT "
+
       resource_mapping.each_pair do |key,value|
-        sparql << "?#{key.to_s} "
         #TODO: revert to the OPTIONAL CLAUSE
         #sparql_where_clause << "OPTIONAL { " if value[:optional] && value[:optional] == true
-        sparql_where_clause << "?x <#{build_uri_for_property(key)}> ?#{key.to_s} . "
+        if(!value[:relation].nil? && resource_path.include?(value[:relation_key].to_sym))
+          sparql << "?#{value[:relation_key]} "
+          sparql_where_clause << "?x <#{build_uri_for_property(key)}> ?#{value[:relation_key]} . "
+         else
+          sparql << "?#{key.to_s} "
+          sparql_where_clause << "?x <#{build_uri_for_property(key)}> ?#{key.to_s} . "
+        end
         #sparql_where_clause << " } " if value[:optional] && value[:optional] == true
       end
 
@@ -938,7 +1065,28 @@ module SemanticResource
     end
 
     def sparql_lowering_destroy semantic_model
-      "SELECT ?id WHERE { ?x <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <#{semantic_model.resource_model_uri}>. ?x <http://semantic_rest/siesta#id> ?id. }"
+      #"SELECT ?id WHERE { ?x <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <#{semantic_model.resource_model_uri}>. ?x <http://semantic_rest/siesta#id> ?id. }"
+      sparql = StringIO.new
+      sparql_where_clause = StringIO.new
+
+      sparql << "SELECT "
+
+      unless(resource_mapping.keys.include?(:id))
+        sparql << "?id "
+        sparql_where_clause << "?x <#{SemanticResource::Configuration::SIESTA_ID}> ?id . "
+      end
+
+      resource_mapping.each_pair do |key,value|
+        #TODO: revert to the OPTIONAL CLAUSE
+        #sparql_where_clause << "OPTIONAL { " if value[:optional] && value[:optional] == true
+        if(!value[:relation].nil? && resource_path.include?(value[:relation_key].to_sym))
+          sparql << "?#{value[:relation_key]} "
+          sparql_where_clause << "?x <#{build_uri_for_property(key)}> ?#{value[:relation_key]} . "
+        end
+        #sparql_where_clause << " } " if value[:optional] && value[:optional] == true
+      end
+
+      return "#{sparql.string} WHERE { #{sparql_where_clause.string} }"
     end
 
     def sparql_lowering_update semantic_model
@@ -946,17 +1094,23 @@ module SemanticResource
       sparql_where_clause = StringIO.new
 
       sparql << "SELECT "
-      resource_mapping.each_pair do |key,value|
-        sparql << "?#{key.to_s} "
-        #TODO: revert to the OPTIONAL CLAUSE
-        #sparql_where_clause << "OPTIONAL { " if value[:optional] && value[:optional] == true
-        sparql_where_clause << "?x <#{build_uri_for_property(key)}> ?#{key.to_s} . "
-        #sparql_where_clause << " } " if value[:optional] && value[:optional] == true
-      end
 
       unless(resource_mapping.keys.include?(:id))
         sparql << "?id "
         sparql_where_clause << "?x <#{SemanticResource::Configuration::SIESTA_ID}> ?id . "
+      end
+
+      resource_mapping.each_pair do |key,value|
+        #TODO: revert to the OPTIONAL CLAUSE
+        #sparql_where_clause << "OPTIONAL { " if value[:optional] && value[:optional] == true
+        if(!value[:relation].nil? && resource_path.include?(value[:relation_key].to_sym))
+          sparql << "?#{value[:relation_key]} "
+          sparql_where_clause << "?x <#{build_uri_for_property(key)}> ?#{value[:relation_key]} . "
+         else
+          sparql << "?#{key.to_s} "
+          sparql_where_clause << "?x <#{build_uri_for_property(key)}> ?#{key.to_s} . "
+        end
+        #sparql_where_clause << " } " if value[:optional] && value[:optional] == true
       end
 
       return "#{sparql.string} WHERE { #{sparql_where_clause.string} }"

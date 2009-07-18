@@ -27,6 +27,7 @@ end
 require File.dirname(__FILE__) + '/semantic_resource/controller_common'
 require File.dirname(__FILE__) + '/semantic_resource/manager'
 require File.dirname(__FILE__) + '/semantic_resource/view_helpers'
+require File.dirname(__FILE__) + '/semantic_resource/xsd_datatypes'
 require File.dirname(__FILE__) + '/semantic_resource/base'
 require File.dirname(__FILE__) + '/semantic_resource/controller_base'
 require File.dirname(__FILE__) + '/semantic_resource/configuration'

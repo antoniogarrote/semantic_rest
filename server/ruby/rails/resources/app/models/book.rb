@@ -2,7 +2,7 @@ require 'semantic_resource/base'
 
 class Book < ActiveRecord::Base
 
-  has_many :books
+  has_many :chapters
 
   include SemanticResource
 
@@ -10,7 +10,7 @@ class Book < ActiveRecord::Base
 
   set_resource_mapping do |resource|
     resource[:title] = {:uri => [:test,"#title"],
-                        :optional => true}
+                        :optional => true }
 
     resource[:published] = {:uri => [:test,"#published"],
                             :optional => true}
@@ -26,6 +26,8 @@ class Book < ActiveRecord::Base
 
     resource[:editorial] = {:uri => [:test,"#editorial"],
                             :optional => true}
+
+    resource[:chapters] = { :uri => [:test,"#hasChapter"] }
   end
 
   define_show_operation(:controller => 'books', :action => 'show')
