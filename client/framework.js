@@ -138,6 +138,7 @@ if(Siesta.isRhino()) {
  */
 Siesta.XSD = {};
 Siesta.XSD.DATATYPES = {
+    datatype:"http://www.w3.org/2000/01/rdf-schema#Datatype",
     string:"http://www.w3.org/2001/XMLSchema#string",
     boolean:"http://www.w3.org/2001/XMLSchema#boolean",
     decimal:"http://www.w3.org/2001/XMLSchema#decimal",
@@ -176,6 +177,7 @@ Siesta.XSD.DATATYPES = {
 
 
 Siesta.XSD.DATATYPES_INV = {};
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2000/01/rdf-schema#Datatype"] = "datatype";
 Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#string"] = "string";    
 Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#boolean"]= "boolean";
 Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#decimal"] = "decimal";
@@ -2295,11 +2297,11 @@ Siesta.Model.Class = Class.create();
 
 Siesta.Model.Class.registry = {};
 
-Siesta.Model.Class.findForSchema: function(modelUri) {
+Siesta.Model.Class.findForSchema = function(modelUri) {
     return Siesta.Model.Class.registry[modelUri];
 };
 
-Siesta.Model.Class.registerForSchema: function(modelUri,classObject) {
+Siesta.Model.Class.registerForSchema = function(modelUri,classObject) {
     return Siesta.Model.Class.registry[modelUri] = classObject;
 };
 
@@ -2834,11 +2836,11 @@ Siesta.Model.Instance.prototype = {
  		}
             } else { // instance or literal
  		if(Siesta.XSD.DATATYPES_INV[range]!=undefined) {
-		    // this must be an instance
-                    this._properties[this.type.property(property)] = [value];
- 		} else {
 		    // this must be a literal
                     this._properties[this.type.property(property)] = value;
+ 		} else {
+		    // this must be an instance
+                    this._properties[this.type.property(property)] = [value];
  		}
             }
         } else {
@@ -2922,11 +2924,11 @@ Siesta.Model.Instance.prototype = {
                 this.uri = "_:0";
             }
             var subject = new Siesta.Framework.Uri(this.uri);
-                for(var p in this._properties) {
-                    this._graph.addTriple(new Siesta.Framework.Triple(new Siesta.Framework.Uri(this.uri),
-                                                                      new Siesta.Framework.Uri(p),
-                                                                      this._properties[p]));
-                }
+            for(var p in this._properties) {
+                this._graph.addTriple(new Siesta.Framework.Triple(new Siesta.Framework.Uri(this.uri),
+                                                                  new Siesta.Framework.Uri(p),
+                                                                  this._properties[p]));
+            }
             this._graph.addTriple(new Siesta.Framework.Triple(new Siesta.Framework.Uri(this.uri),
                                                               new Siesta.Framework.Uri(Siesta.Constants.RDF_TYPE),
                                                               new Siesta.Framework.Uri(this.type.uri)));
@@ -2988,7 +2990,7 @@ Siesta.Model.Instance.prototype = {
 	return cloned;
     },
 
-    __type: "instance";
+    __type: "instance"
 };
 
 /**
