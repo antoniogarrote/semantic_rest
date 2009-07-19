@@ -2928,13 +2928,13 @@ Siesta.loadFrameworks = function() {
         // Loading the components
 
         // sparql queries
-        Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.sparql+"/sparql/query.js");
+        Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.sparql.toLowerCase()+"/sparql/query.js");
         // formats
-        Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.formats.turtle+"/formats/turtle.js"); //turtle
-        Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.formats.xml+"/formats/xml.js"); //xml
-        Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.formats.rdfa+"/formats/rdfa.js"); //rdfa
+        Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.formats.turtle.toLowerCase()+"/formats/turtle.js"); //turtle
+        Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.formats.xml.toLowerCase()+"/formats/xml.js"); //xml
+        Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.formats.rdfa.toLowerCase()+"/formats/rdfa.js"); //rdfa
         // networking
-        Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.network+"/network.js"); //xml
+        Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.network.toLowerCase()+"/network.js"); //xml
     }
 };
 
