@@ -1604,10 +1604,8 @@ Screw.Unit(function() {
                           title: 'habemus res'
                       });
                       myBook.save(function(savedBook){
-                          debugger;
                           myBook.set('category','comedy');
                           savedBook.save(function(updatedBook) {
-                              debugger;
                               expect(updatedBook.uri==savedBook.uri).to(equal,true);
                               expect(updatedBook.get('category')=='comedy').to(equal,true);
                               GLOBAL_MUTEX = false;

@@ -37,8 +37,8 @@ ActionController::Routing::Routes.draw do |map|
 
   #SemanticResource.draw_jsonp_restful_routes_for(map, "books", :books)
   # See how all your routes lay out with "rake routes"
-  map.resources :books do |book|
-    book.resources :chapters
+  map.resources :books do |books|
+    books.resources :chapters
   end
 
   # semantic routes

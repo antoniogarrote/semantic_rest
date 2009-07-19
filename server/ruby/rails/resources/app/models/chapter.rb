@@ -1,6 +1,8 @@
 require 'semantic_resource/base'
 
 class Chapter < ActiveRecord::Base
+  unloadable
+
   belongs_to :book
 
   include SemanticResource

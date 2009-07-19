@@ -37,6 +37,7 @@ module SemanticResource
       end
 
       def update
+        default_semantic_update
       end
 
       def destroy
@@ -102,6 +103,31 @@ module SemanticResource
                :status => 201)
       end
 
+      def default_semantic_update
+        resource = self.class.semantic_resource
+
+        format = params[:format] || :n3
+        format = format.to_sym
+
+        updated_resource = semantic_update
+        base_response = updated_resource.to_rdf(request.parameters.symbolize_keys,format)
+        base_response,content_type = check_jsonp_response(base_response)
+
+        if(format == :n3 || format == :rdf)
+          if(content_type.nil?)
+            content_type = "text/rdf+n3"
+          end
+        elsif(format == :xml)
+          if(content_type.nil?)
+            content_type = "application/rdf+xml"
+          end
+        end
+
+        render(:text => base_response,
+               :content_type => content_type,
+               :status => 200)
+      end
+
       # retrieves the semantic resource
       def semantic_find
         self.class.semantic_resource.find(params[:id])
@@ -117,6 +143,17 @@ module SemanticResource
         creation_params = {}
         params.each_pair{|k,v| creation_params[k]=v unless(k.to_sym==:_method || k.to_sym==:callback || k.to_sym==:controller || k.to_sym==:action || k.to_sym==:format || v.nil?)}
         self.class.semantic_resource.create(creation_params)
+      end
+
+      # creates the semantic resource
+      def semantic_update
+        update_params = {}
+        to_update = semantic_find
+        params.each_pair{|k,v| update_params[k]=v if(k.to_s != "id" &&
+                                                     to_update.attribute_names.include?(k)) }
+
+        to_update.update_attributes(update_params.symbolize_keys)
+        to_update
       end
     end
 

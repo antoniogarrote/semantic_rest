@@ -1837,6 +1837,7 @@ Siesta.Services.RestfulOperation.prototype = {
             try{
                 theAddress = theAddress.replace(theAttrInAddress,encodeURIComponent(loweredParametersMap[theAttr].value));
             } catch(e) {
+                debugger;
                 throw "ERROR lowering object: "+e;
             }
         }
@@ -1871,7 +1872,7 @@ Siesta.Services.RestfulOperation.prototype = {
                           that.method() == 'PUT') {
                     
                     Siesta.Model.Repositories.data.removeGraph(graph);                    
-                    Siesta.Model.parseAndAddToRepository(resp,Siesta.Model.Repositories.data,notifyWhenParsed);
+                    Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.data,notifyWhenParsed);
 
                 }                
             });
@@ -2546,7 +2547,6 @@ Siesta.Model.Class.prototype = {
         if(this.getServices == undefined) {
             throw "Cannot find instance for ModelClass without GET service";
         } else {
-            debugger;
             var instance = this.build(mapping);
             var service = this.getServices;
             var op = null;

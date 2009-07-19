@@ -9,7 +9,11 @@ module SemanticResource
      # All the resources classes will be stored here
     def self.resources
       @@resources = Array.new unless defined? @@resources
-      self.refresh_models if @@resources.empty?
+      if @@resources.empty?
+        self.refresh_models
+      else
+        @@resources = @@resources.collect{|r| r.name.constantize }
+      end
       @@resources
     end
 
@@ -25,7 +29,13 @@ module SemanticResource
      # All the resources model classes will be stored here
     def self.models
       @@models = Hash.new unless defined? @@models
-      self.refresh_models if @@models.keys.empty?
+      if @@models.keys.empty?
+        self.refresh_models
+      else
+        @@models.keys.each do |k|
+          @@models[k] = k.constantize
+        end
+      end
       @@models
     end
 
@@ -41,7 +51,13 @@ module SemanticResource
      # All the resources services classes will be stored here
     def self.services
       @@services = Hash.new unless defined? @@services
-      self.refresh_models if @@services.keys.empty?
+      if @@services.keys.empty?
+        self.refresh_models
+      else
+        @@services.keys.each do |k|
+          @@services[k] = @@services[k].name.constantize
+        end
+      end
       @@services
     end
 
@@ -54,7 +70,7 @@ module SemanticResource
       @@services[service_name] = model_class
     end
 
-     # All the resources lowring generators will be stored here
+     # All the resources lowering generators will be stored here
     def self.lowering_operations
       @@lowering_operations = Hash.new unless defined? @@lowering_operations
       self.refresh_models if @@lowering_operations.keys.empty?

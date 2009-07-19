@@ -4,6 +4,7 @@ module SemanticResource
 
 
   def self.included(base)
+    base.send(:unloadable)
     base.extend(ClassMethods)
     base.send(:include,SemanticResource::ViewHelpers)
     base.send(:extend,SemanticResource::ViewHelpers)
@@ -12,6 +13,28 @@ module SemanticResource
     base.register_semantic_resource
   end
 
+    def uri_for_resource(parent,params,show_extension = false)
+      unless(parent.nil?)
+        params[:controller] = self.class.semantic_operations[:show][:controller]
+        self.class.resource_mapping.each_pair do |key,value|
+          if(value[:relation] == parent) 
+            params = params.merge(value[:relation_key].to_sym => params[:id])
+          end
+        end
+      end
+      
+      params[:id] = self.id
+      
+      params[:action] = 'show' if params[:action] == 'create'
+      params[:format] = params[:format].to_sym if params[:format]
+
+      res_name = self.class.url_for(params.merge(:host => SemanticResource::Configuration.resources_host))
+      
+      res_name = res_name.split("?").first;
+      res_name = res_name.split(".")[0] unless show_extension
+      res_name
+    end  
+  
   # Methods to be included
   def to_rdf(params,format = :n3)
     res_name = if params.instance_of?(String)
@@ -19,11 +42,7 @@ module SemanticResource
       # with the result of the calling to a resource_path or resource_url function
       "http://#{SemanticResource::Configuration.resources_host}#{params}"
     else
-      format = params[:format] || format
-      #params = params.keys.inject(Hash.new){|acum,item| acum[item] = params[item] if item != :_method && item !=
-                 #:action && item != :controller; acum}
-      params[:action] = 'show' if params[:action] == 'create'
-      self.class.url_for(params.merge(:host => SemanticResource::Configuration.resources_host))
+      self.uri_for_resource(nil,params)                 
     end
     res_name = res_name.split("?").first;
     res_name = res_name.split(".")[0]
@@ -41,13 +60,23 @@ module SemanticResource
       rdf << "<#{res_name}> <#{SemanticResource::Configuration::SIESTA_ID}> \"#{self.id}\" .\n"
 
       self.class.resource_mapping.each_pair do |key,value|
-        rdf << "<#{res_name}> #{instance_build_mapping_rdf_description(res_name,key,value,format)}" unless self.send(key).nil?
+        value_of_property = self.send(key)
+        if !value[:relation].nil? 
+          if value_of_property.respond_to?(:each)
+            value_of_property.each do |v| 
+              rdf << "<#{res_name}> #{instance_build_mapping_rdf_description(res_name,key,value,params,v,format)}"
+            end
+          else
+            rdf << "<#{res_name}> #{instance_build_mapping_rdf_description(res_name,key,value,params,value_of_property,format)}"            
+          end
+        else
+          rdf << "<#{res_name}> #{instance_build_mapping_rdf_description(res_name,key,value,params,nil,format)}" unless value_of_property.nil?
+        end
       end
 
       rdf.string
 
     elsif(format == :xml)
-
       xml = StringIO.new
       xml << "<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#' xmlns:rdfs='http://www.w3.org/2000/01/rdf-schema#'"
       self.class.namespaces_for_resource.each_pair do |ns,uri|
@@ -58,9 +87,22 @@ module SemanticResource
       xml << "<rdf:Description rdf:about='#{res_name}'>"
       xml << "<rdf:type rdf:resource='<#{self.class.resource_model_uri}>'/>"
       xml << "<siesta:id>#{self.id}</siesta:id>"
+      
       self.class.resource_mapping.each_pair do |key,value|
-        xml << instance_build_mapping_rdf_description(res_name,key,value,format) unless self.send(key).nil?
-      end
+        value_of_property = self.send(key)
+        if !value[:relation].nil? 
+          if value_of_property.instance_of?(Array)
+            value_of_property.each do |v| 
+              xml << instance_build_mapping_rdf_description(res_name,key,value,params,v,format)
+            end
+          else 
+            xml << instance_build_mapping_rdf_description(res_name,key,value,params,value_of_property,format)            
+          end
+        else
+          xml << instance_build_mapping_rdf_description(res_name,key,value,params,nil,format)
+        end
+      end      
+      
       xml << "</rdf:Description>"
       xml << "</rdf:RDF>"
       xml.string
@@ -85,10 +127,25 @@ module SemanticResource
         "id: #{self.id}"
       end
       self.class.resource_mapping.each_pair do |key,value|
-        unless self.send(key).nil?
-          html << rdfa_property(key, :li, :content => self.send(key)) do
-            "#{key}: #{self.send(key)}"
+        value_of_property = self.send(key)
+        if !value[:relation].nil? 
+          if value_of_property.instance_of?(Array)
+            value_of_property.each do |v| 
+              html << rdfa_property(key, :li, :rel => v.uri_for_resource(self.class,params)) do
+                "#{key}: <a href='#{v.uri_for_resource(self.class,params,true)}'>#{v.id}</a>"
+              end            
+            end
+          else
+            html << rdfa_property(key, :li, :rel => value_of_property.uri_for_resource(self.class,params)) do
+              "#{key}: <a href='#{value_of_property.uri_for_resource(self.class,params,true)}'>#{value_of_property.id}</a>"
+            end                      
           end
+        else
+          unless value_of_property.nil?
+            html << rdfa_property(key, :li, :content => value_of_property) do
+              "#{key}: #{value_of_property}"
+            end
+          end          
         end
       end
       html << "</ul>"
@@ -98,14 +155,15 @@ module SemanticResource
     end
   end
 
-  def instance_build_mapping_rdf_description(res_name,key,value,format = :n3)
-    res_value = self.send(key)
-
-    return "" if res_value.nil?
+  def instance_build_mapping_rdf_description(res_name,key,value,params,object = nil,format = :n3)
     if(format == :n3 || format == :rdf)
       rdf = StringIO.new
       if self.class.columns.detect{|column| column.name.to_sym == key.to_sym}
+        res_value = self.send(key)
+        return "" if res_value.nil?        
         rdf << "<#{self.class.build_uri_for_property(key)}> \"#{res_value}\".\n"
+      elsif !value[:relation].nil?
+        rdf << "<#{self.class.build_uri_for_property(key)}> <#{object.uri_for_resource(self.class,params)}> .\n"
       elsif association = self.class.reflect_on_all_associations.detect{|association| association.name.to_sym == key.to_sym}
         #TODO: rdf << "#{self.class.with_service_uri_prefix(res_name)} <#{SemanticResource::Configuration.namespaces_map[value.first]}#{value.last}>  .\n"
       end
@@ -115,6 +173,8 @@ module SemanticResource
       if self.class.columns.detect{|column| column.name.to_sym == key.to_sym}
         prop = self.class.build_uri_for_property(key,format)
         xml << "<#{prop}>#{res_value}</#{prop}>"
+      elsif !value[:relation].nil?
+        xml << "<#{self.class.build_uri_for_property(key)} rdf:resource=\"#{object.uri_for_resource(self.class,params)}\" /> "
       elsif association = self.class.reflect_on_all_associations.detect{|association| association.name.to_sym == key.to_sym}
         #TODO:
       end
@@ -169,8 +229,8 @@ module SemanticResource
     def semantic_operations
       @semantic_operations = Hash.new unless defined? @semantic_operations
       @semantic_operations
-    end
-
+    end   
+    
     def to_rdf(format = :n3)
       if(format == :n3 || format == :rdf)
 
@@ -237,22 +297,57 @@ module SemanticResource
           property_html << "</ul>"
           property_html.string
         end
-        @mapping.keys.each do |key|
-          html << rdfa_description(build_uri_for_property(key), :tag => :div, :typeof => 'rdfs:Property') do
-            property_html = StringIO.new
-            property_html << "<b>#{key}</b>"
-            property_html << "<ul>"
-            property_html << "<li>domain: <code>"
-            property_html << rdfa_relation("rdfs:domain",:a, model_ref) do
-              "#{model_ref}"
-            end
-            property_html << "</code></li>"
-            property_html << rdfa_relation("rdfs:range",:li, "http://www.w3.org/2000/01/rdf-schema#Datatype") do
-              "range: <code>http://www.w3.org/2000/01/rdf-schema#Datatype</code>"
-            end
-            property_html << "</ul>"
-            property_html.string
-          end
+        @mapping.each_pair do |key,value|
+          if self.columns.detect{|column| column.name.to_sym == key.to_sym}
+
+            html << rdfa_description(build_uri_for_property(key), :tag => :div, :typeof => 'rdfs:Property') do
+              property_html = StringIO.new
+              property_html << "<b>#{key}</b>"
+              property_html << "<ul>"
+              property_html << "<li>domain: <code>"
+              property_html << rdfa_relation("rdfs:domain",:a, model_ref) do
+                "#{model_ref}"
+              end
+              property_html << "</code></li>"
+              property_html << rdfa_relation("rdfs:range",:li, value[:datatype]) do
+                "range: <code>#{value[:datatype]}</code>"
+              end                              
+              property_html << "</ul>"
+              property_html.string
+            end            
+            
+          elsif !value[:relation].nil?
+            html << rdfa_description(build_uri_for_property(key), :tag => :div, :typeof => 'rdfs:Property') do
+              property_html = StringIO.new
+              property_html << "<b>#{key}</b>"
+              property_html << "<ul>"
+              property_html << "<li>domain: <code>"
+              property_html << rdfa_relation("rdfs:domain",:a, model_ref) do
+                "#{model_ref}"
+              end
+              property_html << "</code></li>"
+              property_html << rdfa_relation("rdfs:range",:li, value[:relation].resource_model_uri) do
+                "range: <code><a href='#{value[:relation].resource_model_uri}.html'>#{value[:relation].resource_model_uri}</a></code>"
+              end                      
+              property_html.string
+            end                        
+          elsif association = self.reflect_on_all_associations.detect{|association| association.name.to_sym == key.to_sym}
+            html << rdfa_description(build_uri_for_property(key), :tag => :div, :typeof => 'rdfs:Property') do
+              property_html = StringIO.new
+              property_html << "<b>#{key}</b>"
+              property_html << "<ul>"
+              property_html << "<li>domain: <code>"
+              property_html << rdfa_relation("rdfs:domain",:a, model_ref) do
+                "#{model_ref}"
+              end
+              property_html << "</code></li>"
+              property_html << rdfa_relation("rdfs:range",:li, association.active_record.resource_model_uri) do
+                "range: <code><a href='#{association.active_record.resource_model_uri}.html'>#{association.active_record.resource_model_uri}</a></code>"
+              end                 
+              property_html.string              
+            end                        
+          end          
+          
         end
 
         html << "</body>"
@@ -948,7 +1043,11 @@ module SemanticResource
 
     # private methods
 
-    def url_for(options)
+    #TODO:
+    # subustitute all of tis by method in  ActionController::Routing::Routes
+    # as:  ActionController::Routing::Routes.generate(params)
+    # or:  ActionController::Routing::Routes.generate_with_extras(params)
+    def url_for(options)      
       url = ''
 
       unless options.delete(:only_path)
@@ -1057,7 +1156,7 @@ module SemanticResource
         if(!value[:relation].nil? && resource_path.include?(value[:relation_key].to_sym))
           sparql << "?#{value[:relation_key]} "
           sparql_where_clause << "?x <#{build_uri_for_property(key)}> ?#{value[:relation_key]} . "
-         else
+         elsif(value[:relation].nil?)
           sparql << "?#{key.to_s} "
           sparql_where_clause << "?x <#{build_uri_for_property(key)}> ?#{key.to_s} . "
         end
@@ -1109,7 +1208,7 @@ module SemanticResource
         if(!value[:relation].nil? && resource_path.include?(value[:relation_key].to_sym))
           sparql << "?#{value[:relation_key]} "
           sparql_where_clause << "?x <#{build_uri_for_property(key)}> ?#{value[:relation_key]} . "
-         else
+         elsif(value[:relation].nil?)
           sparql << "?#{key.to_s} "
           sparql_where_clause << "?x <#{build_uri_for_property(key)}> ?#{key.to_s} . "
         end
