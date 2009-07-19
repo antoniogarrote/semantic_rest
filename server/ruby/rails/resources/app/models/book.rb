@@ -1,7 +1,6 @@
 require 'semantic_resource/base'
 
 class Book < ActiveRecord::Base
-  unloadable
   has_many :chapters
 
   include SemanticResource
@@ -30,6 +29,7 @@ class Book < ActiveRecord::Base
     resource[:chapters] = { :uri => [:test,"#hasChapter"] }
   end
 
+  define_index_operation(:controller => 'books', :action => 'index')
   define_show_operation(:controller => 'books', :action => 'show')
   define_create_operation(:controller => 'books', :action => 'create')
   define_destroy_operation(:controller => 'books', :action => 'destroy')

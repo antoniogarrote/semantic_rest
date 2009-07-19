@@ -1563,7 +1563,7 @@ Screw.Unit(function() {
    describe('.update for instance',function() {
        it("should find and retrieve an existent instance and update its values",
           function() {
-              wait('.find for instance',function(){
+              wait('.update for instance',function(){
                   Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
                   Siesta.Model.Repositories.schemas = new Siesta.Framework.Graph();
 

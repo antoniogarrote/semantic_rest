@@ -2569,7 +2569,6 @@ Siesta.Model.Class.prototype = {
             var subscription = Siesta.Events.subscribe(op.EVENT_CONSUMED,function(event,graph,myData) {
                 Siesta.Events.unsubscribe(subscription);                
                 if(myData == instance) {
-                    // TODO: transform graph into instances
                     instance.uri = graph.triplesArray()[0].subject.value;
                     instance._graph = null;
                     instance.type._updateInstance(graph,instance);
@@ -2736,6 +2735,7 @@ Siesta.Model.Instance.prototype = {
         } 
         return this._graph;
     },
+
     /*
      * Operations
      */
@@ -2750,7 +2750,6 @@ Siesta.Model.Instance.prototype = {
         var that = this;
         if(this.stored == false) { // no saved, we use POST to create and save
             that.type.post(that,function(graph) {
-                // TODO instead of updating the uri, it is better to reload from repository.
                 that.uri = graph.triplesArray()[0].subject.value;
                 that._graph = null;
                 that.type._updateInstance(graph,that);
@@ -2759,7 +2758,6 @@ Siesta.Model.Instance.prototype = {
             });
         } else { // already saved, we use PUT to update
             that.type.put(that,function(graph) {
-                // TODO update properties???
                 that._graph = null;
                 that.type._updateInstance(graph,that);
                 that.stored = true;
