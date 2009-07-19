@@ -134,6 +134,85 @@ if(Siesta.isRhino()) {
 }
 
 /**
+ *  XSD datatypes support.
+ */
+Siesta.XSD = {};
+Siesta.XSD.DATATYPES = {
+    string:"http://www.w3.org/2001/XMLSchema#string",
+    boolean:"http://www.w3.org/2001/XMLSchema#boolean",
+    decimal:"http://www.w3.org/2001/XMLSchema#decimal",
+    float:"http://www.w3.org/2001/XMLSchema#float",
+    double:"http://www.w3.org/2001/XMLSchema#double",
+    dateTime:"http://www.w3.org/2001/XMLSchema#dateTime",
+    time:"http://www.w3.org/2001/XMLSchema#time",
+    date:"http://www.w3.org/2001/XMLSchema#date",
+    gYearMonth:"http://www.w3.org/2001/XMLSchema#gYearMonth",
+    gYear:"http://www.w3.org/2001/XMLSchema#gYear",
+    gMonthDay:"http://www.w3.org/2001/XMLSchema#gMonthDay",
+    gDay:"http://www.w3.org/2001/XMLSchema#gDay",
+    gMonth:"http://www.w3.org/2001/XMLSchema#gMonth",
+    hexBinary:"http://www.w3.org/2001/XMLSchema#hexBinary",
+    base64Binary:"http://www.w3.org/2001/XMLSchema#base64Binary",
+    anyURI:"http://www.w3.org/2001/XMLSchema#anyURI",
+    normalizedString:"http://www.w3.org/2001/XMLSchema#normalizedString",
+    token:"http://www.w3.org/2001/XMLSchema#token",
+    language:"http://www.w3.org/2001/XMLSchema#language",
+    NMTOKEN:"http://www.w3.org/2001/XMLSchema#NMTOKEN",
+    Name:"http://www.w3.org/2001/XMLSchema#Name",
+    NCName:"http://www.w3.org/2001/XMLSchema#NCName",
+    integer:"http://www.w3.org/2001/XMLSchema#integer",
+    nonPositiveInteger:"http://www.w3.org/2001/XMLSchema#nonPositiveInteger",
+    negativeInteger:"http://www.w3.org/2001/XMLSchema#negativeInteger",
+    long:"http://www.w3.org/2001/XMLSchema#long",
+    int:"http://www.w3.org/2001/XMLSchema#int",
+    short:"http://www.w3.org/2001/XMLSchema#short",
+    byte:"http://www.w3.org/2001/XMLSchema#byte",
+    nonNegativeInteger:"http://www.w3.org/2001/XMLSchema#nonNegativeInteger",
+    unsignedLong:"http://www.w3.org/2001/XMLSchema#unsignedLong",
+    unsignedInt:"http://www.w3.org/2001/XMLSchema#unsignedInt",
+    unsignedShort:"http://www.w3.org/2001/XMLSchema#unsignedShort",
+    unsignedByte:"http://www.w3.org/2001/XMLSchema#unsignedByte",
+    positiveInteger:"http://www.w3.org/2001/XMLSchema#positiveInteger" };
+
+
+Siesta.XSD.DATATYPES_INV = {};
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#string"] = "string";    
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#boolean"]= "boolean";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#decimal"] = "decimal";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#float"] = "float";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#double"] = "double";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#dateTime"] = "dateTime";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#time"] = "time";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#date"] = "date";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#gYearMonth"] = "gYearMonth";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#gYear"] = "gYear";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#gMonthDay"] = "gMonthDay";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#gDay"] = "gDay";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#gMonth"] = "gMonth";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#hexBinary"] = "hexBinary";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#base64Binary"] = "base64Binary";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#anyURI"] = "anyURI";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#normalizedString"] = "normalizedString";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#token"] = "token";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#language"] = "language";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#NMTOKEN"] = "NMTOKEN";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#Name"] = "Name";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#NCName"] = "NCName";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#integer"] = "integer";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#nonPositiveInteger"] = "nonPositiveInteger";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#negativeInteger"] = "negativeInteger";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#long"] = "long";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#int"] = "int";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#short"] = "short";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#byte"] = "byte";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#nonNegativeInteger"] = "nonNegativeInteger";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#unsignedLong"] = "unsignedLong";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#unsignedInt"] = "unsignedInt";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#unsignedShort"] = "unsignedShort";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#unsignedByte"] = "unsignedByte";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#positiveInteger" ] = "positiveInteger";
+
+/**
  *  Registers a new namespace in the javascript
  *  runtime.
  */
@@ -2213,6 +2292,17 @@ Siesta.Model.Schema.prototype = {
 };
 
 Siesta.Model.Class = Class.create();
+
+Siesta.Model.Class.registry = {};
+
+Siesta.Model.Class.findForSchema: function(modelUri) {
+    return Siesta.Model.Class.registry[modelUri];
+};
+
+Siesta.Model.Class.registerForSchema: function(modelUri,classObject) {
+    return Siesta.Model.Class.registry[modelUri] = classObject;
+};
+
 /**
   @class Siesta.Model.Class
 
@@ -2337,6 +2427,14 @@ Siesta.Model.Class.prototype = {
         }
 
         this._propertyMapping = null;
+
+	Siesta.Model.Class.registerForSchema(this.uri,this);
+	if(parameters.nestedThrough != null && this.property(parameters.nestedThrough)!=null){
+	    this.nestedThrough = this.property(parameters.nestedThrough);
+	} else {
+	    this.nestedThrough = parameters.nestedThrough;
+	}
+	
     },
 
     definePropertiesAliases: function(mapping) {
@@ -2381,6 +2479,16 @@ Siesta.Model.Class.prototype = {
             }
             return null;
         }
+    },
+
+    propertyRange: function(nameOrUri) {
+	var uri = this.property(nameOrUri);
+        for(var _i=0; _i<this.schema.properties().length; _i++) {
+            if(this.schema.properties()[_i]['uri'] == uri) {
+                return this.schema.properties()[_i]['range'];
+            }
+        }
+        return null;
     },
 
     propertiesAliases: function() {
@@ -2547,7 +2655,11 @@ Siesta.Model.Class.prototype = {
         if(this.getServices == undefined) {
             throw "Cannot find instance for ModelClass without GET service";
         } else {
-            var instance = this.build(mapping);
+            var instance = mapping;
+	    if(mapping.__type == undefined) {
+		instance = this.build(mapping);
+	    }
+
             var service = this.getServices;
             var op = null;
             var operations = service.operations();
@@ -2587,6 +2699,11 @@ Siesta.Model.Class.prototype = {
         if(this.indexServices == undefined) {
             throw "Cannot index instances for ModelClass without INDEX service";
         } else {
+            var instance = mapping;
+	    if(mapping.__type == undefined) {
+		instance = this.build(mapping);
+	    }
+
             var service = this.indexServices;
             var op = null;
             var operations = service.operations();
@@ -2692,16 +2809,37 @@ Siesta.Model.Instance.prototype = {
         }
 
         for(var p in params.properties) {
-            this.set(p,params.properties[p]);
+ 	    this.set(p,params.properties[p]);
         }
+
+	// This objects track changes to be submitted
+        // to the server in a save
+	this.collectionsToDestroy = {};
+	this.collectionsToUpdate = {};
+	this.collectionsToSave = {};
+
     },
 
     set: function(property,value) {
+	// TODO: check the assumptions below
+	var range =  this.type.propertyRange(property);
         if(this.type.property(property) != null) {
-            if(value.__type == null) {
-                this._properties[this.type.property(property)] = new Siesta.Framework.Literal({value: value});
-            } else {
-                this._properties[this.type.property(property)] = value
+            if(value.__type == null) { // cannot be instance nor literal
+ 		if(Siesta.XSD.DATATYPES_INV[range]!=undefined) {
+		    // this must be a String, int, etc.
+                    this._properties[this.type.property(property)] = new Siesta.Framework.Literal({value: value});
+ 		} else { 
+		    // this must be an Array
+                    this._properties[this.type.property(property)] = value;
+ 		}
+            } else { // instance or literal
+ 		if(Siesta.XSD.DATATYPES_INV[range]!=undefined) {
+		    // this must be an instance
+                    this._properties[this.type.property(property)] = [value];
+ 		} else {
+		    // this must be a literal
+                    this._properties[this.type.property(property)] = value;
+ 		}
             }
         } else {
             throw "Unknown property "+property+" for instance of class "+this.type.uri;
@@ -2716,6 +2854,66 @@ Siesta.Model.Instance.prototype = {
             throw "Unknown property "+property+" for instance of class "+this.type.uri;
         }
     },
+
+    relationFindAll: function(property,callback) {
+        if(this.type.property(property) != null) {
+            var range =  this.type.propertyRange(property);
+            var service = Siesta.Model.Class.findForSchema(range);
+	    var cloned = this.clone();
+
+	    //TODO: complete here with the right parameter
+	    var argument = null
+	    //
+	    var that = this;
+	    service.findAll(argument,function(instances) {
+		that.set(property,instances);
+		callback(that.get(property));
+	    });
+        } else {
+            throw "Unknown relation "+property+" for instance of class "+this.type.uri;
+        }
+    },
+
+    relationFind: function(property,callback) {
+        if(this.type.property(property) != null) {
+            var range =  this.type.propertyRange(property);
+            var service = Siesta.Model.Class.findForSchema(range);
+	    var cloned = this.clone();
+
+	    //TODO: complete here with the right parameter
+	    var argument = null
+	    //
+	    var that = this;
+	    service.find(argument,function(instance) {
+		that.set(property,instance);
+		callback(that.get(property));
+	    });
+
+        } else {
+            throw "Unknown relation "+property+" for instance of class "+this.type.uri;
+        }
+    },
+
+    relationSet: function(property,callback) {
+        if(this.type.property(property) != null) {
+            var range =  this.type.propertyRange(property);
+            var service = Siesta.Model.Class.findForSchema(range);
+	    var cloned = this.clone();
+
+	    //TODO: complete here with the right parameter
+	    var argument = null
+	    //
+	    var that = this;
+	    service.find(argument,function(instance) {
+		that.set(property,instance);
+		callback(that.get(property));
+	    });
+
+        } else {
+            throw "Unknown relation "+property+" for instance of class "+this.type.uri;
+        }	
+    },
+    
 
     toGraph: function() {
         if(this._graph == null) {
@@ -2779,7 +2977,18 @@ Siesta.Model.Instance.prototype = {
             this.stored = false;
             callback(that);
         });
-    }
+    },
+
+    clone: function() {
+	var cloned = new Siesta.Model.Instance({
+	    type: this.type,
+	    uri: this.uri
+	});
+	cloned._properties = this._properties;
+	return cloned;
+    },
+
+    __type: "instance";
 };
 
 /**
