@@ -1618,6 +1618,40 @@ Screw.Unit(function() {
           });
    });
 
+   describe('.relationFindAll',function() {
+       it("should find and retrieve an existent instance and update its values",
+          function() {
+              wait('.relationFindAll',function(){
+                  Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
+                  Siesta.Model.Repositories.schemas = new Siesta.Framework.Graph();
+
+                  expect(Siesta.Model.Repositories.services.triplesArray().length == 0).to(equal,true);
+                  var graph = Siesta.Formats.Turtle.parseDoc("",fixturesN3Data7);
+                  Siesta.Model.Repositories.services = graph;
+                  expect(Siesta.Model.Repositories.services.triplesArray().length > 0).to(equal,true);
+
+                  var serviceBook = new Siesta.Services.RestfulService("http://localhost:3000/schemas/services/BookService");
+                  var serviceChapter = new Siesta.Services.RestfulService("http://localhost:3000/schemas/services/ChapterService");
+
+                  var that = this;
+		  console.log(1);
+                  var _subscription =  Siesta.Events.subscribe(serviceBook.EVENT_SERVICE_LOADED,function(event,serv,myData) {
+		      console.log(2);
+                      Siesta.Services.RestfulService.servicesCache["http://localhost:3000/schemas/services/BookService"] = serv;
+                      Siesta.Events.unsubscribe(_subscription);
+		      var _chapterSubscription = Siesta.Events.subscribe(serviceChapter.EVENT_SERVICE_LOADED,function(event,serv,myData) {
+			  console.log(3);
+			  Siesta.Services.RestfulService.servicesCache["http://localhost:3000/schemas/services/ChapterService"] = serv;
+			  Siesta.Events.unsubscribe(_chapterSubscription);
+			  
+		      },that,serviceChapter);
+                      serviceChapter.connect("jsonp");
+                  },this,serviceBook);
+                  serviceBook.connect("jsonp");
+              });
+          });
+   });
+
 	describe('.toGraph',function() {
 
             it("should retrieve the properties associated to this model and its ranges",
