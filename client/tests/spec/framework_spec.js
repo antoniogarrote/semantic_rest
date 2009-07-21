@@ -1634,16 +1634,51 @@ Screw.Unit(function() {
                   var serviceChapter = new Siesta.Services.RestfulService("http://localhost:3000/schemas/services/ChapterService");
 
                   var that = this;
-		  console.log(1);
                   var _subscription =  Siesta.Events.subscribe(serviceBook.EVENT_SERVICE_LOADED,function(event,serv,myData) {
-		      console.log(2);
                       Siesta.Services.RestfulService.servicesCache["http://localhost:3000/schemas/services/BookService"] = serv;
                       Siesta.Events.unsubscribe(_subscription);
 		      var _chapterSubscription = Siesta.Events.subscribe(serviceChapter.EVENT_SERVICE_LOADED,function(event,serv,myData) {
-			  console.log(3);
 			  Siesta.Services.RestfulService.servicesCache["http://localhost:3000/schemas/services/ChapterService"] = serv;
 			  Siesta.Events.unsubscribe(_chapterSubscription);
 			  
+                          debugger;
+                          var Book = new Siesta.Model.Class({
+                              schemaUri: "http://localhost:3000/schemas/models/Book",
+                              serviceUri:"http://localhost:3000/schemas/services/BookService",
+                              indexOperationUri: "http://localhost:3000/schemas/services/Book#indexBook",
+                              getOperationUri: "http://localhost:3000/schemas/services/Book#showBook"
+                          });
+                          
+                          Book.definePropertiesAliases({
+                              id:"http://semantic_rest/siesta#id",
+                              isbn:"http://test.com#isbn",
+                              numberOfPages:"http://test.com#numberOfPages",
+                              category:"http://test.com#category",
+                              editorial:"http://test.com#editorial",
+                              published:"http://test.com#published",
+                              title:"http://test.com#title",
+                              chapters:"http://test.com#hasChapter"
+                          });
+
+                          var Chapter = new Siesta.Model.Class({
+                              schemaUri: "http://localhost:3000/schemas/models/Chapter",
+                              nestedThrough: "http://test.com#fromBook",
+                              serviceUri:"http://localhost:3000/schemas/services/ChapterService",
+                              indexOperationUri: "http://localhost:3000/schemas/services/Chapter#indexChapter",
+                              getOperationUri: "http://localhost:3000/schemas/services/Chapter#showChapter"
+                          });
+
+
+
+                          Book.find({id:1},function(foundBook) {
+                              debugger;
+
+                              foundBook.relationFindAll('chapters',function(bookWithChapters){
+                                  debugger;
+                                  GLOBAL_MUTEX = false;                                  
+                              });
+                          });                          
+
 		      },that,serviceChapter);
                       serviceChapter.connect("jsonp");
                   },this,serviceBook);

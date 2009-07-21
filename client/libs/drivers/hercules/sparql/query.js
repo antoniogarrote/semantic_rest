@@ -81,7 +81,7 @@ Siesta.Drivers.Hercules.__parseSiestaReference = function(/* Arielworks.Hercules
         }
         return graph.getBlankNode(blankId);
     } else {
-        throw new Exception("Uknown type for Siesta resource");
+        throw "Uknown type for Siesta resource: " + reference.__type ;
     }
 };
 

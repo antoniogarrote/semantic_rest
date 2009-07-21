@@ -49,11 +49,44 @@ module SemanticResource
         default_semantic_show
       end
 
+      def index
+        default_semantic_index
+      end
+
       # we don't want this operations to be called as actions.
       # The user should redefine the methods in order to change the behaviour.
       protected
 
       # generates the response
+      def default_semantic_index
+        resource = self.class.semantic_resource
+
+        format = params[:format] || :n3
+        format = format.to_sym
+
+        base_response = StringIO.new
+        base_response << resource.to_instance_rdf_upper_partial(format)
+        semantic_find_all.each do |r|
+          base_response << r.to_rdf(request.parameters.merge(:id => r.id).symbolize_keys,format,true)
+        end
+        base_response << resource.to_instance_rdf_lower_partial(format)
+        base_response,content_type = check_jsonp_response(base_response.string)
+
+        if(format == :n3 || format == :rdf)
+          if(content_type.nil?)
+            content_type = "text/rdf+n3"
+          end
+        elsif(format == :xml)
+          if(content_type.nil?)
+            content_type = "application/rdf+xml"
+          end
+        end
+
+        render(:text => base_response,
+               :content_type => content_type,
+               :status => 200)
+      end
+
       def default_semantic_show
         resource = self.class.semantic_resource
 
@@ -129,6 +162,14 @@ module SemanticResource
       end
 
       # retrieves the semantic resource
+      def semantic_find_all
+        attributes = self.class.semantic_resource.columns.collect{|c| c.name.to_sym }
+        conditions = { }
+        params.keys.each{|p|  conditions[p] = params[p] if attributes.include?(p.to_sym) }
+        self.class.semantic_resource.find(:all, :conditions =>  conditions)
+      end
+
+      # retrieves the semantic resources for an index action
       def semantic_find
         self.class.semantic_resource.find(params[:id])
       end

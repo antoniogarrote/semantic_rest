@@ -24,6 +24,8 @@ Siesta.Constants = {};
 Siesta.Constants.SUCCESS = "success";
 Siesta.Constants.FAILURE = "failure";
 Siesta.Constants.RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+Siesta.Constants.SIESTA_ID = "http://semantic_rest/siesta#id";
+
 
 /**
   Checks if one function is defined in the
@@ -2670,7 +2672,7 @@ Siesta.Model.Class.prototype = {
       @argument: callback, a function that will be invoked with the objects
                  returned from the serer in an array as argument.
     */
-    find: function(mapping,callback) {
+    find: function(mapping,callback) { // 
         if(this.getServices == undefined) {
             throw "Cannot find instance for ModelClass without GET service";
         } else {
@@ -2744,7 +2746,6 @@ Siesta.Model.Class.prototype = {
             var subscription = Siesta.Events.subscribe(op.EVENT_CONSUMED,function(event,graph,myData) {
                 Siesta.Events.unsubscribe(subscription);                
                 if(myData == instance) {
-                    // TODO: transform graph into instances
                     if(callback != undefined) {
                         callback(graph);
                     }
@@ -2827,6 +2828,12 @@ Siesta.Model.Instance.prototype = {
             this.stored = true;
         }
 
+	// This objects track changes to be submitted
+        // to the server in a save
+	this.collectionsToDestroy = {};
+	this.collectionsToUpdate = {};
+	this.collectionsToSave = {};
+
         for(var p in params.properties) {
 	    if(this.type.isDatatypeProperty(p)) {
  		this.set(p,params.properties[p]);
@@ -2836,24 +2843,24 @@ Siesta.Model.Instance.prototype = {
 		    for(var _i=0; _i<toStore.length; _i++) {
 			var _toStore = toStore[_i];
 			if(_toStore.stored == true) {
-			    throw "Cannot create instance with already initiated object " + _toStore.uri  + " in a relation";
+                            if(this.type.nestedThrough != p) {
+			        throw "Cannot create instance with already initiated object " + _toStore.uri  + " in a relation";
+			    }
 			}
 		    }
 		} else {
 		    if(toStore.stored == true) {
-			throw "Cannot create instance with already initiated object " + toStore.uri  + " in a relation";
+                        if(this.type.nestedThrough != p) {
+			        throw "Cannot create instance with already initiated object " + _toStore.uri  + " in a relation";
+			}
 		    }
 		}
-		this.collectionsToSave[this.type.property(p)] = toStore;
-		this.relationSet(params.properties[p]);
+                if(this.type.nestedThrough != p) {
+                    this.collectionsToSave[this.type.property(p)] = toStore;
+                }
+                this._properties[this.type.property(p)] = params.properties[p];
 	    }
         }
-
-	// This objects track changes to be submitted
-        // to the server in a save
-	this.collectionsToDestroy = {};
-	this.collectionsToUpdate = {};
-	this.collectionsToSave = {};
     },
     
     set: function(property,value) {
@@ -2896,15 +2903,23 @@ Siesta.Model.Instance.prototype = {
             var range =  this.type.propertyRange(property);
             var relationClass = Siesta.Model.Class.findForSchema(range);
 
-	    //TODO: complete here with the right parameter
 	    var argument = {};
 	    argument[relationClass.nestedThrough] =  this;
-	    //
 
 	    var that = this;
 	    relationClass.findAll(argument,function(instances) {
-		that.set(property,instances);
-		callback(that.get(property));
+                var genInstances = [];
+                    
+                for(var _s in instances.triples) {
+                    var _tmp = this.type.build({});
+                    _tmp.uri = _s;
+                    _tmp._graph = null;
+                    _tmp.type._updateInstance(instances,_tmp);
+                    _tmp.stored = true;
+                    genInstances.push(_tmp);
+                }
+		that.set(property,genInstances);
+		callback(that);
 	    });
         } else {
             throw "Unknown relation "+property+" for instance of class "+this.type.uri;
@@ -2936,13 +2951,26 @@ Siesta.Model.Instance.prototype = {
             var prop =  this._properties[this.type.property(property)];
             return prop;
         } else {
+            debugger;
             throw "Unknown property "+property+" for instance of class "+this.type.uri;
         }
     },
 
     relationSet: function(property,value) {
         if(this.type.property(property) != null) {
-	    //var oldValue = this.relationGet(property)
+            if(value.length) {
+                //TODO: temporary
+                throw "Not supported yet";
+            } else {
+                var old_value = this._properties[this.type.property(property)];
+                if(old_value == null) {
+                    this.collectionsToSave[this.type.property(property)] = value;
+                } else if(old_value.uri != value.uri) {
+                    this.collectionsToDestroy[this.type.property(property)] = oldValue;
+                    this.collectionsToSave[this.type.property(property)] = value;
+                }
+                this._properties[this.type.property(property)] = value;
+            }
         } else {
             throw "Unknown relation "+property+" for instance of class "+this.type.uri;
         }	
@@ -2957,12 +2985,26 @@ Siesta.Model.Instance.prototype = {
             }
             var subject = new Siesta.Framework.Uri(this.uri);
             for(var p in this._properties) {
-                this._graph.addTriple(new Siesta.Framework.Triple(new Siesta.Framework.Uri(this.uri),
-                                                                  new Siesta.Framework.Uri(p),
-                                                                  this._properties[p]));
+                var propertyValue = this._properties[p];
+                if(propertyValue.__type != null && propertyValue.__type == 'instance') {
+                    this._graph.addTriple(new Siesta.Framework.Triple(new Siesta.Framework.Uri(this.uri),
+                                                                      new Siesta.Framework.Uri(p),
+                                                                      new Siesta.Framework.Uri(propertyValue.uri)));
+                } else if(propertyValue.__type == null && propertyValue.length) {
+                    for(var _i=0; _i< propertyValue.length; _i++) {
+                        this._graph.addTriple(new Siesta.Framework.Triple(new Siesta.Framework.Uri(this.uri),
+                                                                          new Siesta.Framework.Uri(p),
+                                                                          new Siesta.Framework.Uri(propertyValue[_i].uri)));
+                    }
+                } else {
+                    this._graph.addTriple(new Siesta.Framework.Triple(new Siesta.Framework.Uri(this.uri),
+                                                                      new Siesta.Framework.Uri(p),
+                                                                      propertyValue));
+                }
             }
-	    if(this.nestedIn != undefined) {
-		var nestedTriples = this._nestingTriples();
+
+            var nestedTriples = this._nestingTriples();
+	    if(nestedTriples.length > 0) {
 		for(var _i=0; _i<nestedTriples.length; _i++) {
 		    this._graph.addTriple(nestedTriples[_i]);
 		}
@@ -3023,6 +3065,9 @@ Siesta.Model.Instance.prototype = {
 
     _nestingTriples: function() {
 	var triples = [];
+        if(this.type.nestedThrough == undefined) {
+            return triples;
+        }
 	var nestedIn = this.relationGet(this.type.nestedThrough);
 	if(nestedIn != undefined) {
 	    triples.push(new Siesta.Framework.Triple(new Siesta.Framework.Uri(this.uri),
@@ -3031,7 +3076,11 @@ Siesta.Model.Instance.prototype = {
             triples.push(new Siesta.Framework.Triple(new Siesta.Framework.Uri(this.uri),
                                                      new Siesta.Framework.Uri(Siesta.Constants.RDF_TYPE),
                                                      new Siesta.Framework.Uri(this.type.uri)));
-
+            if(nestedIn.get(Siesta.Constants.SIESTA_ID) != undefined) {
+                triples.push(new Siesta.Framework.Triple(new Siesta.Framework.Uri(nestedIn.uri),
+                                                         new Siesta.Framework.Uri(Siesta.Constants.SIESTA_ID),
+                                                         new Siesta.Framework.Uri(nestedIn.get(Siesta.Constants.SIESTA_ID))));
+            }
 	    var nestedTriples = nestedIn._nestingTriples();
 	    for(var _i=0; _i<nestedTriples.length; _i++) {
 		triples.push(nestedTriples[_i]);
