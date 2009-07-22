@@ -2828,11 +2828,9 @@ Siesta.Model.Instance.prototype = {
             this.stored = true;
         }
 
-	// This objects track changes to be submitted
-        // to the server in a save
-	this.collectionsToDestroy = {};
-	this.collectionsToUpdate = {};
-	this.collectionsToSave = {};
+	this.originalObjects = {};
+
+        this.dirty = false;
 
         for(var p in params.properties) {
 	    if(this.type.isDatatypeProperty(p)) {
@@ -2868,8 +2866,9 @@ Siesta.Model.Instance.prototype = {
 	var range =  this.type.propertyRange(property);
         if(this.type.property(property) != null) {
             if(value.__type == null) { // cannot be instance nor literal
- 		if(Siesta.XSD.DATATYPES_INV[range]!=undefined) {
+ 		if(Siesta.XSD.DATATYPES_INV[range]!=undefined) {       
 		    // this must be a String, int, etc.
+                    this.dirty = true;
                     this._properties[this.type.property(property)] = new Siesta.Framework.Literal({value: value});
  		} else { 
 		    // this must be an Array
@@ -2878,6 +2877,7 @@ Siesta.Model.Instance.prototype = {
             } else { // instance or literal
  		if(Siesta.XSD.DATATYPES_INV[range]!=undefined) {
 		    // this must be a literal
+                    this.dirty = true;
                     this._properties[this.type.property(property)] = value;
  		} else {
 		    // this must be an instance
@@ -2911,13 +2911,20 @@ Siesta.Model.Instance.prototype = {
                 var genInstances = [];
                     
                 for(var _s in instances.triples) {
-                    var _tmp = this.type.build({});
+                    var _tmp = relationClass.build({});
                     _tmp.uri = _s;
                     _tmp._graph = null;
                     _tmp.type._updateInstance(instances,_tmp);
                     _tmp.stored = true;
+                    _tmp.dirty= false;
+                    _tmp._properties[relationClass.nestedThrough] = that;
                     genInstances.push(_tmp);
                 }
+                var _origGenInstanes = [];
+                for(var _i=0; _i<genInstances.length; _i++) {
+                    _origGenInstances.push(genInstances[_i])
+                }
+                that.originalObjects[that.type.property(property)] = _origGenInstances;
 		that.set(property,genInstances);
 		callback(that);
 	    });
@@ -2929,18 +2936,29 @@ Siesta.Model.Instance.prototype = {
     relationFind: function(property,callback) {
         if(this.type.property(property) != null) {
             var range =  this.type.propertyRange(property);
-            var service = Siesta.Model.Class.findForSchema(range);
-	    var cloned = this.clone();
+            var relationClass = Siesta.Model.Class.findForSchema(range);
 
 	    //TODO: complete here with the right parameter
-	    var argument = null
-	    //
-	    var that = this;
-	    service.find(argument,function(instance) {
-		that.set(property,instance);
-		callback(that.get(property));
-	    });
+	    var argument = {};
+	    argument[relationClass.nestedThrough] =  this;
 
+	    var that = this;
+	    relationClass.findAll(argument,function(instances) {
+                    
+                for(var _s in instances.triples) {
+                    var _tmp = relationClass.build({});
+                    _tmp.uri = _s;
+                    _tmp._graph = null;
+                    _tmp.type._updateInstance(instances,_tmp);
+                    _tmp.stored = true;
+                    _tmp.dirty = false;
+                    _tmp._properties[relationClass.nestedThrough] = that;
+                    that.set(property,_tmp);
+                    that.originalObjects[that.type.property(property)] = _tmp;
+                    break;
+                }
+		callback(that);
+	    });
         } else {
             throw "Unknown relation "+property+" for instance of class "+this.type.uri;
         }
@@ -2958,24 +2976,84 @@ Siesta.Model.Instance.prototype = {
 
     relationSet: function(property,value) {
         if(this.type.property(property) != null) {
-            if(value.length) {
-                //TODO: temporary
-                throw "Not supported yet";
+            this._properties[this.type.property(property)] = value;
+        } else {
+            throw "Unknown relation "+property+" for instance of class "+this.type.uri;
+        }	
+    },
+ 
+    relationAdd: function(property,value) {
+        if(this.type.property(property) != null) {
+            var old_value = this._properties[this.type.property(property)];
+            if(old_value == undefined) {
+                throw "The collection has not been retrieved with a relationFindAll message";
+            }
+            if(old_value.length) {
+                this._properties[this.type.property(property)].push(value);            
             } else {
-                var old_value = this._properties[this.type.property(property)];
-                if(old_value == null) {
-                    this.collectionsToSave[this.type.property(property)] = value;
-                } else if(old_value.uri != value.uri) {
-                    this.collectionsToDestroy[this.type.property(property)] = oldValue;
-                    this.collectionsToSave[this.type.property(property)] = value;
+                throw "I cannot add instances to an scalar relation"
+            }            
+        } else {
+            throw "Unknown relation "+property+" for instance of class "+this.type.uri;
+        }	
+    },   
+
+    relationRemove: function(property,value) {
+        if(this.type.property(property) != null) {
+            for(var _p in this._properties) {
+                var newValue = [];
+                var oldValue = this._properties[this.type.property(property)];
+                if(oldValue == undefined) {
+                    throw "The collection has not been retrieved with a relationFindAll message";
                 }
-                this._properties[this.type.property(property)] = value;
+                if(oldValue.length) {
+                    var _found = false;
+                    for(var _i; _i<oldValue.length; _i++) {
+                        var val = oldValue[_i];
+                        if(val.equalTo(value) && !_found) {
+                            _found = true;
+                        } else {
+                            newValue.push(val);
+                        }
+                    }
+                    this._properties[this.type.property(property)] = newValue;
+                } else {
+                    throw "I cannot remove instances from an scalar relation"
+                }                
+
             }
         } else {
             throw "Unknown relation "+property+" for instance of class "+this.type.uri;
         }	
     },
-    
+
+    equalTo: function(instance) {
+        if(instance.uri) {
+            return this.uri == instance.uri;
+        } else if(instance._properties) {
+            for(var _p in instance._properties) {
+                var _v = instance._properties[_p];
+                var _tv = this._properties[_p];
+                if(_v.equalTo && _tv.equalTo) {
+                    if(_v.equalTo(_tv) == false) {
+                        return false;
+                    }
+                } else if(_v.length && _tv.length) {
+                    // TODO: check differences in values
+                    if(_v.length != _tv.length) {
+                        return false;
+                    }
+                } else {
+                    if(_v != _tv) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        } else {
+            return this == instance;
+        }
+    },
 
     toGraph: function() {
         if(this._graph == null) {
@@ -3045,6 +3123,110 @@ Siesta.Model.Instance.prototype = {
                 that.stored = true;
                 callback(that);
             });
+        }
+    },
+
+    _updateCollections: function(callback) {
+        var that = this;
+
+        var toModify = [];
+
+        
+        // we fill the collections of instances to save, update and delete
+        for(var _p in that._properties) {
+            if(that.type.isObjectProperty(_p)) {
+                var propValue = that.get(_p);
+                var origPropValue = that.originalObjects[_p];
+
+                if(propValue.length) {
+                    for(var _i=0; _i<propValue.length; _i++) {
+                        var thePropValue = propValue[_i];
+                        var theOrigPropValue = that._findInstanceInArray(thePropValue,origPropValue);
+                        if(theOrigPropValue == undefined) {
+                            toModify.push({object: thePropValue, action: 'create'});
+                        } else {
+                            if(theOrigPropValue.uri == thePropValue.uri) {
+                                if(thePropValue.dirty) {
+                                    toModify.push({object: thePropValue, action: 'update'});
+                                }
+                            } else {
+                                toModify.push({object: thePropValue, action: 'create'});
+                            }
+                        }
+                    }
+                    for(var _i=0; _i<origPropValue.length; _i++) {
+                        var thePropValue = origPropValue[_i];
+                        var retrieved = that._findInstanceInArray(thePropValue,propValue);
+                        if(retrieved == undefined) {
+                            toModify.push({object: thePropValue, action: 'delete'});
+                        } else {
+                            if(retrieved.uri != thePropValue.uri) {
+                                toModify.push({object: thePropValue, action: 'delete'});
+                            }
+                        }
+                    }
+                } else {
+                    _classifyByStatus(origPropValue,propValue,toModify);
+                }
+
+            }
+        }
+        
+        if(toModify.length > 0) {
+            var sequentializer = new Siesta.Utils.Sequentializer();
+            var maximum = toModify.length - 1
+            for(var _i=0; _i<toModify.length; _i++) {
+                var toModifyInstance = toModify[_i];
+                toModifyInstance['pos'] = _i
+                sequentializer.addRemoteRequestWithEnv(function(instanceObj){
+                        if(instanceObj.action == 'create' || instanceObj.action == 'update') {
+                            instanceObj.object.save(function(savedObj) {
+                                    sequentializer.notifyRequestFinished();                        
+                                });
+                        } else { // destroy
+                            instanceObj.object.destroy(function(destryedObj) {
+                                    sequentializer.notifyRequestFinished();                        
+                                });
+                        
+                        }
+                    },toModifyInstance);
+            }
+
+            // here we set the callback for all requests done
+            sequentializer.finishedCallback(function() {
+                    callback(that);
+            });
+
+            // the fun starts here
+            sequentializer.start();
+            
+        }
+
+    },
+
+    _findInstanceInArray: function(instance,instances)  {
+        for(var _i=0; _i<instances.length; _i++) {
+            if(instance.equalTo(instances[_i])) {
+                return instances[_i];
+            }
+        }
+        return undefined;
+    },
+
+    _classifyByStatus: function(origPropValue,propValue,toModify) {
+        if(origPropValue == undefined) {
+            if(propValue != undefined) {
+                toModify.push({object: propValue, action: 'create'});
+            }
+        } else if(origPropValue.equalTo(propValue)) {
+            if(propValue.dirty) {
+                toModify.push({object: propValue, action: 'update'});
+            }
+        } else {
+            toModify.push({object: origPropValue, action: 'delete'});
+            if(propValue != undefined) {
+                toModify.push({object: propValue, action: 'create'});
+            }
         }
     },
 

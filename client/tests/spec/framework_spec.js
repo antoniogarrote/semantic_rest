@@ -1641,7 +1641,6 @@ Screw.Unit(function() {
 			  Siesta.Services.RestfulService.servicesCache["http://localhost:3000/schemas/services/ChapterService"] = serv;
 			  Siesta.Events.unsubscribe(_chapterSubscription);
 			  
-                          debugger;
                           var Book = new Siesta.Model.Class({
                               schemaUri: "http://localhost:3000/schemas/models/Book",
                               serviceUri:"http://localhost:3000/schemas/services/BookService",
@@ -1671,10 +1670,8 @@ Screw.Unit(function() {
 
 
                           Book.find({id:1},function(foundBook) {
-                              debugger;
-
                               foundBook.relationFindAll('chapters',function(bookWithChapters){
-                                  debugger;
+                                  expect(bookWithChapters.relationGet('chapters').length > 0).to(equal,true);
                                   GLOBAL_MUTEX = false;                                  
                               });
                           });                          
