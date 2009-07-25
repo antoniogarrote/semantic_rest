@@ -5,7 +5,7 @@ require 'sprockets'
 if(ARGV.size == 0 || ARGV[0] == "javascript")
   @platform = :javascript
 elsif(ARGV[0] == "java")
-  @platform = :java  
+  @platform = :java
 else
   raise Exception.new("Unknown platform #{ARGV[0]}, choose 'javascript' or 'java'")
 end
@@ -13,18 +13,20 @@ end
 @load_path = ["./**/*.js"]
 
 
-if(@platform == :javascript) 
-  @source_files = ["libs/drivers/prototype/load.js","framework.js"]  
+if(@platform == :javascript)
+  @source_files = ["libs/drivers/jquery/load.js","framework.js"]
   @source_files << "libs/drivers/hercules/load.js"
   @source_files << "libs/drivers/oat/load.js"
-  
+  @source_files << "libs/drivers/w3c/load.js"
+
   @source_files << "libs/drivers/hercules/sparql/query.js"
   @source_files << "libs/drivers/hercules/formats/turtle.js"
   @source_files << "libs/drivers/oat/formats/xml.js"
-  @source_files << "libs/drivers/prototype/network.js"  
-else 
+  @source_files << "libs/drivers/w3c/formats/rdfa.js"
+  @source_files << "libs/drivers/jquery/network.js"
+else
   # TODO: java here
-  @source_files = ["microtype.js","framework.js"]    
+  @source_files = ["framework.js"]
 end
 
 secretary = Sprockets::Secretary.new(

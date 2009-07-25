@@ -1,10 +1,10 @@
 Siesta.defineConfiguration({
-    drivers: ["hercules","oat","prototype","w3c"],
+    drivers: ["hercules","oat","jquery","w3c"],
     sparql: "Hercules",
     formats: {
         turtle: "Hercules",
         xml: "OAT",
         rdfa: "W3c"
     },
-    network: "Prototype"
+    network: "jQuery"
 });

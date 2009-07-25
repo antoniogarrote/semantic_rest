@@ -850,8 +850,20 @@ module SemanticResource
 
     def define_show_operation(options)
 
+      original_options = { }
+      options.each_pair do |k,v|
+        original_options[k] = v
+      end
+
+      url_parameters = options[:url_parameters] ||  []
+      if(options[:show_id].nil?)
+        options[:show_id] = true
+      end
+      show_id = options[:show_id]
+      options = options.reject{ |k,v| k == :url_parameters || k == :show_id }
+
       # we store the show operation parameters
-      semantic_operations[:show] = options
+      semantic_operations[:show] = original_options
 
       # we register the show lowering mechanism
       #SemanticResource::Manager.lowering_operations[self.name]["show"] = "sparql_lowering_show"
@@ -862,14 +874,26 @@ module SemanticResource
         resource_path.each do |identifier|
           options = options.merge(identifier => "__#{identifier}__")
         end
-        encoded = url_for(options.merge({:id => "_id_"}).merge(:host => SemanticResource::Configuration.resources_host))
+        # including URL parameters
+        url_parameters.each do |identifier|
+          options = options.merge(identifier => "__#{identifier}__")
+        end
+
+        if(show_id)
+          options.merge({:id => "_id_"})
+        end
+        encoded = url_for(options.merge(:host => SemanticResource::Configuration.resources_host))
 
         # building the path to the resource
         resource_path.each do |identifier|
           encoded = encoded.gsub(CGI.escape("__#{identifier}__"),"{#{identifier}}")
         end
-
-        encoded = encoded.gsub(CGI.escape("_id_"),"{id}")
+        url_parameters.each do |identifier|
+          encoded = encoded.gsub(CGI.escape("__#{identifier}__"),"{#{identifier}}")
+        end
+        if(show_id)
+          encoded = encoded.gsub(CGI.escape("_id_"),"{id}")
+        end
 
         if(format == :n3)
 
@@ -1279,15 +1303,29 @@ module SemanticResource
 
       sparql << "SELECT "
 
-      unless(resource_mapping.keys.include?(:id))
+      if(!resource_mapping.keys.include?(:id) &&
+         ((!semantic_operations[:show][:show_id].nil? && semantic_operations[:show][:show_id] = true) ||
+          (semantic_operations[:show][:show_id].nil?)))
         sparql << "?id "
         sparql_where_clause << "?x <#{SemanticResource::Configuration::SIESTA_ID}> ?id . "
       end
+      #nested resources
       resource_mapping.each_pair do |key,value|
         if(!value[:relation].nil? && resource_path.include?(value[:relation_key].to_sym))
           sparql << "?#{value[:relation_key]} "
           sparql_where_clause << "?x <#{build_uri_for_property(key)}> ?#{value[:relation_key]}_url . "
           sparql_where_clause << "?#{value[:relation_key]}_url <#{SemanticResource::Configuration::SIESTA_ID}> ?#{value[:relation_key]} . "
+        end
+      end
+
+      #extra URL parameters
+      unless(semantic_operations[:show][:url_parameters].nil?)
+        semantic_operations[:show][:url_parameters].each do |param|
+          value = resource_mapping[param]
+          raise Exception.new("URL parameter #{param} has no mapped property") if value.nil?
+
+          sparql << "?#{param} "
+          sparql_where_clause << "?x <#{build_uri_for_property(param)}> ?#{param} . "
         end
       end
 
