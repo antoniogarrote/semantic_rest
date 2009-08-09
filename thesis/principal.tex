@@ -1,0 +1,177 @@
+%
+% PRINCIPIO DE DOCUMENTO
+%
+\documentclass[11pt,a4paper,twoside]{book} %
+\usepackage[english]{babel}
+
+\usepackage{epsfig}
+\usepackage{graphicx}
+\usepackage{latexsym}
+
+% symbols
+\usepackage{amssymb,amsmath}
+
+%Paquetes necesarios para rgb.tex
+\usepackage{colordvi}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{fancybox}
+
+%Paquete para pemitir multifila y multicolumnas en tablas
+\usepackage{multirow}
+\usepackage{multicol}
+
+\usepackage{url}
+\usepackage{listings}
+\lstset{frame=single,breaklines=true,basicstyle=\footnotesize}
+
+
+%para que funcione el guionado de final de linea
+\usepackage[english]{babel}
+\usepackage[latin1]{inputenc}
+\usepackage[T1]{fontenc}
+
+
+\usepackage{longtable}
+\usepackage{url}
+
+%\input{spain.tex}
+
+%para el formato del pseudocódigo incluido en el capitulo cluster
+\input{rbg.tex}
+
+%fichero con el guionado al final de linea
+\input{Guiones.tex}
+
+
+
+
+
+
+%tamaños
+\textwidth=12cm %14
+\textheight=19cm
+\parskip=1.5ex
+\topmargin=1.5cm
+%he modificado los valores para los margenes de impresion a doble cara
+\oddsidemargin=2.5cm  %1.5
+\evensidemargin=1.42cm  %.46
+
+%distancia del encabezado al texto
+\headsep=1.2cm
+
+
+%para modificar el estilo de los encabezados de página
+
+%hay q ponerlo siempre después de pagestyle headings
+\pagestyle{headings}
+\renewcommand*{\chaptermark}[1]{\markboth{\small\upshape\scshape\thechapter.
+\ #1}{}}
+\renewcommand*{\sectionmark}[1]{\markright{\small\upshape\scshape\thesection.
+\ #1} }
+
+
+% Páginas blancas sin cabecera
+%  para páginas izquierdas que sólo incluyen cabeceras
+
+\makeatletter
+\renewcommand*{\cleardoublepage}
+{ \clearpage \if@twoside
+  \ifodd\c@page
+\else
+  \hbox{}
+  \thispagestyle{empty}
+  \newpage
+  \if@twocolumn
+    \hbox{}
+    \newpage
+  \fi
+\fi \fi } \makeatother
+
+
+
+
+\begin{document}
+
+
+
+\setcounter{secnumdepth}{5}
+
+\pagestyle{empty}
+\include{portadafuera}
+\newpage \pagestyle{empty} \mbox{}
+\newpage
+
+\setcounter{page}{1}
+\include{portada}
+\newpage \pagestyle{empty}\mbox{}
+\newpage
+\include{portada3}
+\newpage \pagestyle{empty}\mbox{}
+\newpage
+\pagestyle{plain}
+\include{agradecimientos}
+\include{resumen}
+\include{abstract}
+
+%\newpage
+%\pagestyle{empty} \mbox{}
+%\newpage
+
+%\newpage
+%\pagestyle{empty} \mbox{}
+%\newpage
+%\include{agradecimientos}
+
+
+%para cambiar el formato de la numeración de páginas a romano
+%\setcounter{page}{1}
+%\renewcommand{\thepage}{\roman{page}}
+
+%para que en las tablas aparezca "tabla" y no "cuadro"
+\renewcommand\listtablename{Índice de tablas}
+\renewcommand{\tablename}{{\bf Tabla}:} \pagestyle{plain}
+
+\tableofcontents
+
+\listoftables
+
+\listoffigures
+%\newpage
+%\pagestyle{empty} \mbox{}
+%\newpage
+%\setcounter{page}{1}
+
+\pagestyle{headings}
+\renewcommand*{\chaptermark}[1]{\markboth{\small\upshape\scshape\thechapter.
+\ #1}{}}
+\renewcommand*{\sectionmark}[1]{\markright{\small\upshape\scshape\thesection.
+\ #1} }
+
+%para cambiar el formato de la numeración de páginas a arábigo
+%\renewcommand{\thepage}{\arabic{page}}
+
+\include{objetivos}
+\include{capitulo2}
+\include{capitulo3}
+%%\include{capitulo4}
+%%\include{capitulo5}
+%%\include{conclusiones}
+%%\appendix
+%%\include{apendice1}
+
+%%\include{apendice2} \setcounter{secnumdepth}{0}
+%%\include{apendice3}
+%\newpage
+%\pagestyle{empty}
+%\cleardoublepage
+%\newpage
+%\pagestyle{empty}
+%\mbox{}
+%\newpage
+%\pagestyle{headings}
+
+
+\bibliographystyle{plain}
+\bibliography{bibliografia1,bibliografia2}
+
+\end{document}

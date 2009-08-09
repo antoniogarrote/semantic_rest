@@ -1,0 +1,173 @@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% Longitudes
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newdimen\indentedTextWidth              % longitud de texto sangrado
+\indentedTextWidth=\textwidth
+\advance\indentedTextWidth - \parindent
+
+\newdimen\twoIndentedTextWidth           % longitud de texto sangrado 2 veces
+\twoIndentedTextWidth=\textwidth
+\advance\twoIndentedTextWidth - \parindent
+\advance\twoIndentedTextWidth - \parindent
+
+
+\newdimen\EjBodyW                   % anchura del cuerpo de los ejemplos
+\newdimen\EjBodyH                   % altura del cuerpo de los ejemplos
+\newdimen\EjGap                     % espaciado del body con header y footer
+\newdimen\EjTotalH                  % altura total del ejemplo
+\newdimen\EjHeaderB
+\newdimen\EjHeaderH
+\newdimen\EjFooterB
+\EjGap=1cm
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% Contadores
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcounter{ContEj}[chapter]
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% commando: \doubleLine{width}
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\doubleLine}[1]
+{\makebox[0pt][l]{\rule[0.1mm]{#1}{0.4pt}\par}\rule{#1}{0.4pt}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% commando: \singleLine{width}
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\singleLine}[1]{\makebox{\rule[0pt]{#1}{0.4pt}\par}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% commando \parOval[rightText]{leftText}
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand*{\parOval}[2][\ ]
+{
+  \newpage
+  {\noindent{\shadowbox{\makebox[\textwidth][s]{#2 #1}}\\\par}}
+}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% commando: \begin{tableXMLSchema}{caption}{label}
+%                  elemento con la sintaxis
+%           \hline
+%                  schema XML
+%           \end{tableXMLSchema}
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newenvironment*{tableXMLSchema}[2]
+{
+  \begin{longtable}{|p{\textwidth}|}
+    %
+    % Caption de la Tabla
+    %
+      \caption{#1}
+      \label{#2} \\
+    %
+    % Sólo aparece en el la primera página de la tabla
+    %
+      \hline
+      \\
+      \endfirsthead
+    %
+    % Aparece al principio de las sucesivas páginas
+    %
+      \caption[]{#1} \\
+      (\ldots continuación) \\ \\
+      \endhead
+    %
+    % Aparece al final de cada página
+    %
+      \\
+      (continúa en la siguiente página \ldots)\\
+      \endfoot
+    %
+    % Aparece al final de la tabla
+    %
+      \hline
+      \endlastfoot
+    %
+    % Contenido de la tabla
+    %
+}
+{
+  \end{longtable}
+}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% commando \refexample
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand*{\refexample}{\stepcounter{ContEj}Pseudocódigo \thechapter.\theContEj\ }
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% commando \begin{example}[comentario]{Ancho}{Alto}{Label}
+%          \end{example}
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newsavebox{\captionEj}
+\newsavebox{\Ej}
+\newsavebox{\comentarioEj}
+\newenvironment*{example}[4][\ ]
+{
+  \EjBodyW=#2
+  \EjBodyH=#3
+  \label{#4}
+  \sbox{\captionEj}{\textcolor{Black}{\small{\textbf{\refexample}}}}
+  \sbox{\comentarioEj}{#1}
+  \begin{lrbox}{\Ej}
+    \begin{minipage}[t]{#2}
+}
+{
+    \end{minipage}
+  \end{lrbox}
+  \EjTotalH=\EjBodyH
+  \advance\EjTotalH \EjGap
+  \EjHeaderB=0.5\EjTotalH
+  \advance\EjHeaderB -0.25cm
+  \EjFooterB=-0.5\EjTotalH
+  \advance\EjFooterB -0.25cm
+  \EjHeaderH=0.5\EjTotalH
+  \advance\EjHeaderH -0.15cm \noindent
+  \rule[-0.5\EjTotalH]{0.1pt}{\EjTotalH}
+  \makebox[-3pt][l]{\hspace{-3pt}\rule[-0.5\EjTotalH]{0.5cm}{0.1pt}}\rule[0.5\EjTotalH]{0.5cm}{0.1pt}
+  \makebox[0pt][l]{\hspace{-3pt}\rule[\EjHeaderB]{0.1pt}{0.5cm}}
+  \makebox[0pt][l]{\hspace{-7pt}\rule[\EjFooterB]{0.1pt}{0.5cm}}
+\makebox[0pt][l]{\raisebox{\EjHeaderH}{\colorbox{White}{\usebox{\captionEj-}}{\usebox
+\comentarioEj}}}
+  \makebox[0pt][l]{\hspace{-20pt}\raisebox{0.375\EjBodyH}{\usebox{\Ej}}}
+%  \makebox[0pt][l]{ \hspace{-15pt}\raisebox{-0.5\EjTotalH}{\usebox{\comentarioEj}}}
+\\
+\\
+}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% commando \begin{attributeList}{width}{headerText}
+%          \end{attributeList}
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newenvironment*{attributeList}[2]
+{
+  \vspace{0.5cm}
+  \parskip=0pt
+\par\noindent{\makebox[0pt][l]{\rule[1mm]{\textwidth}{0.4pt}\par}\rule{\textwidth}{0.4pt}}
+\par
+  \textsc{atributos} de #2\par
+  \noindent\rule[0pt]{\textwidth}{0.4pt}
+  \noindent
+  \begin{list}{}{ \labelwidth=#1
+                  \setlength{\leftmargin}{\labelwidth}
+                  \addtolength{\leftmargin}{\labelsep}}
+  \vspace{-0.5cm}
+}
+{
+  \end{list}
+\vspace{-\parsep}
+\noindent{\makebox[0pt][l]{\rule[1mm]{\textwidth}{0.4pt}\par}\rule{\textwidth}{0.4pt}}
+\par \vspace{0.5cm}
+}

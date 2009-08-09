@@ -1,0 +1,55 @@
+%
+% CARACTERES ESPECIALES DE USO COMUN EN CASTELLANO
+% Definiciones válidas para latex
+%
+%                            Valentín Cardeñoso
+%
+
+\typeout{* Estilo spain.sty. (C) 1993 valentín}
+\def\hoy{\number\day\space{de}\space\ifcase\month\or
+ Enero\or Febrero\or Marzo\or Abril\or Mayo\or Junio\or
+ Julio\or Agosto\or Septiembre\or Octubre\or Noviembre\or Diciembre\fi
+ \space{de}\space\number\year}
+
+% RELATIVO A LOS CARACTERES PROPIOS DEL IDIOMA
+\catcode`á=\active
+\catcode`é=\active
+\catcode`í=\active
+\catcode`ó=\active
+\catcode`ú=\active
+\catcode`ñ=\active
+\catcode`Á=\active
+\catcode`É=\active
+\catcode`Í=\active
+\catcode`Ó=\active
+\catcode`Ú=\active
+\catcode`Ñ=\active
+\catcode`ü=\active
+\catcode`Ü=\active
+\catcode`ç=\active
+\catcode`Ç=\active
+\catcode`¡=\active
+\catcode`¿=\active
+\catcode`º=\active
+\catcode`ª=\active
+
+\gdefá{\'{a}}
+\gdefé{\'{e}}
+\gdefí{\'{\i}}
+\gdefó{\'{o}}
+\gdefú{\'{u}}
+\gdefñ{\~{n}}
+\gdefÁ{\'{A}}
+\gdefÉ{\'{E}}
+\gdefÍ{\'{I}}
+\gdefÓ{\'{O}}
+\gdefÚ{\'{U}}
+\gdefü{\"{u}}
+\gdefÜ{\"{U}}
+\gdefÑ{\~{N}}
+\gdefç{\c{c}}
+\gdefÇ{\c{C}}
+\gdef¡{!`}
+\gdef¿{?`}
+\gdefº{$\rm^o$}
+\gdefª{$\rm^a$}

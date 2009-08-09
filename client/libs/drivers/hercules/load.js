@@ -160,7 +160,7 @@ Arielworks.Util.argToArray = function(from) {
 
 
 // old
-var Class = {
+var ParserClass = {
     create: function() {
         return function() {
             if (this.___constructor) {
@@ -170,7 +170,7 @@ var Class = {
     },
 
     extend: function(superClass) {
-        var subClass = Class.create();
+        var subClass =ParserClass.create();
         var _constructor = subClass.prototype.constructor;
         subClass.prototype =  new superClass();
         subClass.prototype.constructor = _constructor;
@@ -710,7 +710,7 @@ Arielworks.Hercules.Rdf.BlankNodeInGraph.prototype.___constructor = function(gra
     this.___super(id);
     this.___mixin(0, graph, resourceId);
 };
-Arielworks.Parser.RecursiveDescentParser.Parser = Class.create();
+Arielworks.Parser.RecursiveDescentParser.Parser =ParserClass.create();
 
 Arielworks.Parser.RecursiveDescentParser.Parser.prototype.___constructor = function() {
     this.ruleSet;
@@ -883,7 +883,7 @@ Arielworks.Parser.RecursiveDescentParser.Parser.o = function() {
 
 
 
-Arielworks.Parser.RecursiveDescentParser.Context = Class.create();
+Arielworks.Parser.RecursiveDescentParser.Context =ParserClass.create();
 
 Arielworks.Parser.RecursiveDescentParser.Context.prototype.___constructor = function(parser, input, actions) {
     this.parser = parser;
@@ -924,7 +924,7 @@ Arielworks.Parser.RecursiveDescentParser.Context.prototype.hasRemaing = function
 
 
 
-Arielworks.Parser.RecursiveDescentParser.Expression = Class.create();
+Arielworks.Parser.RecursiveDescentParser.Expression =ParserClass.create();
 
 Arielworks.Parser.RecursiveDescentParser.Expression.prototype.___constructor = function(element, name, callee) {
     this.setElement(element);
@@ -969,7 +969,7 @@ Arielworks.Parser.RecursiveDescentParser.Expression.prototype.lookahead = functi
 
 
 
-Arielworks.Parser.RecursiveDescentParser.SequentialExpression = Class.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
+Arielworks.Parser.RecursiveDescentParser.SequentialExpression =ParserClass.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
 
 Arielworks.Parser.RecursiveDescentParser.SequentialExpression.prototype.___constructor = function() {
     Arielworks.Parser.RecursiveDescentParser.SequentialExpression.___super.prototype.___constructor.apply(this, arguments);
@@ -990,7 +990,7 @@ Arielworks.Parser.RecursiveDescentParser.SequentialExpression.prototype.__doLook
 
 
 
-Arielworks.Parser.RecursiveDescentParser.OrExpression = Class.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
+Arielworks.Parser.RecursiveDescentParser.OrExpression =ParserClass.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
 
 Arielworks.Parser.RecursiveDescentParser.OrExpression.prototype.___constructor = function() {
     Arielworks.Parser.RecursiveDescentParser.OrExpression.___super.prototype.___constructor.apply(this, arguments);
@@ -1010,7 +1010,7 @@ Arielworks.Parser.RecursiveDescentParser.OrExpression.prototype.__doDescend = fu
     if (found) {
         return r;
     } else {
-        //debugger;
+        debugger;
         throw "Or";
     }
 };
@@ -1027,7 +1027,7 @@ Arielworks.Parser.RecursiveDescentParser.OrExpression.prototype.__doLookahead = 
 
 
 
-Arielworks.Parser.RecursiveDescentParser.OneOrNothingExpression = Class.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
+Arielworks.Parser.RecursiveDescentParser.OneOrNothingExpression =ParserClass.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
 
 Arielworks.Parser.RecursiveDescentParser.OneOrNothingExpression.prototype.___constructor = function() {
     Arielworks.Parser.RecursiveDescentParser.OneOrNothingExpression.___super.prototype.___constructor.apply(this, arguments);
@@ -1048,7 +1048,7 @@ Arielworks.Parser.RecursiveDescentParser.OneOrNothingExpression.prototype.__doLo
 
 
 
-Arielworks.Parser.RecursiveDescentParser.ZeroOrMoreExpression = Class.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
+Arielworks.Parser.RecursiveDescentParser.ZeroOrMoreExpression =ParserClass.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
 
 Arielworks.Parser.RecursiveDescentParser.ZeroOrMoreExpression.prototype.___constructor = function() {
     Arielworks.Parser.RecursiveDescentParser.ZeroOrMoreExpression.___super.prototype.___constructor.apply(this, arguments);
@@ -1069,7 +1069,7 @@ Arielworks.Parser.RecursiveDescentParser.ZeroOrMoreExpression.prototype.__doLook
 
 
 
-Arielworks.Parser.RecursiveDescentParser.OneOrMoreExpression = Class.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
+Arielworks.Parser.RecursiveDescentParser.OneOrMoreExpression =ParserClass.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
 
 Arielworks.Parser.RecursiveDescentParser.OneOrMoreExpression.prototype.___constructor = function() {
     Arielworks.Parser.RecursiveDescentParser.OneOrMoreExpression.___super.prototype.___constructor.apply(this, arguments);
@@ -1098,7 +1098,7 @@ Arielworks.Parser.RecursiveDescentParser.OneOrMoreExpression.prototype.__doLooka
 
 
 
-Arielworks.Parser.RecursiveDescentParser.TerminalString = Class.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
+Arielworks.Parser.RecursiveDescentParser.TerminalString =ParserClass.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
 
 Arielworks.Parser.RecursiveDescentParser.TerminalString.prototype.___constructor = function() {
     Arielworks.Parser.RecursiveDescentParser.TerminalString.___super.prototype.___constructor.apply(this, arguments);
@@ -1121,7 +1121,7 @@ Arielworks.Parser.RecursiveDescentParser.TerminalString.prototype.__doLookahead 
 
 
 
-Arielworks.Parser.RecursiveDescentParser.TerminalRegExp = Class.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
+Arielworks.Parser.RecursiveDescentParser.TerminalRegExp =ParserClass.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
 
 Arielworks.Parser.RecursiveDescentParser.TerminalRegExp.prototype.___constructor = function() {
     Arielworks.Parser.RecursiveDescentParser.TerminalRegExp.___super.prototype.___constructor.apply(this, arguments);
@@ -1141,7 +1141,7 @@ Arielworks.Parser.RecursiveDescentParser.TerminalRegExp.prototype.__doLookahead 
     return context.matchRegExp(this.element);
 };
 
-Arielworks.Hercules.Serialized.Turtle.Parser = Class.create();
+Arielworks.Hercules.Serialized.Turtle.Parser =ParserClass.create();
 Arielworks.Hercules.Serialized.Turtle.Parser.XSD_NAMESPACE = "http://www.w3.org/2001/XMLSchema#";
 Arielworks.Hercules.Serialized.Turtle.Parser.XSD_INTEGER = Arielworks.Hercules.Serialized.Turtle.Parser.XSD_NAMESPACE + "integer";
 Arielworks.Hercules.Serialized.Turtle.Parser.XSD_DECIMAL = Arielworks.Hercules.Serialized.Turtle.Parser.XSD_NAMESPACE + "decimal";
@@ -1211,7 +1211,7 @@ Arielworks.Hercules.Serialized.Turtle.serializeTerm = function(term) {
         "LCHARACTER" : /^(?:\\u[\u0030-\u0039\u0041-\u0046][\u0030-\u0039\u0041-\u0046][\u0030-\u0039\u0041-\u0046][\u0030-\u0039\u0041-\u0046]|\\U[\u0030-\u0039\u0041-\u0046][\u0030-\u0039\u0041-\u0046][\u0030-\u0039\u0041-\u0046][\u0030-\u0039\u0041-\u0046][\u0030-\u0039\u0041-\u0046][\u0030-\u0039\u0041-\u0046][\u0030-\u0039\u0041-\u0046][\u0030-\u0039\u0041-\u0046]|\\\\|[\u0020-\u005B\u005D-\uFFFF\t\n\r\u0009\u000A\u000D]|\\")/
     };
 }
-Arielworks.Hercules.Serialized.Turtle.Turtle_1_0 = Class.create();
+Arielworks.Hercules.Serialized.Turtle.Turtle_1_0 =ParserClass.create();
 
 Arielworks.Hercules.Serialized.Turtle.Turtle_1_0.ECHARACTER_ESCAPE_REGX = /\\([\\tnruU])([\u0030-\u0039\u0041-\u0046]{8}|[\u0030-\u0039\u0041-\u0046]{4})?/g;
 Arielworks.Hercules.Serialized.Turtle.Turtle_1_0.UCHARACTER_ESCAPE_REGX = /\\([\\tnruU>])([\u0030-\u0039\u0041-\u0046]{8}|[\u0030-\u0039\u0041-\u0046]{4})?/g
@@ -1469,7 +1469,7 @@ Arielworks.Hercules.Serialized.Turtle.Turtle_1_0.prototype.STRING = function(r) 
 Arielworks.Hercules.Serialized.Turtle.Turtle_1_0.prototype.LONG_STRING = function(r) {
     return r[1].replace(this.constructor.SCHARACTER_ESCAPE_REGX, this.__unescapeEcharacterCallback);
 };
-Arielworks.Hercules.Sparql.ResultSet = Class.create();
+Arielworks.Hercules.Sparql.ResultSet =ParserClass.create();
 
 Arielworks.Hercules.Sparql.ResultSet.prototype.___constructor = function(variableList) {
     this.variableList = variableList || [];
@@ -1508,7 +1508,7 @@ Arielworks.Hercules.Sparql.BlankNode.prototype.toTableName = function() {
     return "[" + this.value + "]";
 };
 
-Arielworks.Hercules.Sparql.VariableBindingTable = Class.create();
+Arielworks.Hercules.Sparql.VariableBindingTable =ParserClass.create();
 
 /**
  * TODO: Temporary class
@@ -1539,14 +1539,14 @@ Arielworks.Hercules.Sparql.VariableBindingTable.prototype.bindAndClone = functio
 
 
 
-Arielworks.Hercules.Sparql.MatchingResult = Class.create();
+Arielworks.Hercules.Sparql.MatchingResult =ParserClass.create();
 
 Arielworks.Hercules.Sparql.MatchingResult.prototype.___constructor = function(pattern) {
     this.pattern = pattern;
 };
 
 
-Arielworks.Hercules.Sparql.TripleMatchingResult = Class.extend(Arielworks.Hercules.Sparql.MatchingResult);
+Arielworks.Hercules.Sparql.TripleMatchingResult =ParserClass.extend(Arielworks.Hercules.Sparql.MatchingResult);
 
 Arielworks.Hercules.Sparql.TripleMatchingResult.prototype.___constructor = function(pattern) {
     Arielworks.Hercules.Sparql.TripleMatchingResult.___super.prototype.___constructor.apply(this, arguments);
@@ -1639,7 +1639,7 @@ Arielworks.Hercules.Sparql.TripleMatchingResult.prototype.bindVariableAllOpation
 };
 
 
-Arielworks.Hercules.Sparql.GraphMatchingResult = Class.extend(Arielworks.Hercules.Sparql.MatchingResult);
+Arielworks.Hercules.Sparql.GraphMatchingResult =ParserClass.extend(Arielworks.Hercules.Sparql.MatchingResult);
 
 Arielworks.Hercules.Sparql.GraphMatchingResult.prototype.___constructor = function(pattern) {
     Arielworks.Hercules.Sparql.GraphMatchingResult.___super.prototype.___constructor.apply(this, arguments);
@@ -1669,7 +1669,7 @@ Arielworks.Hercules.Sparql.GraphMatchingResult.prototype.bindVariableAllOpations
 };
 
 
-Arielworks.Hercules.Sparql.UnionMatchingResult = Class.extend(Arielworks.Hercules.Sparql.MatchingResult);
+Arielworks.Hercules.Sparql.UnionMatchingResult =ParserClass.extend(Arielworks.Hercules.Sparql.MatchingResult);
 Arielworks.Hercules.Sparql.UnionMatchingResult.prototype.___constructor = function(pattern) {
     Arielworks.Hercules.Sparql.GraphMatchingResult.___super.prototype.___constructor.apply(this, arguments);
     this.resultList = [];
@@ -1695,11 +1695,11 @@ Arielworks.Hercules.Sparql.UnionMatchingResult.prototype.bindVariableAllOpations
 
 
 
-Arielworks.Hercules.Sparql.Pattern = Class.create();
+Arielworks.Hercules.Sparql.Pattern =ParserClass.create();
 Arielworks.Hercules.Sparql.Pattern.prototype.___constructor = function() {
 };
 
-Arielworks.Hercules.Sparql.TriplePattern = Class.extend(Arielworks.Hercules.Sparql.Pattern);
+Arielworks.Hercules.Sparql.TriplePattern =ParserClass.extend(Arielworks.Hercules.Sparql.Pattern);
 Arielworks.Hercules.Sparql.TriplePattern.prototype.___constructor = function(subject, predicate, object) {
     this.subject = subject;
     this.predicate = predicate;
@@ -1739,7 +1739,7 @@ Arielworks.Hercules.Sparql.TriplePattern.prototype.match = function(targetGraph)
 
 
 
-Arielworks.Hercules.Sparql.GraphPattern = Class.extend(Arielworks.Hercules.Sparql.Pattern);
+Arielworks.Hercules.Sparql.GraphPattern =ParserClass.extend(Arielworks.Hercules.Sparql.Pattern);
 
 Arielworks.Hercules.Sparql.GraphPattern.prototype.___constructor = function() {
     this.patternList = [];
@@ -1758,7 +1758,7 @@ Arielworks.Hercules.Sparql.GraphPattern.prototype.match = function(targetGraph) 
 };
 
 
-Arielworks.Hercules.Sparql.UnionPattern = Class.extend(Arielworks.Hercules.Sparql.Pattern);
+Arielworks.Hercules.Sparql.UnionPattern =ParserClass.extend(Arielworks.Hercules.Sparql.Pattern);
 Arielworks.Hercules.Sparql.UnionPattern.prototype.___constructor = function() {
     this.patternList = [];
 };
@@ -1777,7 +1777,7 @@ Arielworks.Hercules.Sparql.UnionPattern.prototype.match = function(targetGraph) 
 
 
 
-Arielworks.Hercules.Sparql.Engine = Class.create();
+Arielworks.Hercules.Sparql.Engine =ParserClass.create();
 
 Arielworks.Hercules.Sparql.Engine.prototype.___constructor = function(graph) {
     this.graph = graph;
@@ -1803,7 +1803,7 @@ Arielworks.Hercules.Sparql.Engine.prototype.getTriplePattern = function(subject,
 };
 
 
-Arielworks.Hercules.Sparql.Query = Class.create();
+Arielworks.Hercules.Sparql.Query =ParserClass.create();
 
 Arielworks.Hercules.Sparql.Query.prototype.___constructor = function(engine) {
     this.engine = engine;
@@ -1842,7 +1842,7 @@ Arielworks.Hercules.Sparql.Query.prototype.getVariable = function(name) {
 
 
 
-Arielworks.Hercules.Sparql.SelectQuery = Class.extend(Arielworks.Hercules.Sparql.Query);
+Arielworks.Hercules.Sparql.SelectQuery =ParserClass.extend(Arielworks.Hercules.Sparql.Query);
 
 Arielworks.Hercules.Sparql.SelectQuery.prototype.___constructor = function() {
     Arielworks.Hercules.Sparql.SparqlQuery.___super.prototype.___constructor.apply(this, arguments);
@@ -2029,7 +2029,7 @@ with(Arielworks.Parser.RecursiveDescentParser.Parser) {
         "PN_LOCAL": /^[A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD_0-9](?:[A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD_0-9\u00B7\u0300-\u036F\u203F-\u2040.-]*[A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD_0-9\u00B7\u0300-\u036F\u203F-\u2040-])?/
     };
 }
-Arielworks.Hercules.Sparql.SparqlAction_1_0 = Class.create();
+Arielworks.Hercules.Sparql.SparqlAction_1_0 =ParserClass.create();
 
 Arielworks.Hercules.Sparql.SparqlAction_1_0.prototype.___constructor = function(engine) {
     this.engine = engine;

@@ -443,6 +443,8 @@ module SemanticResource
         if reflect_on_all_associations.detect{|association| association.name.to_sym == key.to_sym}
           if @mapping[key][:relation].nil?
             @mapping[key][:relation] = reflect_on_all_associations.detect{|association| association.name.to_sym == key.to_sym}.klass
+          elsif @mapping[key][:relation].instance_of?(Symbol)
+            @mapping[key][:relation] = reflect_on_all_associations.detect{|association| association.name.to_sym == key.to_sym}.klass
           end
           if @mapping[key][:arity].nil?
             @mapping[key][:arity] = reflect_on_all_associations.detect{|association| association.name.to_sym == key.to_sym}.macro
@@ -629,34 +631,7 @@ module SemanticResource
     end
 
     def define_create_operation(options,params=nil)
-
-      # we store the definition parameters
-      semantic_operations[:create] = options
-
-      # we register the create lowering mechanism
-      #SemanticResource::Manager.lowering_operations[self.name]["create"] = "sparql_lowering_create"
-
-      params = @mapping.keys if params.nil?
-      res_name = self.class.name.downcase
-
-      # building the path to the resource
-
-      resource_path.each do |identifier|
-        options = options.merge(identifier => "__#{identifier}__")
-      end
-
-      params = params.reject{ |k| @mapping[k] && @mapping[k][:relation] != nil }
-      mapped_params = params.inject(Hash.new){|h,p| h["#{p}".to_sym] = "_#{p}_"; h}
-      encoded = url_for(options.merge(mapped_params).merge(:host => SemanticResource::Configuration.resources_host))
-
-      # building the path to the resource
-      resource_path.each do |identifier|
-        encoded = encoded.gsub(CGI.escape("__#{identifier}__"),"{#{identifier}}")
-      end
-
-      params.each do |p|
-        encoded = encoded.gsub(CGI.escape("_#{p}_"),"{#{p}}")
-      end
+      res_name, encoded = parse_operation_definition(:create,options)
 
       @create_operation = Proc.new do |format|
         if(format == :n3)
@@ -766,26 +741,8 @@ module SemanticResource
     end
 
     def define_index_operation(options)
-
-      # we store the show operation parameters
-      semantic_operations[:index] = options
-
-      # we register the show lowering mechanism
-      #SemanticResource::Manager.lowering_operations[self.name]["show"] = "sparql_lowering_show"
-
-      res_name = self.class.name.downcase
+      res_name, encoded = parse_operation_definition(:index,options)
       @index_operation = Proc.new do |format|
-        # building the path to the resource
-        resource_path.each do |identifier|
-          options = options.merge(identifier => "__#{identifier}__")
-        end
-        encoded = url_for(options.merge(:host => SemanticResource::Configuration.resources_host))
-
-        # building the path to the resource
-        resource_path.each do |identifier|
-          encoded = encoded.gsub(CGI.escape("__#{identifier}__"),"{#{identifier}}")
-        end
-
         if(format == :n3)
 
           rdf = StringIO.new
@@ -849,51 +806,8 @@ module SemanticResource
     end
 
     def define_show_operation(options)
-
-      original_options = { }
-      options.each_pair do |k,v|
-        original_options[k] = v
-      end
-
-      url_parameters = options[:url_parameters] ||  []
-      if(options[:show_id].nil?)
-        options[:show_id] = true
-      end
-      show_id = options[:show_id]
-      options = options.reject{ |k,v| k == :url_parameters || k == :show_id }
-
-      # we store the show operation parameters
-      semantic_operations[:show] = original_options
-
-      # we register the show lowering mechanism
-      #SemanticResource::Manager.lowering_operations[self.name]["show"] = "sparql_lowering_show"
-
-      res_name = self.class.name.downcase
+      res_name, encoded = parse_operation_definition(:show,options)
       @show_operation = Proc.new do |format|
-        # building the path to the resource
-        resource_path.each do |identifier|
-          options = options.merge(identifier => "__#{identifier}__")
-        end
-        # including URL parameters
-        url_parameters.each do |identifier|
-          options = options.merge(identifier => "__#{identifier}__")
-        end
-
-        if(show_id)
-          options.merge({:id => "_id_"})
-        end
-        encoded = url_for(options.merge(:host => SemanticResource::Configuration.resources_host))
-
-        # building the path to the resource
-        resource_path.each do |identifier|
-          encoded = encoded.gsub(CGI.escape("__#{identifier}__"),"{#{identifier}}")
-        end
-        url_parameters.each do |identifier|
-          encoded = encoded.gsub(CGI.escape("__#{identifier}__"),"{#{identifier}}")
-        end
-        if(show_id)
-          encoded = encoded.gsub(CGI.escape("_id_"),"{id}")
-        end
 
         if(format == :n3)
 
@@ -958,29 +872,8 @@ module SemanticResource
     end
 
     def define_destroy_operation(options)
-
-      # we store the destroy operation parameters
-      semantic_operations[:destroy] = options
-
-      # we register the destroy lowering mechanism
-      #SemanticResource::Manager.lowering_operations[self.name]["destroy"] = "sparql_lowering_show"
-
-      res_name = self.class.name.downcase
+      res_name, encoded = parse_operation_definition(:destroy,options)
       @destroy_operation = Proc.new do |format|
-        # building the path to the resource
-        resource_path.each do |identifier|
-          options = options.merge(identifier => "__#{identifier}__")
-        end
-
-        encoded = url_for(options.merge({:id => "_id_"}).merge(:host => SemanticResource::Configuration.resources_host))
-
-        # building the path to the resource
-        resource_path.each do |identifier|
-          encoded = encoded.gsub(CGI.escape("__#{identifier}__"),"{#{identifier}}")
-        end
-
-        encoded = encoded.gsub(CGI.escape("_id_"),"{id}")
-
         if(format == :n3)
 
           rdf = StringIO.new
@@ -1045,38 +938,7 @@ module SemanticResource
     end
 
     def define_update_operation(options,params=nil)
-
-      # we store the definition parameters
-      semantic_operations[:update] = options
-
-      # we register the create lowering mechanism
-      #SemanticResource::Manager.lowering_operations[self.name]["create"] = "sparql_lowering_create"
-
-      params = @mapping.keys if params.nil?
-
-      unless params.include?(:id)
-        params.push(:id)
-      end
-
-      # building the path to the resource
-      resource_path.each do |identifier|
-        options = options.merge(identifier => "__#{identifier}__")
-      end
-
-      res_name = self.class.name.downcase
-      params = params.reject{ |k| @mapping[k] && @mapping[k][:relation] != nil }
-      mapped_params = params.inject(Hash.new){|h,p| h["#{p}".to_sym] = "_#{p}_"; h}
-      encoded = url_for(options.merge(mapped_params).merge(:host => SemanticResource::Configuration.resources_host))
-
-
-      # building the path to the resource
-      resource_path.each do |identifier|
-        encoded = encoded.gsub(CGI.escape("__#{identifier}__"),"{#{identifier}}")
-      end
-
-      params.each do |p|
-        encoded = encoded.gsub(CGI.escape("_#{p}_"),"{#{p}}")
-      end
+      res_name, encoded = parse_operation_definition(:update,options)
 
       @update_operation = Proc.new do |format|
         if(format == :n3)
@@ -1260,6 +1122,7 @@ module SemanticResource
         elsif !value[:relation].nil?
           rdf << "<#{build_uri_for_property(key)}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> rdfs:Property .\n"
           rdf << "<#{build_uri_for_property(key)}> rdfs:domain <#{resource_model_uri}> .\n"
+          debugger
           rdf << "<#{build_uri_for_property(key)}> rdfs:range <#{value[:relation].resource_model_uri}> .\n"
         elsif association = self.reflect_on_all_associations.detect{|association| association.name.to_sym == key.to_sym}
           rdf << "<#{build_uri_for_property(key)}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> rdfs:Property .\n"
@@ -1293,6 +1156,73 @@ module SemanticResource
         xml.string
 
       end
+    end
+
+    def parse_operation_definition(kind_of_operation,options)
+      original_options = { }
+      options.each_pair do |k,v|
+        original_options[k] = v
+      end
+
+      url_parameters = options[:url_parameters] ||  []
+      mapped_params = { }
+      if(kind_of_operation == :show || kind_of_operation == :destroy || kind_of_operation == :update)
+        if(options[:show_id].nil?)
+          options[:show_id] = true
+        end
+      else
+        if(options[:show_id].nil?)
+          options[:show_id] = false
+        end
+        # properties encoded for create and update
+        # TODO: check if property is already mapped into URL parameters
+        params = @mapping.keys
+        params = params.reject{ |k| @mapping[k] && @mapping[k][:relation] != nil }
+        mapped_params = params.inject(Hash.new){|h,p| h["#{p}".to_sym] = "___#{p}___"; h}
+        options = options.merge(mapped_params)
+      end
+      show_id = options[:show_id]
+
+      # we clean from the options the keys no related to the generation of the URL
+      options = options.reject{ |k,v| k == :url_parameters || k == :show_id }
+
+      # we store the show operation parameters
+      semantic_operations[kind_of_operation] = original_options
+
+      res_name = self.class.name.downcase
+
+      # building the path to the resource
+      resource_path.each do |identifier|
+        options = options.merge(identifier => "___#{identifier}___")
+      end
+      # including URL parameters
+      url_parameters.each do |identifier|
+        options = options.merge(identifier => "___#{identifier}___")
+      end
+
+      if(show_id)
+        options= options.merge({:id => "___id___"})
+      end
+
+      encoded = url_for(options.merge(:host => SemanticResource::Configuration.resources_host))
+
+      # building the path to the resource
+      resource_path.each do |identifier|
+        encoded = encoded.gsub(CGI.escape("___#{identifier}___"),"{#{identifier}}")
+      end
+      url_parameters.each do |identifier|
+        encoded = encoded.gsub(CGI.escape("___#{identifier}___"),"{#{identifier}}")
+      end
+      if(show_id)
+        encoded = encoded.gsub(CGI.escape("___id___"),"{id}")
+      end
+      unless(kind_of_operation == :show || kind_of_operation == :destroy || kind_of_operation == :update)
+        mapped_params.each_pair do |k,identifier|
+          encoded = encoded.gsub(CGI.escape(identifier),"{#{k}}")
+        end
+      end
+
+      return res_name,encoded
     end
 
     # SPARQL generators

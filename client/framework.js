@@ -125,15 +125,6 @@ Siesta.loadFromBase = function(scriptPath)  {
   }
 */
 
-/**
- *  Let's load microtype if we are in
- *  Rhino to have basic class support.
- *  If we're in a browser, Prototype
- *  will be loaded.
- */
-if(Siesta.isRhino()) {
-    load("microtype.js");
-}
 
 /**
  *  XSD datatypes support.
@@ -384,8 +375,8 @@ Siesta.Framework.classBuilder(Siesta.Framework.Literal, {
     },
 
     /**
-             * Human readable representation of this URI
-             */
+     * Human readable representation of this URI
+     */
     toString: function() {
         var str = '"'+this.value+'"';
         if(this.type != null) {
@@ -449,11 +440,11 @@ Siesta.Framework.classBuilder(Siesta.Framework.Triple, {
     },
 
     /**
-             * Test if subject, predicate and object
-             * are set for this triple.
-             *
-             * @returns Bool
-             */
+     * Test if subject, predicate and object
+     * are set for this triple.
+     *
+     * @returns Bool
+     */
     isValid: function() {
         return (this.subject != null &&
                 this.predicate != null &&
@@ -461,8 +452,8 @@ Siesta.Framework.classBuilder(Siesta.Framework.Triple, {
     },
 
     /**
-             *  Human readable representation of this triple.
-             */
+     *  Human readable representation of this triple.
+     */
     toString: function() {
         return "("+this.subject+","+this.predicate+","+this.object+")";
     }
@@ -508,18 +499,18 @@ Siesta.Framework.classBuilder(Siesta.Framework.Graph, {
     },
     
     /**
-             *  Resets the mapping of blank nodes
-             */
+     *  Resets the mapping of blank nodes
+     */
     resetBlankNodeMapping: function() {
         this.__blankNodeMap = {};
     },
 
     /**
-             *  Adds a new namespace to this graph.
-             *
-             *  @arguments
-             *  - aNamespace: the namespace to be added
-             */
+     *  Adds a new namespace to this graph.
+     *
+     *  @arguments
+     *  - aNamespace: the namespace to be added
+     */
     addNamespace: function(aNamespace /* Siesta.Framework.Namespace */) {
         this.namespaces[aNamespace.name] = aNamespace.uri;
         this.invNamespaces[aNamespace.uri] = aNamespace.name;
@@ -544,12 +535,12 @@ Siesta.Framework.classBuilder(Siesta.Framework.Graph, {
     },
 
     /**
-             *  Computes the union between graphs without respecting blank node
-             *  identifiers in the graph to add.
-             *
-             *  @arguments
-             *  - aGraph: the graph to compute the union with.
-             */
+     *  Computes the union between graphs without respecting blank node
+     *  identifiers in the graph to add.
+     *
+     *  @arguments
+     *  - aGraph: the graph to compute the union with.
+     */
     addGraph: function(aGraph /* Siesta.Framework.Graph */) {
         this.__blankNodeMap = {};
         for(ns in aGraph.namespaces) {
@@ -563,11 +554,11 @@ Siesta.Framework.classBuilder(Siesta.Framework.Graph, {
     },
 
     /**
-             *  Computes the difference between graphs.
-             *
-             *  @arguments
-             *  - aGraph: the graph to compute the difference with.
-             */
+     *  Computes the difference between graphs.
+     *
+     *  @arguments
+     *  - aGraph: the graph to compute the difference with.
+     */
     removeGraph: function(aGraph /* Siesta.Framework.Graph */) {
         var triplesToRemove = aGraph.triplesArray();
         for(var _i=0; _i<triplesToRemove.length; _i++) {
@@ -576,12 +567,12 @@ Siesta.Framework.classBuilder(Siesta.Framework.Graph, {
     },
 
     /**
-             *  Adds one triple to the index.
-             *  If one blank node identifier is found, it will be overwritten with a new one.
-             *
-             *  @arguments
-             *  - aTriple: the triple to be added.
-             */
+     *  Adds one triple to the index.
+     *  If one blank node identifier is found, it will be overwritten with a new one.
+     *
+     *  @arguments
+     *  - aTriple: the triple to be added.
+     */
     addTriple: function(aTriple /* Siesta.Framework.Triple */) {
         this.respectBlankNodeCounter = false;
         if(aTriple.__type != 'triple') {
@@ -598,12 +589,12 @@ Siesta.Framework.classBuilder(Siesta.Framework.Graph, {
     },
 
     /**
-             *  Merges one triple into the index.
-             *  If one blank node identifier is found, it will be respected.
-             *
-             *  @arguments
-             *  - aTriple: the triple to be added.
-             */
+     *  Merges one triple into the index.
+     *  If one blank node identifier is found, it will be respected.
+     *
+     *  @arguments
+     *  - aTriple: the triple to be added.
+     */
     mergeTriple: function(aTriple /* Siesta.Framework.Triple */) {
         this.respectBlankNodeCounter = true;
         if(aTriple.__type != 'triple') {
@@ -620,11 +611,11 @@ Siesta.Framework.classBuilder(Siesta.Framework.Graph, {
     },
 
     /**
-             *  Remove one triple from the index.
-             *
-             *  @arguments
-             *  - aTriple: the triple to be removed.
-             */
+     *  Remove one triple from the index.
+     *
+     *  @arguments
+     *  - aTriple: the triple to be removed.
+     */
     removeTriple: function(aTriple /* Siesta.Framework.Triple */) {
         this.respectBlankNodeCounter = false;
         if(aTriple.__type != 'triple') {
@@ -650,25 +641,25 @@ Siesta.Framework.classBuilder(Siesta.Framework.Graph, {
     },
 
     /**
-             *  Returns all the triples stored in the graph as an array.
-             */
+     *  Returns all the triples stored in the graph as an array.
+     */
     triplesArray: function() {
         return this.triplesCache;
     },
 
     /*
-             *  Private methods
-             */
+     *  Private methods
+     */
 
     /**
-             *  Looks in the subject index of the triple hash.
-             *
-             *  @arguments:
-             *  - aTriple: the triple to insert.
-             *
-             *  @returns:
-             *  - a hash for the triples with the same predicate than the triple to store.
-             */
+     *  Looks in the subject index of the triple hash.
+     *
+     *  @arguments:
+     *  - aTriple: the triple to insert.
+     *
+     *  @returns:
+     *  - a hash for the triples with the same predicate than the triple to store.
+     */
     __addTripleBySubject: function(aTriple /* Siesta.Framework.Triple */) {
         var identifier = null;
         switch(aTriple.subject.__type) {
@@ -682,10 +673,11 @@ Siesta.Framework.classBuilder(Siesta.Framework.Graph, {
                 var identifierInGraph = this.__blankNodeMap[aTriple.subject.value]
                 if(identifierInGraph == undefined) {
                     identifier = ''+this.blankNodeCounter++;
-                    aTriple.subject.value = identifier;
                     this.__blankNodeMap[aTriple.subject.value] = identifier;
+                    aTriple.subject.value = identifier;
                 } else {
                     identifier = identifierInGraph;
+                    aTriple.subject.value = identifier;
                 }
             }
             break;
@@ -702,15 +694,15 @@ Siesta.Framework.classBuilder(Siesta.Framework.Graph, {
     },
 
     /**
-             *  Looks in the predicate index of the triple hash.
-             *
-             *  @arguments:
-             *  - aTriple: the triple to insert.
-             *  - predicates: a hash with the predicates for the triples with the same subject
-             *
-             *  @returns:
-             *  - a hash for the triples with the same predicate than the triple to store.
-             */
+     *  Looks in the predicate index of the triple hash.
+     *
+     *  @arguments:
+     *  - aTriple: the triple to insert.
+     *  - predicates: a hash with the predicates for the triples with the same subject
+     *
+     *  @returns:
+     *  - a hash for the triples with the same predicate than the triple to store.
+     */
     __addTripleByPredicate: function(aTriple /* Siesta.Framework.Triple */,predicates) {
         var identifier = null;
 
@@ -725,10 +717,11 @@ Siesta.Framework.classBuilder(Siesta.Framework.Graph, {
                 var identifierInGraph = this.__blankNodeMap[aTriple.predicate.value]
                 if(identifierInGraph == undefined) {
                     identifier = ''+this.blankNodeCounter++;
-                    aTriple.predicate.value = identifier;
                     this.__blankNodeMap[aTriple.predicate.value] = identifier;
+                    aTriple.predicate.value = identifier;
                 } else {
                     identifier = identifierInGraph;
+                    aTriple.predicate.value = identifier;
                 }
             }
             break;
@@ -745,13 +738,13 @@ Siesta.Framework.classBuilder(Siesta.Framework.Graph, {
     },
 
     /**
-             *  Looks in the object index of the triple hash.
-             *
-             *  @argument aTriple: the triple to insert.
-             *  @argument objects: a hash with the objects for the triples with the same subject
-             *
-             *  @returns true if the triple is inserted, false if it was already inserted
-             */
+     *  Looks in the object index of the triple hash.
+     *
+     *  @argument aTriple: the triple to insert.
+     *  @argument objects: a hash with the objects for the triples with the same subject
+     *
+     *  @returns true if the triple is inserted, false if it was already inserted
+     */
     __addTripleByObject: function(aTriple /* Siesta.Framework.Triple */,objects) {
         var identifier = null;
 
@@ -766,10 +759,11 @@ Siesta.Framework.classBuilder(Siesta.Framework.Graph, {
                 var identifierInGraph = this.__blankNodeMap[aTriple.object.value]
                 if(identifierInGraph == undefined) {
                     identifier = ''+this.blankNodeCounter++;
-                    aTriple.object.value = identifier;
                     this.__blankNodeMap[aTriple.object.value] = identifier;
+                    aTriple.object.value = identifier;
                 } else {
                     identifier = identifierInGraph;
+                    aTriple.object.value = identifier;
                 }
             }
             break;
@@ -788,14 +782,14 @@ Siesta.Framework.classBuilder(Siesta.Framework.Graph, {
     },
 
     /**
-             *  Looks in the subject index of the triple hash.
-             *
-             *  @arguments:
-             *  - aTriple: the triple to insert.
-             *
-             *  @returns:
-             *  - a hash for the triples with the same predicate than the triple to store.
-             */
+     *  Looks in the subject index of the triple hash.
+     *
+     *  @arguments:
+     *  - aTriple: the triple to insert.
+     *
+     *  @returns:
+     *  - a hash for the triples with the same predicate than the triple to store.
+     */
     __removeTripleBySubject: function(aTriple /* Siesta.Framework.Triple */) {
         var identifier = null;
 
@@ -820,17 +814,17 @@ Siesta.Framework.classBuilder(Siesta.Framework.Graph, {
     },
 
     /**
-             *  Looks in the predicate index of the triple hash.
-             *
-             *  @arguments:
-             *  - aTriple: the triple to insert.
-             *  - an array of
-             *     - the identifier of the subject
-             *     - predicates: a hash with the predicates for the triples with the same subject
-             *
-             *  @returns:
-             *  - a hash for the triples with the same predicate than the triple to store.
-             */
+     *  Looks in the predicate index of the triple hash.
+     *
+     *  @arguments:
+     *  - aTriple: the triple to insert.
+     *  - an array of
+     *     - the identifier of the subject
+     *     - predicates: a hash with the predicates for the triples with the same subject
+     *
+     *  @returns:
+     *  - a hash for the triples with the same predicate than the triple to store.
+     */
     __removeTripleByPredicate: function(aTriple /* Siesta.Framework.Triple */,tmp) {
         var identifier = null;
 
@@ -856,13 +850,13 @@ Siesta.Framework.classBuilder(Siesta.Framework.Graph, {
     },
 
     /**
-             *  Looks in the object index of the triple hash.
-             *
-             *  @argument aTriple: the triple to insert.
-             *  @argument tmp: an array wit subject identifier, preidcate identifier and a hash with the objects for the triples with the same subject
-             *
-             *  @returns true if the triple is inserted, false if it was already inserted
-             */
+     *  Looks in the object index of the triple hash.
+     *
+     *  @argument aTriple: the triple to insert.
+     *  @argument tmp: an array wit subject identifier, preidcate identifier and a hash with the objects for the triples with the same subject
+     *
+     *  @returns true if the triple is inserted, false if it was already inserted
+     */
     __removeTripleByObject: function(aTriple /* Siesta.Framework.Triple */,tmp) {
         var identifier = null;
 
@@ -936,13 +930,13 @@ Siesta.Framework.classBuilder(Siesta.Framework.Graph, {
     },
 
     /**
-             *  Generates a String key for this URI expanding the possible namespace
-             *  of the URI if it is registered in the namespaces of the graph
-             *
-             *  @arguments aUri: a Siesta.Framework.Uri to be normalized.
-             *
-             *  @returns a String normalized for this URI.
-             */
+     *  Generates a String key for this URI expanding the possible namespace
+     *  of the URI if it is registered in the namespaces of the graph
+     *
+     *  @arguments aUri: a Siesta.Framework.Uri to be normalized.
+     *
+     *  @returns a String normalized for this URI.
+     */
     __normalizeUri: function(aUri /* Siesta.Framework.Uri */) {
         if(aUri.namespace == null) {
             return aUri.value;
@@ -956,13 +950,13 @@ Siesta.Framework.classBuilder(Siesta.Framework.Graph, {
     },
 
     /**
-             *  Generates a String key for this literal expanding the possible type
-             *  URI if its namespace is registered in the namespaces of the graph
-             *
-             *  @argument aLiteral: a Siesta.Framework.Literal to be normalized.
-             *
-             *  @returns a String normalized for this literal.
-             */
+     *  Generates a String key for this literal expanding the possible type
+     *  URI if its namespace is registered in the namespaces of the graph
+     *
+     *  @argument aLiteral: a Siesta.Framework.Literal to be normalized.
+     *
+     *  @returns a String normalized for this literal.
+     */
     __normalizeLiteral: function(aLiteral /* Siesta.Framework.Literal */) {
         var str = '"'+aLiteral.value+'"';
         if(aLiteral.type != null) {
@@ -1036,46 +1030,46 @@ Siesta.Framework.classBuilder(Siesta.Utils.Sequentializer, {
     },
 
     /**
-             * Adds a remote request to the queue of requests.
-             *
-             * @argument remoteRequest, function containing the invocation
-             */
+     * Adds a remote request to the queue of requests.
+     *
+     * @argument remoteRequest, function containing the invocation
+     */
     addRemoteRequest: function(remoteRequest) {
         this._requestsQueue.push(remoteRequest);
     },
 
     /**
-             * Adds a remote request to the queue of requests and passes the argument to it.
-             * The callback function must accept one parameter.
-             *
-             * @argument remoteRequest, function containing the invocation.
-             * @argument env, the environment to pass to the function.
-             */
+     * Adds a remote request to the queue of requests and passes the argument to it.
+     * The callback function must accept one parameter.
+     *
+     * @argument remoteRequest, function containing the invocation.
+     * @argument env, the environment to pass to the function.
+     */
     addRemoteRequestWithEnv: function(remoteRequest,env) {
         this._requestsQueue.push(function(){ remoteRequest(env) });
     },
 
     /**
-             * Sets the function that will be optionally invoked
-             * when all the requests have been processed.
-             *
-             * @argument callback, the function to be invoked.
-             */
+     * Sets the function that will be optionally invoked
+     * when all the requests have been processed.
+     *
+     * @argument callback, the function to be invoked.
+     */
     finishedCallback: function(callback) {
         this._finishedCallback = callback;
     },
 
     /**
-             * This funcition must be invoked in the callbacks of the remote requests
-             * callbacks to notify the request has finished.
-             */
+     * This funcition must be invoked in the callbacks of the remote requests
+     * callbacks to notify the request has finished.
+     */
     notifyRequestFinished: function() {
         this._nextRequest();
     },
 
     /**
-             * Starts the processing of the requests.
-             */
+     * Starts the processing of the requests.
+     */
     start: function() {
         this._nextRequest();
     },
@@ -1176,9 +1170,7 @@ Siesta.Services.parseAndAddToRepository = function(doc,repository,callback) {
 
     if(formater.isParserAsynchronous() == false) {
         var parsedGraph = formater.parseDoc("",doc);
-        for(_i=0; _i< parsedGraph.triplesArray().length; _i++) {
-            repository.addTriple(parsedGraph.triplesArray()[_i]);
-        }
+		repository.addGraph(parsedGraph);
 
         var resp = {
             repository: repository,
@@ -1191,9 +1183,7 @@ Siesta.Services.parseAndAddToRepository = function(doc,repository,callback) {
         }
     } else {
         formater.parseDoc("",doc, function(resBaseUri, resDoc, parsedGraph) {
-            for(_i=0; _i< parsedGraph.triplesArray().length; _i++) {
-                repository.addTriple(parsedGraph.triplesArray()[_i]);
-            }
+			repository.addGraph(parsedGraph);
 
             var resp = {
                 repository: repository,
@@ -1218,16 +1208,14 @@ Siesta.Services.onRegisteredServiceJsonp = function(serviceDescription) {
         var formater = Siesta.Services.chooseFormaterFor(serviceDescription);
 
         var parsedGraph = formater.parseDoc("",serviceDescription);
-        for(_i=0; _i< parsedGraph.triplesArray().length; _i++) {
-            Siesta.Model.Repositories.services.addTriple(parsedGraph.triplesArray()[_i]);
-        }
+		Siesta.Model.Repositories.services.addGraph(parsedGraph);
 
         for(_f=0; _f<Siesta.Services.serviceRegistrationCallbacks.length; _f++) {
-            Siesta.Services.serviceRegistrationCallbacks[_f].call(Siesta.Constants.SUCCESS,parsedGraph);
+            Siesta.Services.serviceRegistrationCallbacks[_f](Siesta.Constants.SUCCESS,parsedGraph);
         }
     } catch(e) {
         for(_f=0; _f<Siesta.Services.serviceRegistrationCallbacks.length; _f++) {
-            Siesta.Services.serviceRegistrationCallbacks[_f].call(Siesta.Constants.FAILURE,e);
+            Siesta.Services.serviceRegistrationCallbacks[_f](Siesta.Constants.FAILURE,e);
         }
     }
 };
@@ -1470,10 +1458,10 @@ Siesta.Framework.classBuilder(Siesta.Services.RestfulOperationInputMessage, {
     },
 
     /**
-               Retrieves all the remote references of this message.
+       Retrieves all the remote references of this message.
 
-               @returns The method sends the event: EVENT_MESSAGE_LOADED
-            */
+        @returns The method sends the event: EVENT_MESSAGE_LOADED
+    */
     connect: function(mechanism) {
         this._transportMechanism = mechanism;
         if(this.connected == false) {
@@ -1605,10 +1593,10 @@ Siesta.Framework.classBuilder(Siesta.Services.RestfulOperationOutputMessage, {
     },
 
     /**
-               Retrieves the liftinSchemaMapping for this message.
+       Retrieves the liftinSchemaMapping for this message.
 
-               @returns the URL of the schema mapping
-            */
+       @returns the URL of the schema mapping
+    */
     liftingSchemaMapping: function() {
         if(this._liftingSchemaMapping != null) {
             if(this._liftingSchemaMapping == 0) {
@@ -1677,19 +1665,19 @@ Siesta.Services.RestfulOperation.DELETE = 'DELETE',
 */
 Siesta.Framework.classBuilder(Siesta.Services.RestfulOperation, {
     /**
-             * @constructor
-             *
-             * Initiates a new RestfulOperation object with the
-             * the data associated to the URI passed as an
-             * argument in the constructor.
-             *
-             * Triplets are looked up in the Siesta.Model.Repositories.services repository,
-             * they must have been retrieved first via a callo to Siesta.Services.registerService.
-             *
-             * @see Siesta.Services.registerService
-             *
-             * @argument operationUri: operation location URI, a Siesta.Framework.Uri object or a String
-             */
+     * @constructor
+     *
+     * Initiates a new RestfulOperation object with the
+     * the data associated to the URI passed as an
+     * argument in the constructor.
+     *
+     * Triplets are looked up in the Siesta.Model.Repositories.services repository,
+     * they must have been retrieved first via a callo to Siesta.Services.registerService.
+     *
+     * @see Siesta.Services.registerService
+     *
+     * @argument operationUri: operation location URI, a Siesta.Framework.Uri object or a String
+     */
     initialize: function(operationUri) {
         this.uri = operationUri;
         if(operationUri.__type == 'uri') {
@@ -1763,11 +1751,11 @@ Siesta.Framework.classBuilder(Siesta.Services.RestfulOperation, {
     _parsingAddressPatternRegExIn: /[^\{\}]+/,
 
     /**
-               Parses the address of the operation retrieving the list of prameters
-               from the address.
+       Parses the address of the operation retrieving the list of prameters
+       from the address.
 
-               @returns the list of parsed parameters
-            */
+       @returns the list of parsed parameters
+    */
     addressAttributes: function() {
         var theAddress = this.address();
         if(this._addressAttributes == null) {
@@ -1787,11 +1775,11 @@ Siesta.Framework.classBuilder(Siesta.Services.RestfulOperation, {
     },
 
     /**
-               Returns an array of RestfulOperationInputMessages object with all the
-               input messages associated to this operation.
+       Returns an array of RestfulOperationInputMessages object with all the
+       input messages associated to this operation.
 
-               @returns An array of RestulOperationInputMessages objects
-            */
+       @returns An array of RestulOperationInputMessages objects
+    */
     inputMessages: function() {
         if(this._inputMessages != null) {
             return this._inputMessages;
@@ -1813,11 +1801,11 @@ Siesta.Framework.classBuilder(Siesta.Services.RestfulOperation, {
 
 
     /**
-               Returns the RestfulOperationOutputMessage object associated
-               to this operation.
+       Returns the RestfulOperationOutputMessage object associated
+       to this operation.
 
-               @returns A RestulOperationOutputMessage objects or null if no output message is associated.
-            */
+       @returns A RestulOperationOutputMessage objects or null if no output message is associated.
+    */
     outputMessage: function() {
         if(this._outputMessage != null) {
             return this._outputMessage;
@@ -1837,11 +1825,11 @@ Siesta.Framework.classBuilder(Siesta.Services.RestfulOperation, {
 
 
     /**
-               Returns an array of RestfulOperationInputParameter object with all the
-               input messages associated to this operation.
+       Returns an array of RestfulOperationInputParameter object with all the
+       input messages associated to this operation.
 
-               @returns An array of RestulOperationInputMessages objects
-            */
+       @returns An array of RestulOperationInputMessages objects
+    */
     inputParameters: function() {
         if(this._inputParameters != null) {
             return this._inputParameters;
@@ -2021,20 +2009,20 @@ Siesta.Services.RestfulService.find = function(serviceUri) {
     */
 Siesta.Framework.classBuilder(Siesta.Services.RestfulService, {
     /**
-                 * @constructor
-                 *
-                 * Initiates a new RestfulService object with the
-                 * the data associated to the URI passed as an
-                 * argument in the constructor.
-                 *
-                 * Triplets are looked up in the Siesta.Model.Repositories.services repository,
-                 * they must have been retrieved first via a callo to Siesta.Services.registerService.
-                 *
-                 * @see Siesta.Services.registerService
-                 *
-                 * @argument serviceuri: Service location URI, a Siesta.Framework.Uri object or a String
-                 * @argument networkMechanism: what kind of network transport will be used to access this service
-                 */
+         * @constructor
+         *
+         * Initiates a new RestfulService object with the
+         * the data associated to the URI passed as an
+         * argument in the constructor.
+         *
+         * Triplets are looked up in the Siesta.Model.Repositories.services repository,
+         * they must have been retrieved first via a callo to Siesta.Services.registerService.
+         *
+         * @see Siesta.Services.registerService
+         *
+         * @argument serviceuri: Service location URI, a Siesta.Framework.Uri object or a String
+         * @argument networkMechanism: what kind of network transport will be used to access this service
+  */
     initialize: function(serviceUri,networkMechanism) {
         this.uri = serviceUri;
         if(serviceUri.__type == 'uri') {
@@ -2137,10 +2125,10 @@ Siesta.Framework.classBuilder(Siesta.Services.RestfulService, {
     },
 
     /**
-                       Retrieves all the external resources for this service: model, lowering and lifting operations, etc.
+       Retrieves all the external resources for this service: model, lowering and lifting operations, etc.
 
-                       @returns nothing
-                    */
+       @returns nothing
+    */
     connect: function(mechanism) {        
         if(this._mechanism == undefined) {
             this._mechanism = mechanism;
@@ -2201,7 +2189,7 @@ Siesta.Framework.classBuilder(Siesta.Services.RestfulService, {
 
             // here we set the callback for all requests done
             sequentializer.finishedCallback(function() {
-                Siesta.Services.RestfulService.servicesCache[this.serviceUri] = that;
+                Siesta.Services.RestfulService.servicesCache[that.uri] = that;
                 that.connected = true;
                 Siesta.Events.publish(that.EVENT_SERVICE_LOADED,that);
             });
@@ -2280,10 +2268,10 @@ Siesta.Framework.classBuilder(Siesta.Model.Schema, {
     },
 
     /**
-               Retrieves all the properties associated to this schema URI by a rdfs:domain predicate.
+       Retrieves all the properties associated to this schema URI by a rdfs:domain predicate.
 
-               @returns A hash of URIs -> range for the properties of the model schema.
-            */
+       @returns A hash of URIs -> range for the properties of the model schema.
+    */
     properties: function() {
         if(this._properties != null) {
             return this._properties;
@@ -2539,12 +2527,12 @@ Siesta.Framework.classBuilder(Siesta.Model.Class, {
 
 
     /*
-             * Operations
-             */
+     * Operations
+     */
 
     /**
-               Returns a new instance of the class without saving it into the server
-            */
+       Returns a new instance of the class without saving it into the server
+    */
     build: function(params) {
         return new Siesta.Model.Instance({
             type: this,
@@ -2553,8 +2541,8 @@ Siesta.Framework.classBuilder(Siesta.Model.Class, {
     },
     
     /**
-               Invokes the POST method of the associated service for the given instance
-            */
+       Invokes the POST method of the associated service for the given instance
+    */
     post: function(instance,callback) {
         if(this.postServices == undefined) {
             throw "Cannot save instance for ModelClass without POST service";
@@ -2592,8 +2580,8 @@ Siesta.Framework.classBuilder(Siesta.Model.Class, {
     },
 
     /**
-               Invokes the PUT method of the associated service for the given instance
-            */
+       Invokes the PUT method of the associated service for the given instance
+    */
     put: function(instance,callback) {
         if(this.putServices == undefined) {
             throw "Cannot save instance for ModelClass without PUT service";
@@ -2672,15 +2660,15 @@ Siesta.Framework.classBuilder(Siesta.Model.Class, {
     },
 
     /**
-               Does a remote request to the server with the GET operation
-               of the service matching the property mapping passed as a 
-               parameter.
+       Does a remote request to the server with the GET operation
+       of the service matching the property mapping passed as a 
+       parameter.
 
-               @argument: mapping, a JS object containing pairs of key-value or a Model.Instance
-               object that will be used to retrieve the parameters for the query.
-               @argument: callback, a function that will be invoked with the objects
-               returned from the serer in an array as argument.
-            */
+       @argument: mapping, a JS object containing pairs of key-value or a Model.Instance
+       object that will be used to retrieve the parameters for the query.
+       @argument: callback, a function that will be invoked with the objects
+       returned from the serer in an array as argument.
+    */
     find: function(mapping,callback) { // 
         if(this.getServices == undefined) {
             throw "Cannot find instance for ModelClass without GET service";
@@ -2756,7 +2744,28 @@ Siesta.Framework.classBuilder(Siesta.Model.Class, {
                 Siesta.Events.unsubscribe(subscription);                
                 if(myData == instance) {
                     if(callback != undefined) {
-                        callback(graph);
+                        //callback(graph);
+                        //TODO: add to framework if works ok
+                        var uris = [];
+                        var instances = [];
+                        for(var _i=0; _i<graph.triplesArray().length; _i++) {
+                            var triple = graph.triplesArray()[_i];
+                            if(triple.predicate.value == Siesta.Constants.RDF_TYPE && 
+                               triple.object.value == that.uri) {
+                                uris.push(triple.subject.value);
+                            }
+                        }
+                        for(var _i=0; _i<uris.length; _i++) {
+                            var instUri = uris[_i];
+                            var _tmp = that.build({});
+                            _tmp.uri = instUri;
+                            _tmp._graph = null;
+                            _tmp.type._updateInstance(graph,_tmp);
+                            _tmp.stored = true;
+                            _tmp.dirty= false;
+                            instances.push(_tmp);                            
+                        }
+                        callback(instances);
                     }
                 }
             },that,instance);
@@ -2948,9 +2957,10 @@ Siesta.Framework.classBuilder(Siesta.Model.Instance, {
 
             //TODO: complete here with the right parameter
             var argument = {};
-            argument[relationClass.nestedThrough] =  this;
-
             var that = this;
+            argument[relationClass.nestedThrough] =  that;
+
+
             relationClass.findAll(argument,function(instances) {
                 
                 for(var _s in instances.triples) {

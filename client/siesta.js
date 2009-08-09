@@ -1,4293 +1,87 @@
-/*  Prototype JavaScript framework, version 1.6.0.3
- *  (c) 2005-2008 Sam Stephenson
+/*
+ * jQuery JavaScript Library v1.3.2
+ * http://jquery.com/
  *
- *  Prototype is freely distributable under the terms of an MIT-style license.
- *  For details, see the Prototype web site: http://www.prototypejs.org/
+ * Copyright (c) 2009 John Resig
+ * Dual licensed under the MIT and GPL licenses.
+ * http://docs.jquery.com/License
  *
- *--------------------------------------------------------------------------*/
-
-var Prototype = {
-  Version: '1.6.0.3',
-
-  Browser: {
-    IE:     !!(window.attachEvent &&
-      navigator.userAgent.indexOf('Opera') === -1),
-    Opera:  navigator.userAgent.indexOf('Opera') > -1,
-    WebKit: navigator.userAgent.indexOf('AppleWebKit/') > -1,
-    Gecko:  navigator.userAgent.indexOf('Gecko') > -1 &&
-      navigator.userAgent.indexOf('KHTML') === -1,
-    MobileSafari: !!navigator.userAgent.match(/Apple.*Mobile.*Safari/)
-  },
-
-  BrowserFeatures: {
-    XPath: !!document.evaluate,
-    SelectorsAPI: !!document.querySelector,
-    ElementExtensions: !!window.HTMLElement,
-    SpecificElementExtensions:
-      document.createElement('div')['__proto__'] &&
-      document.createElement('div')['__proto__'] !==
-        document.createElement('form')['__proto__']
-  },
-
-  ScriptFragment: '<script[^>]*>([\\S\\s]*?)<\/script>',
-  JSONFilter: /^\/\*-secure-([\s\S]*)\*\/\s*$/,
-
-  emptyFunction: function() { },
-  K: function(x) { return x }
-};
-
-if (Prototype.Browser.MobileSafari)
-  Prototype.BrowserFeatures.SpecificElementExtensions = false;
-
-
-/* Based on Alex Arnell's inheritance implementation. */
-var Class = {
-  create: function() {
-    var parent = null, properties = $A(arguments);
-    if (Object.isFunction(properties[0]))
-      parent = properties.shift();
-
-    function klass() {
-      this.initialize.apply(this, arguments);
-    }
-
-    Object.extend(klass, Class.Methods);
-    klass.superclass = parent;
-    klass.subclasses = [];
-
-    if (parent) {
-      var subclass = function() { };
-      subclass.prototype = parent.prototype;
-      klass.prototype = new subclass;
-      parent.subclasses.push(klass);
-    }
-
-    for (var i = 0; i < properties.length; i++)
-      klass.addMethods(properties[i]);
-
-    if (!klass.prototype.initialize)
-      klass.prototype.initialize = Prototype.emptyFunction;
-
-    klass.prototype.constructor = klass;
-
-    return klass;
-  }
-};
-
-Class.Methods = {
-  addMethods: function(source) {
-    var ancestor   = this.superclass && this.superclass.prototype;
-    var properties = Object.keys(source);
-
-    if (!Object.keys({ toString: true }).length)
-      properties.push("toString", "valueOf");
-
-    for (var i = 0, length = properties.length; i < length; i++) {
-      var property = properties[i], value = source[property];
-      if (ancestor && Object.isFunction(value) &&
-          value.argumentNames().first() == "$super") {
-        var method = value;
-        value = (function(m) {
-          return function() { return ancestor[m].apply(this, arguments) };
-        })(property).wrap(method);
-
-        value.valueOf = method.valueOf.bind(method);
-        value.toString = method.toString.bind(method);
-      }
-      this.prototype[property] = value;
-    }
-
-    return this;
-  }
-};
-
-var Abstract = { };
-
-Object.extend = function(destination, source) {
-  for (var property in source)
-    destination[property] = source[property];
-  return destination;
-};
-
-Object.extend(Object, {
-  inspect: function(object) {
-    try {
-      if (Object.isUndefined(object)) return 'undefined';
-      if (object === null) return 'null';
-      return object.inspect ? object.inspect() : String(object);
-    } catch (e) {
-      if (e instanceof RangeError) return '...';
-      throw e;
-    }
-  },
-
-  toJSON: function(object) {
-    var type = typeof object;
-    switch (type) {
-      case 'undefined':
-      case 'function':
-      case 'unknown': return;
-      case 'boolean': return object.toString();
-    }
-
-    if (object === null) return 'null';
-    if (object.toJSON) return object.toJSON();
-    if (Object.isElement(object)) return;
-
-    var results = [];
-    for (var property in object) {
-      var value = Object.toJSON(object[property]);
-      if (!Object.isUndefined(value))
-        results.push(property.toJSON() + ': ' + value);
-    }
-
-    return '{' + results.join(', ') + '}';
-  },
-
-  toQueryString: function(object) {
-    return $H(object).toQueryString();
-  },
-
-  toHTML: function(object) {
-    return object && object.toHTML ? object.toHTML() : String.interpret(object);
-  },
-
-  keys: function(object) {
-    var keys = [];
-    for (var property in object)
-      keys.push(property);
-    return keys;
-  },
-
-  values: function(object) {
-    var values = [];
-    for (var property in object)
-      values.push(object[property]);
-    return values;
-  },
-
-  clone: function(object) {
-    return Object.extend({ }, object);
-  },
-
-  isElement: function(object) {
-    return !!(object && object.nodeType == 1);
-  },
-
-  isArray: function(object) {
-    return object != null && typeof object == "object" &&
-      'splice' in object && 'join' in object;
-  },
-
-  isHash: function(object) {
-    return object instanceof Hash;
-  },
-
-  isFunction: function(object) {
-    return typeof object == "function";
-  },
-
-  isString: function(object) {
-    return typeof object == "string";
-  },
-
-  isNumber: function(object) {
-    return typeof object == "number";
-  },
-
-  isUndefined: function(object) {
-    return typeof object == "undefined";
-  }
-});
-
-Object.extend(Function.prototype, {
-  argumentNames: function() {
-    var names = this.toString().match(/^[\s\(]*function[^(]*\(([^\)]*)\)/)[1]
-      .replace(/\s+/g, '').split(',');
-    return names.length == 1 && !names[0] ? [] : names;
-  },
-
-  bind: function() {
-    if (arguments.length < 2 && Object.isUndefined(arguments[0])) return this;
-    var __method = this, args = $A(arguments), object = args.shift();
-    return function() {
-      return __method.apply(object, args.concat($A(arguments)));
-    }
-  },
-
-  bindAsEventListener: function() {
-    var __method = this, args = $A(arguments), object = args.shift();
-    return function(event) {
-      return __method.apply(object, [event || window.event].concat(args));
-    }
-  },
-
-  curry: function() {
-    if (!arguments.length) return this;
-    var __method = this, args = $A(arguments);
-    return function() {
-      return __method.apply(this, args.concat($A(arguments)));
-    }
-  },
-
-  delay: function() {
-    var __method = this, args = $A(arguments), timeout = args.shift() * 1000;
-    return window.setTimeout(function() {
-      return __method.apply(__method, args);
-    }, timeout);
-  },
-
-  defer: function() {
-    var args = [0.01].concat($A(arguments));
-    return this.delay.apply(this, args);
-  },
-
-  wrap: function(wrapper) {
-    var __method = this;
-    return function() {
-      return wrapper.apply(this, [__method.bind(this)].concat($A(arguments)));
-    }
-  },
-
-  methodize: function() {
-    if (this._methodized) return this._methodized;
-    var __method = this;
-    return this._methodized = function() {
-      return __method.apply(null, [this].concat($A(arguments)));
-    };
-  }
-});
-
-Date.prototype.toJSON = function() {
-  return '"' + this.getUTCFullYear() + '-' +
-    (this.getUTCMonth() + 1).toPaddedString(2) + '-' +
-    this.getUTCDate().toPaddedString(2) + 'T' +
-    this.getUTCHours().toPaddedString(2) + ':' +
-    this.getUTCMinutes().toPaddedString(2) + ':' +
-    this.getUTCSeconds().toPaddedString(2) + 'Z"';
-};
-
-var Try = {
-  these: function() {
-    var returnValue;
-
-    for (var i = 0, length = arguments.length; i < length; i++) {
-      var lambda = arguments[i];
-      try {
-        returnValue = lambda();
-        break;
-      } catch (e) { }
-    }
-
-    return returnValue;
-  }
-};
-
-RegExp.prototype.match = RegExp.prototype.test;
-
-RegExp.escape = function(str) {
-  return String(str).replace(/([.*+?^=!:${}()|[\]\/\\])/g, '\\$1');
-};
-
-/*--------------------------------------------------------------------------*/
-
-var PeriodicalExecuter = Class.create({
-  initialize: function(callback, frequency) {
-    this.callback = callback;
-    this.frequency = frequency;
-    this.currentlyExecuting = false;
-
-    this.registerCallback();
-  },
-
-  registerCallback: function() {
-    this.timer = setInterval(this.onTimerEvent.bind(this), this.frequency * 1000);
-  },
-
-  execute: function() {
-    this.callback(this);
-  },
-
-  stop: function() {
-    if (!this.timer) return;
-    clearInterval(this.timer);
-    this.timer = null;
-  },
-
-  onTimerEvent: function() {
-    if (!this.currentlyExecuting) {
-      try {
-        this.currentlyExecuting = true;
-        this.execute();
-      } finally {
-        this.currentlyExecuting = false;
-      }
-    }
-  }
-});
-Object.extend(String, {
-  interpret: function(value) {
-    return value == null ? '' : String(value);
-  },
-  specialChar: {
-    '\b': '\\b',
-    '\t': '\\t',
-    '\n': '\\n',
-    '\f': '\\f',
-    '\r': '\\r',
-    '\\': '\\\\'
-  }
-});
-
-Object.extend(String.prototype, {
-  gsub: function(pattern, replacement) {
-    var result = '', source = this, match;
-    replacement = arguments.callee.prepareReplacement(replacement);
-
-    while (source.length > 0) {
-      if (match = source.match(pattern)) {
-        result += source.slice(0, match.index);
-        result += String.interpret(replacement(match));
-        source  = source.slice(match.index + match[0].length);
-      } else {
-        result += source, source = '';
-      }
-    }
-    return result;
-  },
-
-  sub: function(pattern, replacement, count) {
-    replacement = this.gsub.prepareReplacement(replacement);
-    count = Object.isUndefined(count) ? 1 : count;
-
-    return this.gsub(pattern, function(match) {
-      if (--count < 0) return match[0];
-      return replacement(match);
-    });
-  },
-
-  scan: function(pattern, iterator) {
-    this.gsub(pattern, iterator);
-    return String(this);
-  },
-
-  truncate: function(length, truncation) {
-    length = length || 30;
-    truncation = Object.isUndefined(truncation) ? '...' : truncation;
-    return this.length > length ?
-      this.slice(0, length - truncation.length) + truncation : String(this);
-  },
-
-  strip: function() {
-    return this.replace(/^\s+/, '').replace(/\s+$/, '');
-  },
-
-  stripTags: function() {
-    return this.replace(/<\/?[^>]+>/gi, '');
-  },
-
-  stripScripts: function() {
-    return this.replace(new RegExp(Prototype.ScriptFragment, 'img'), '');
-  },
-
-  extractScripts: function() {
-    var matchAll = new RegExp(Prototype.ScriptFragment, 'img');
-    var matchOne = new RegExp(Prototype.ScriptFragment, 'im');
-    return (this.match(matchAll) || []).map(function(scriptTag) {
-      return (scriptTag.match(matchOne) || ['', ''])[1];
-    });
-  },
-
-  evalScripts: function() {
-    return this.extractScripts().map(function(script) { return eval(script) });
-  },
-
-  escapeHTML: function() {
-    var self = arguments.callee;
-    self.text.data = this;
-    return self.div.innerHTML;
-  },
-
-  unescapeHTML: function() {
-    var div = new Element('div');
-    div.innerHTML = this.stripTags();
-    return div.childNodes[0] ? (div.childNodes.length > 1 ?
-      $A(div.childNodes).inject('', function(memo, node) { return memo+node.nodeValue }) :
-      div.childNodes[0].nodeValue) : '';
-  },
-
-  toQueryParams: function(separator) {
-    var match = this.strip().match(/([^?#]*)(#.*)?$/);
-    if (!match) return { };
-
-    return match[1].split(separator || '&').inject({ }, function(hash, pair) {
-      if ((pair = pair.split('='))[0]) {
-        var key = decodeURIComponent(pair.shift());
-        var value = pair.length > 1 ? pair.join('=') : pair[0];
-        if (value != undefined) value = decodeURIComponent(value);
-
-        if (key in hash) {
-          if (!Object.isArray(hash[key])) hash[key] = [hash[key]];
-          hash[key].push(value);
-        }
-        else hash[key] = value;
-      }
-      return hash;
-    });
-  },
-
-  toArray: function() {
-    return this.split('');
-  },
-
-  succ: function() {
-    return this.slice(0, this.length - 1) +
-      String.fromCharCode(this.charCodeAt(this.length - 1) + 1);
-  },
-
-  times: function(count) {
-    return count < 1 ? '' : new Array(count + 1).join(this);
-  },
-
-  camelize: function() {
-    var parts = this.split('-'), len = parts.length;
-    if (len == 1) return parts[0];
-
-    var camelized = this.charAt(0) == '-'
-      ? parts[0].charAt(0).toUpperCase() + parts[0].substring(1)
-      : parts[0];
-
-    for (var i = 1; i < len; i++)
-      camelized += parts[i].charAt(0).toUpperCase() + parts[i].substring(1);
-
-    return camelized;
-  },
-
-  capitalize: function() {
-    return this.charAt(0).toUpperCase() + this.substring(1).toLowerCase();
-  },
-
-  underscore: function() {
-    return this.gsub(/::/, '/').gsub(/([A-Z]+)([A-Z][a-z])/,'#{1}_#{2}').gsub(/([a-z\d])([A-Z])/,'#{1}_#{2}').gsub(/-/,'_').toLowerCase();
-  },
-
-  dasherize: function() {
-    return this.gsub(/_/,'-');
-  },
-
-  inspect: function(useDoubleQuotes) {
-    var escapedString = this.gsub(/[\x00-\x1f\\]/, function(match) {
-      var character = String.specialChar[match[0]];
-      return character ? character : '\\u00' + match[0].charCodeAt().toPaddedString(2, 16);
-    });
-    if (useDoubleQuotes) return '"' + escapedString.replace(/"/g, '\\"') + '"';
-    return "'" + escapedString.replace(/'/g, '\\\'') + "'";
-  },
-
-  toJSON: function() {
-    return this.inspect(true);
-  },
-
-  unfilterJSON: function(filter) {
-    return this.sub(filter || Prototype.JSONFilter, '#{1}');
-  },
-
-  isJSON: function() {
-    var str = this;
-    if (str.blank()) return false;
-    str = this.replace(/\\./g, '@').replace(/"[^"\\\n\r]*"/g, '');
-    return (/^[,:{}\[\]0-9.\-+Eaeflnr-u \n\r\t]*$/).test(str);
-  },
-
-  evalJSON: function(sanitize) {
-    var json = this.unfilterJSON();
-    try {
-      if (!sanitize || json.isJSON()) return eval('(' + json + ')');
-    } catch (e) { }
-    throw new SyntaxError('Badly formed JSON string: ' + this.inspect());
-  },
-
-  include: function(pattern) {
-    return this.indexOf(pattern) > -1;
-  },
-
-  startsWith: function(pattern) {
-    return this.indexOf(pattern) === 0;
-  },
-
-  endsWith: function(pattern) {
-    var d = this.length - pattern.length;
-    return d >= 0 && this.lastIndexOf(pattern) === d;
-  },
-
-  empty: function() {
-    return this == '';
-  },
-
-  blank: function() {
-    return /^\s*$/.test(this);
-  },
-
-  interpolate: function(object, pattern) {
-    return new Template(this, pattern).evaluate(object);
-  }
-});
-
-if (Prototype.Browser.WebKit || Prototype.Browser.IE) Object.extend(String.prototype, {
-  escapeHTML: function() {
-    return this.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  },
-  unescapeHTML: function() {
-    return this.stripTags().replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>');
-  }
-});
-
-String.prototype.gsub.prepareReplacement = function(replacement) {
-  if (Object.isFunction(replacement)) return replacement;
-  var template = new Template(replacement);
-  return function(match) { return template.evaluate(match) };
-};
-
-String.prototype.parseQuery = String.prototype.toQueryParams;
-
-Object.extend(String.prototype.escapeHTML, {
-  div:  document.createElement('div'),
-  text: document.createTextNode('')
-});
-
-String.prototype.escapeHTML.div.appendChild(String.prototype.escapeHTML.text);
-
-var Template = Class.create({
-  initialize: function(template, pattern) {
-    this.template = template.toString();
-    this.pattern = pattern || Template.Pattern;
-  },
-
-  evaluate: function(object) {
-    if (Object.isFunction(object.toTemplateReplacements))
-      object = object.toTemplateReplacements();
-
-    return this.template.gsub(this.pattern, function(match) {
-      if (object == null) return '';
-
-      var before = match[1] || '';
-      if (before == '\\') return match[2];
-
-      var ctx = object, expr = match[3];
-      var pattern = /^([^.[]+|\[((?:.*?[^\\])?)\])(\.|\[|$)/;
-      match = pattern.exec(expr);
-      if (match == null) return before;
-
-      while (match != null) {
-        var comp = match[1].startsWith('[') ? match[2].gsub('\\\\]', ']') : match[1];
-        ctx = ctx[comp];
-        if (null == ctx || '' == match[3]) break;
-        expr = expr.substring('[' == match[3] ? match[1].length : match[0].length);
-        match = pattern.exec(expr);
-      }
-
-      return before + String.interpret(ctx);
-    });
-  }
-});
-Template.Pattern = /(^|.|\r|\n)(#\{(.*?)\})/;
-
-var $break = { };
-
-var Enumerable = {
-  each: function(iterator, context) {
-    var index = 0;
-    try {
-      this._each(function(value) {
-        iterator.call(context, value, index++);
-      });
-    } catch (e) {
-      if (e != $break) throw e;
-    }
-    return this;
-  },
-
-  eachSlice: function(number, iterator, context) {
-    var index = -number, slices = [], array = this.toArray();
-    if (number < 1) return array;
-    while ((index += number) < array.length)
-      slices.push(array.slice(index, index+number));
-    return slices.collect(iterator, context);
-  },
-
-  all: function(iterator, context) {
-    iterator = iterator || Prototype.K;
-    var result = true;
-    this.each(function(value, index) {
-      result = result && !!iterator.call(context, value, index);
-      if (!result) throw $break;
-    });
-    return result;
-  },
-
-  any: function(iterator, context) {
-    iterator = iterator || Prototype.K;
-    var result = false;
-    this.each(function(value, index) {
-      if (result = !!iterator.call(context, value, index))
-        throw $break;
-    });
-    return result;
-  },
-
-  collect: function(iterator, context) {
-    iterator = iterator || Prototype.K;
-    var results = [];
-    this.each(function(value, index) {
-      results.push(iterator.call(context, value, index));
-    });
-    return results;
-  },
-
-  detect: function(iterator, context) {
-    var result;
-    this.each(function(value, index) {
-      if (iterator.call(context, value, index)) {
-        result = value;
-        throw $break;
-      }
-    });
-    return result;
-  },
-
-  findAll: function(iterator, context) {
-    var results = [];
-    this.each(function(value, index) {
-      if (iterator.call(context, value, index))
-        results.push(value);
-    });
-    return results;
-  },
-
-  grep: function(filter, iterator, context) {
-    iterator = iterator || Prototype.K;
-    var results = [];
-
-    if (Object.isString(filter))
-      filter = new RegExp(filter);
-
-    this.each(function(value, index) {
-      if (filter.match(value))
-        results.push(iterator.call(context, value, index));
-    });
-    return results;
-  },
-
-  include: function(object) {
-    if (Object.isFunction(this.indexOf))
-      if (this.indexOf(object) != -1) return true;
-
-    var found = false;
-    this.each(function(value) {
-      if (value == object) {
-        found = true;
-        throw $break;
-      }
-    });
-    return found;
-  },
-
-  inGroupsOf: function(number, fillWith) {
-    fillWith = Object.isUndefined(fillWith) ? null : fillWith;
-    return this.eachSlice(number, function(slice) {
-      while(slice.length < number) slice.push(fillWith);
-      return slice;
-    });
-  },
-
-  inject: function(memo, iterator, context) {
-    this.each(function(value, index) {
-      memo = iterator.call(context, memo, value, index);
-    });
-    return memo;
-  },
-
-  invoke: function(method) {
-    var args = $A(arguments).slice(1);
-    return this.map(function(value) {
-      return value[method].apply(value, args);
-    });
-  },
-
-  max: function(iterator, context) {
-    iterator = iterator || Prototype.K;
-    var result;
-    this.each(function(value, index) {
-      value = iterator.call(context, value, index);
-      if (result == null || value >= result)
-        result = value;
-    });
-    return result;
-  },
-
-  min: function(iterator, context) {
-    iterator = iterator || Prototype.K;
-    var result;
-    this.each(function(value, index) {
-      value = iterator.call(context, value, index);
-      if (result == null || value < result)
-        result = value;
-    });
-    return result;
-  },
-
-  partition: function(iterator, context) {
-    iterator = iterator || Prototype.K;
-    var trues = [], falses = [];
-    this.each(function(value, index) {
-      (iterator.call(context, value, index) ?
-        trues : falses).push(value);
-    });
-    return [trues, falses];
-  },
-
-  pluck: function(property) {
-    var results = [];
-    this.each(function(value) {
-      results.push(value[property]);
-    });
-    return results;
-  },
-
-  reject: function(iterator, context) {
-    var results = [];
-    this.each(function(value, index) {
-      if (!iterator.call(context, value, index))
-        results.push(value);
-    });
-    return results;
-  },
-
-  sortBy: function(iterator, context) {
-    return this.map(function(value, index) {
-      return {
-        value: value,
-        criteria: iterator.call(context, value, index)
-      };
-    }).sort(function(left, right) {
-      var a = left.criteria, b = right.criteria;
-      return a < b ? -1 : a > b ? 1 : 0;
-    }).pluck('value');
-  },
-
-  toArray: function() {
-    return this.map();
-  },
-
-  zip: function() {
-    var iterator = Prototype.K, args = $A(arguments);
-    if (Object.isFunction(args.last()))
-      iterator = args.pop();
-
-    var collections = [this].concat(args).map($A);
-    return this.map(function(value, index) {
-      return iterator(collections.pluck(index));
-    });
-  },
-
-  size: function() {
-    return this.toArray().length;
-  },
-
-  inspect: function() {
-    return '#<Enumerable:' + this.toArray().inspect() + '>';
-  }
-};
-
-Object.extend(Enumerable, {
-  map:     Enumerable.collect,
-  find:    Enumerable.detect,
-  select:  Enumerable.findAll,
-  filter:  Enumerable.findAll,
-  member:  Enumerable.include,
-  entries: Enumerable.toArray,
-  every:   Enumerable.all,
-  some:    Enumerable.any
-});
-function $A(iterable) {
-  if (!iterable) return [];
-  if (iterable.toArray) return iterable.toArray();
-  var length = iterable.length || 0, results = new Array(length);
-  while (length--) results[length] = iterable[length];
-  return results;
-}
-
-if (Prototype.Browser.WebKit) {
-  $A = function(iterable) {
-    if (!iterable) return [];
-    if (!(typeof iterable === 'function' && typeof iterable.length ===
-        'number' && typeof iterable.item === 'function') && iterable.toArray)
-      return iterable.toArray();
-    var length = iterable.length || 0, results = new Array(length);
-    while (length--) results[length] = iterable[length];
-    return results;
-  };
-}
-
-Array.from = $A;
-
-Object.extend(Array.prototype, Enumerable);
-
-if (!Array.prototype._reverse) Array.prototype._reverse = Array.prototype.reverse;
-
-Object.extend(Array.prototype, {
-  _each: function(iterator) {
-    for (var i = 0, length = this.length; i < length; i++)
-      iterator(this[i]);
-  },
-
-  clear: function() {
-    this.length = 0;
-    return this;
-  },
-
-  first: function() {
-    return this[0];
-  },
-
-  last: function() {
-    return this[this.length - 1];
-  },
-
-  compact: function() {
-    return this.select(function(value) {
-      return value != null;
-    });
-  },
-
-  flatten: function() {
-    return this.inject([], function(array, value) {
-      return array.concat(Object.isArray(value) ?
-        value.flatten() : [value]);
-    });
-  },
-
-  without: function() {
-    var values = $A(arguments);
-    return this.select(function(value) {
-      return !values.include(value);
-    });
-  },
-
-  reverse: function(inline) {
-    return (inline !== false ? this : this.toArray())._reverse();
-  },
-
-  reduce: function() {
-    return this.length > 1 ? this : this[0];
-  },
-
-  uniq: function(sorted) {
-    return this.inject([], function(array, value, index) {
-      if (0 == index || (sorted ? array.last() != value : !array.include(value)))
-        array.push(value);
-      return array;
-    });
-  },
-
-  intersect: function(array) {
-    return this.uniq().findAll(function(item) {
-      return array.detect(function(value) { return item === value });
-    });
-  },
-
-  clone: function() {
-    return [].concat(this);
-  },
-
-  size: function() {
-    return this.length;
-  },
-
-  inspect: function() {
-    return '[' + this.map(Object.inspect).join(', ') + ']';
-  },
-
-  toJSON: function() {
-    var results = [];
-    this.each(function(object) {
-      var value = Object.toJSON(object);
-      if (!Object.isUndefined(value)) results.push(value);
-    });
-    return '[' + results.join(', ') + ']';
-  }
-});
-
-if (Object.isFunction(Array.prototype.forEach))
-  Array.prototype._each = Array.prototype.forEach;
-
-if (!Array.prototype.indexOf) Array.prototype.indexOf = function(item, i) {
-  i || (i = 0);
-  var length = this.length;
-  if (i < 0) i = length + i;
-  for (; i < length; i++)
-    if (this[i] === item) return i;
-  return -1;
-};
-
-if (!Array.prototype.lastIndexOf) Array.prototype.lastIndexOf = function(item, i) {
-  i = isNaN(i) ? this.length : (i < 0 ? this.length + i : i) + 1;
-  var n = this.slice(0, i).reverse().indexOf(item);
-  return (n < 0) ? n : i - n - 1;
-};
-
-Array.prototype.toArray = Array.prototype.clone;
-
-function $w(string) {
-  if (!Object.isString(string)) return [];
-  string = string.strip();
-  return string ? string.split(/\s+/) : [];
-}
-
-if (Prototype.Browser.Opera){
-  Array.prototype.concat = function() {
-    var array = [];
-    for (var i = 0, length = this.length; i < length; i++) array.push(this[i]);
-    for (var i = 0, length = arguments.length; i < length; i++) {
-      if (Object.isArray(arguments[i])) {
-        for (var j = 0, arrayLength = arguments[i].length; j < arrayLength; j++)
-          array.push(arguments[i][j]);
-      } else {
-        array.push(arguments[i]);
-      }
-    }
-    return array;
-  };
-}
-Object.extend(Number.prototype, {
-  toColorPart: function() {
-    return this.toPaddedString(2, 16);
-  },
-
-  succ: function() {
-    return this + 1;
-  },
-
-  times: function(iterator, context) {
-    $R(0, this, true).each(iterator, context);
-    return this;
-  },
-
-  toPaddedString: function(length, radix) {
-    var string = this.toString(radix || 10);
-    return '0'.times(length - string.length) + string;
-  },
-
-  toJSON: function() {
-    return isFinite(this) ? this.toString() : 'null';
-  }
-});
-
-$w('abs round ceil floor').each(function(method){
-  Number.prototype[method] = Math[method].methodize();
-});
-function $H(object) {
-  return new Hash(object);
-};
-
-var Hash = Class.create(Enumerable, (function() {
-
-  function toQueryPair(key, value) {
-    if (Object.isUndefined(value)) return key;
-    return key + '=' + encodeURIComponent(String.interpret(value));
-  }
-
-  return {
-    initialize: function(object) {
-      this._object = Object.isHash(object) ? object.toObject() : Object.clone(object);
-    },
-
-    _each: function(iterator) {
-      for (var key in this._object) {
-        var value = this._object[key], pair = [key, value];
-        pair.key = key;
-        pair.value = value;
-        iterator(pair);
-      }
-    },
-
-    set: function(key, value) {
-      return this._object[key] = value;
-    },
-
-    get: function(key) {
-      if (this._object[key] !== Object.prototype[key])
-        return this._object[key];
-    },
-
-    unset: function(key) {
-      var value = this._object[key];
-      delete this._object[key];
-      return value;
-    },
-
-    toObject: function() {
-      return Object.clone(this._object);
-    },
-
-    keys: function() {
-      return this.pluck('key');
-    },
-
-    values: function() {
-      return this.pluck('value');
-    },
-
-    index: function(value) {
-      var match = this.detect(function(pair) {
-        return pair.value === value;
-      });
-      return match && match.key;
-    },
-
-    merge: function(object) {
-      return this.clone().update(object);
-    },
-
-    update: function(object) {
-      return new Hash(object).inject(this, function(result, pair) {
-        result.set(pair.key, pair.value);
-        return result;
-      });
-    },
-
-    toQueryString: function() {
-      return this.inject([], function(results, pair) {
-        var key = encodeURIComponent(pair.key), values = pair.value;
-
-        if (values && typeof values == 'object') {
-          if (Object.isArray(values))
-            return results.concat(values.map(toQueryPair.curry(key)));
-        } else results.push(toQueryPair(key, values));
-        return results;
-      }).join('&');
-    },
-
-    inspect: function() {
-      return '#<Hash:{' + this.map(function(pair) {
-        return pair.map(Object.inspect).join(': ');
-      }).join(', ') + '}>';
-    },
-
-    toJSON: function() {
-      return Object.toJSON(this.toObject());
-    },
-
-    clone: function() {
-      return new Hash(this);
-    }
-  }
-})());
-
-Hash.prototype.toTemplateReplacements = Hash.prototype.toObject;
-Hash.from = $H;
-var ObjectRange = Class.create(Enumerable, {
-  initialize: function(start, end, exclusive) {
-    this.start = start;
-    this.end = end;
-    this.exclusive = exclusive;
-  },
-
-  _each: function(iterator) {
-    var value = this.start;
-    while (this.include(value)) {
-      iterator(value);
-      value = value.succ();
-    }
-  },
-
-  include: function(value) {
-    if (value < this.start)
-      return false;
-    if (this.exclusive)
-      return value < this.end;
-    return value <= this.end;
-  }
-});
-
-var $R = function(start, end, exclusive) {
-  return new ObjectRange(start, end, exclusive);
-};
-
-var Ajax = {
-  getTransport: function() {
-    return Try.these(
-      function() {return new XMLHttpRequest()},
-      function() {return new ActiveXObject('Msxml2.XMLHTTP')},
-      function() {return new ActiveXObject('Microsoft.XMLHTTP')}
-    ) || false;
-  },
-
-  activeRequestCount: 0
-};
-
-Ajax.Responders = {
-  responders: [],
-
-  _each: function(iterator) {
-    this.responders._each(iterator);
-  },
-
-  register: function(responder) {
-    if (!this.include(responder))
-      this.responders.push(responder);
-  },
-
-  unregister: function(responder) {
-    this.responders = this.responders.without(responder);
-  },
-
-  dispatch: function(callback, request, transport, json) {
-    this.each(function(responder) {
-      if (Object.isFunction(responder[callback])) {
-        try {
-          responder[callback].apply(responder, [request, transport, json]);
-        } catch (e) { }
-      }
-    });
-  }
-};
-
-Object.extend(Ajax.Responders, Enumerable);
-
-Ajax.Responders.register({
-  onCreate:   function() { Ajax.activeRequestCount++ },
-  onComplete: function() { Ajax.activeRequestCount-- }
-});
-
-Ajax.Base = Class.create({
-  initialize: function(options) {
-    this.options = {
-      method:       'post',
-      asynchronous: true,
-      contentType:  'application/x-www-form-urlencoded',
-      encoding:     'UTF-8',
-      parameters:   '',
-      evalJSON:     true,
-      evalJS:       true
-    };
-    Object.extend(this.options, options || { });
-
-    this.options.method = this.options.method.toLowerCase();
-
-    if (Object.isString(this.options.parameters))
-      this.options.parameters = this.options.parameters.toQueryParams();
-    else if (Object.isHash(this.options.parameters))
-      this.options.parameters = this.options.parameters.toObject();
-  }
-});
-
-Ajax.Request = Class.create(Ajax.Base, {
-  _complete: false,
-
-  initialize: function($super, url, options) {
-    $super(options);
-    this.transport = Ajax.getTransport();
-    this.request(url);
-  },
-
-  request: function(url) {
-    this.url = url;
-    this.method = this.options.method;
-    var params = Object.clone(this.options.parameters);
-
-    if (!['get', 'post'].include(this.method)) {
-      params['_method'] = this.method;
-      this.method = 'post';
-    }
-
-    this.parameters = params;
-
-    if (params = Object.toQueryString(params)) {
-      if (this.method == 'get')
-        this.url += (this.url.include('?') ? '&' : '?') + params;
-      else if (/Konqueror|Safari|KHTML/.test(navigator.userAgent))
-        params += '&_=';
-    }
-
-    try {
-      var response = new Ajax.Response(this);
-      if (this.options.onCreate) this.options.onCreate(response);
-      Ajax.Responders.dispatch('onCreate', this, response);
-
-      this.transport.open(this.method.toUpperCase(), this.url,
-        this.options.asynchronous);
-
-      if (this.options.asynchronous) this.respondToReadyState.bind(this).defer(1);
-
-      this.transport.onreadystatechange = this.onStateChange.bind(this);
-      this.setRequestHeaders();
-
-      this.body = this.method == 'post' ? (this.options.postBody || params) : null;
-      this.transport.send(this.body);
-
-      /* Force Firefox to handle ready state 4 for synchronous requests */
-      if (!this.options.asynchronous && this.transport.overrideMimeType)
-        this.onStateChange();
-
-    }
-    catch (e) {
-      this.dispatchException(e);
-    }
-  },
-
-  onStateChange: function() {
-    var readyState = this.transport.readyState;
-    if (readyState > 1 && !((readyState == 4) && this._complete))
-      this.respondToReadyState(this.transport.readyState);
-  },
-
-  setRequestHeaders: function() {
-    var headers = {
-      'X-Requested-With': 'XMLHttpRequest',
-      'X-Prototype-Version': Prototype.Version,
-      'Accept': 'text/javascript, text/html, application/xml, text/xml, */*'
-    };
-
-    if (this.method == 'post') {
-      headers['Content-type'] = this.options.contentType +
-        (this.options.encoding ? '; charset=' + this.options.encoding : '');
-
-      /* Force "Connection: close" for older Mozilla browsers to work
-       * around a bug where XMLHttpRequest sends an incorrect
-       * Content-length header. See Mozilla Bugzilla #246651.
-       */
-      if (this.transport.overrideMimeType &&
-          (navigator.userAgent.match(/Gecko\/(\d{4})/) || [0,2005])[1] < 2005)
-            headers['Connection'] = 'close';
-    }
-
-    if (typeof this.options.requestHeaders == 'object') {
-      var extras = this.options.requestHeaders;
-
-      if (Object.isFunction(extras.push))
-        for (var i = 0, length = extras.length; i < length; i += 2)
-          headers[extras[i]] = extras[i+1];
-      else
-        $H(extras).each(function(pair) { headers[pair.key] = pair.value });
-    }
-
-    for (var name in headers)
-      this.transport.setRequestHeader(name, headers[name]);
-  },
-
-  success: function() {
-    var status = this.getStatus();
-    return !status || (status >= 200 && status < 300);
-  },
-
-  getStatus: function() {
-    try {
-      return this.transport.status || 0;
-    } catch (e) { return 0 }
-  },
-
-  respondToReadyState: function(readyState) {
-    var state = Ajax.Request.Events[readyState], response = new Ajax.Response(this);
-
-    if (state == 'Complete') {
-      try {
-        this._complete = true;
-        (this.options['on' + response.status]
-         || this.options['on' + (this.success() ? 'Success' : 'Failure')]
-         || Prototype.emptyFunction)(response, response.headerJSON);
-      } catch (e) {
-        this.dispatchException(e);
-      }
-
-      var contentType = response.getHeader('Content-type');
-      if (this.options.evalJS == 'force'
-          || (this.options.evalJS && this.isSameOrigin() && contentType
-          && contentType.match(/^\s*(text|application)\/(x-)?(java|ecma)script(;.*)?\s*$/i)))
-        this.evalResponse();
-    }
-
-    try {
-      (this.options['on' + state] || Prototype.emptyFunction)(response, response.headerJSON);
-      Ajax.Responders.dispatch('on' + state, this, response, response.headerJSON);
-    } catch (e) {
-      this.dispatchException(e);
-    }
-
-    if (state == 'Complete') {
-      this.transport.onreadystatechange = Prototype.emptyFunction;
-    }
-  },
-
-  isSameOrigin: function() {
-    var m = this.url.match(/^\s*https?:\/\/[^\/]*/);
-    return !m || (m[0] == '#{protocol}//#{domain}#{port}'.interpolate({
-      protocol: location.protocol,
-      domain: document.domain,
-      port: location.port ? ':' + location.port : ''
-    }));
-  },
-
-  getHeader: function(name) {
-    try {
-      return this.transport.getResponseHeader(name) || null;
-    } catch (e) { return null }
-  },
-
-  evalResponse: function() {
-    try {
-      return eval((this.transport.responseText || '').unfilterJSON());
-    } catch (e) {
-      this.dispatchException(e);
-    }
-  },
-
-  dispatchException: function(exception) {
-    (this.options.onException || Prototype.emptyFunction)(this, exception);
-    Ajax.Responders.dispatch('onException', this, exception);
-  }
-});
-
-Ajax.Request.Events =
-  ['Uninitialized', 'Loading', 'Loaded', 'Interactive', 'Complete'];
-
-Ajax.Response = Class.create({
-  initialize: function(request){
-    this.request = request;
-    var transport  = this.transport  = request.transport,
-        readyState = this.readyState = transport.readyState;
-
-    if((readyState > 2 && !Prototype.Browser.IE) || readyState == 4) {
-      this.status       = this.getStatus();
-      this.statusText   = this.getStatusText();
-      this.responseText = String.interpret(transport.responseText);
-      this.headerJSON   = this._getHeaderJSON();
-    }
-
-    if(readyState == 4) {
-      var xml = transport.responseXML;
-      this.responseXML  = Object.isUndefined(xml) ? null : xml;
-      this.responseJSON = this._getResponseJSON();
-    }
-  },
-
-  status:      0,
-  statusText: '',
-
-  getStatus: Ajax.Request.prototype.getStatus,
-
-  getStatusText: function() {
-    try {
-      return this.transport.statusText || '';
-    } catch (e) { return '' }
-  },
-
-  getHeader: Ajax.Request.prototype.getHeader,
-
-  getAllHeaders: function() {
-    try {
-      return this.getAllResponseHeaders();
-    } catch (e) { return null }
-  },
-
-  getResponseHeader: function(name) {
-    return this.transport.getResponseHeader(name);
-  },
-
-  getAllResponseHeaders: function() {
-    return this.transport.getAllResponseHeaders();
-  },
-
-  _getHeaderJSON: function() {
-    var json = this.getHeader('X-JSON');
-    if (!json) return null;
-    json = decodeURIComponent(escape(json));
-    try {
-      return json.evalJSON(this.request.options.sanitizeJSON ||
-        !this.request.isSameOrigin());
-    } catch (e) {
-      this.request.dispatchException(e);
-    }
-  },
-
-  _getResponseJSON: function() {
-    var options = this.request.options;
-    if (!options.evalJSON || (options.evalJSON != 'force' &&
-      !(this.getHeader('Content-type') || '').include('application/json')) ||
-        this.responseText.blank())
-          return null;
-    try {
-      return this.responseText.evalJSON(options.sanitizeJSON ||
-        !this.request.isSameOrigin());
-    } catch (e) {
-      this.request.dispatchException(e);
-    }
-  }
-});
-
-Ajax.Updater = Class.create(Ajax.Request, {
-  initialize: function($super, container, url, options) {
-    this.container = {
-      success: (container.success || container),
-      failure: (container.failure || (container.success ? null : container))
-    };
-
-    options = Object.clone(options);
-    var onComplete = options.onComplete;
-    options.onComplete = (function(response, json) {
-      this.updateContent(response.responseText);
-      if (Object.isFunction(onComplete)) onComplete(response, json);
-    }).bind(this);
-
-    $super(url, options);
-  },
-
-  updateContent: function(responseText) {
-    var receiver = this.container[this.success() ? 'success' : 'failure'],
-        options = this.options;
-
-    if (!options.evalScripts) responseText = responseText.stripScripts();
-
-    if (receiver = $(receiver)) {
-      if (options.insertion) {
-        if (Object.isString(options.insertion)) {
-          var insertion = { }; insertion[options.insertion] = responseText;
-          receiver.insert(insertion);
-        }
-        else options.insertion(receiver, responseText);
-      }
-      else receiver.update(responseText);
-    }
-  }
-});
-
-Ajax.PeriodicalUpdater = Class.create(Ajax.Base, {
-  initialize: function($super, container, url, options) {
-    $super(options);
-    this.onComplete = this.options.onComplete;
-
-    this.frequency = (this.options.frequency || 2);
-    this.decay = (this.options.decay || 1);
-
-    this.updater = { };
-    this.container = container;
-    this.url = url;
-
-    this.start();
-  },
-
-  start: function() {
-    this.options.onComplete = this.updateComplete.bind(this);
-    this.onTimerEvent();
-  },
-
-  stop: function() {
-    this.updater.options.onComplete = undefined;
-    clearTimeout(this.timer);
-    (this.onComplete || Prototype.emptyFunction).apply(this, arguments);
-  },
-
-  updateComplete: function(response) {
-    if (this.options.decay) {
-      this.decay = (response.responseText == this.lastText ?
-        this.decay * this.options.decay : 1);
-
-      this.lastText = response.responseText;
-    }
-    this.timer = this.onTimerEvent.bind(this).delay(this.decay * this.frequency);
-  },
-
-  onTimerEvent: function() {
-    this.updater = new Ajax.Updater(this.container, this.url, this.options);
-  }
-});
-function $(element) {
-  if (arguments.length > 1) {
-    for (var i = 0, elements = [], length = arguments.length; i < length; i++)
-      elements.push($(arguments[i]));
-    return elements;
-  }
-  if (Object.isString(element))
-    element = document.getElementById(element);
-  return Element.extend(element);
-}
-
-if (Prototype.BrowserFeatures.XPath) {
-  document._getElementsByXPath = function(expression, parentElement) {
-    var results = [];
-    var query = document.evaluate(expression, $(parentElement) || document,
-      null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
-    for (var i = 0, length = query.snapshotLength; i < length; i++)
-      results.push(Element.extend(query.snapshotItem(i)));
-    return results;
-  };
-}
-
-/*--------------------------------------------------------------------------*/
-
-if (!window.Node) var Node = { };
-
-if (!Node.ELEMENT_NODE) {
-  Object.extend(Node, {
-    ELEMENT_NODE: 1,
-    ATTRIBUTE_NODE: 2,
-    TEXT_NODE: 3,
-    CDATA_SECTION_NODE: 4,
-    ENTITY_REFERENCE_NODE: 5,
-    ENTITY_NODE: 6,
-    PROCESSING_INSTRUCTION_NODE: 7,
-    COMMENT_NODE: 8,
-    DOCUMENT_NODE: 9,
-    DOCUMENT_TYPE_NODE: 10,
-    DOCUMENT_FRAGMENT_NODE: 11,
-    NOTATION_NODE: 12
-  });
-}
-
-(function() {
-  var element = this.Element;
-  this.Element = function(tagName, attributes) {
-    attributes = attributes || { };
-    tagName = tagName.toLowerCase();
-    var cache = Element.cache;
-    if (Prototype.Browser.IE && attributes.name) {
-      tagName = '<' + tagName + ' name="' + attributes.name + '">';
-      delete attributes.name;
-      return Element.writeAttribute(document.createElement(tagName), attributes);
-    }
-    if (!cache[tagName]) cache[tagName] = Element.extend(document.createElement(tagName));
-    return Element.writeAttribute(cache[tagName].cloneNode(false), attributes);
-  };
-  Object.extend(this.Element, element || { });
-  if (element) this.Element.prototype = element.prototype;
-}).call(window);
-
-Element.cache = { };
-
-Element.Methods = {
-  visible: function(element) {
-    return $(element).style.display != 'none';
-  },
-
-  toggle: function(element) {
-    element = $(element);
-    Element[Element.visible(element) ? 'hide' : 'show'](element);
-    return element;
-  },
-
-  hide: function(element) {
-    element = $(element);
-    element.style.display = 'none';
-    return element;
-  },
-
-  show: function(element) {
-    element = $(element);
-    element.style.display = '';
-    return element;
-  },
-
-  remove: function(element) {
-    element = $(element);
-    element.parentNode.removeChild(element);
-    return element;
-  },
-
-  update: function(element, content) {
-    element = $(element);
-    if (content && content.toElement) content = content.toElement();
-    if (Object.isElement(content)) return element.update().insert(content);
-    content = Object.toHTML(content);
-    element.innerHTML = content.stripScripts();
-    content.evalScripts.bind(content).defer();
-    return element;
-  },
-
-  replace: function(element, content) {
-    element = $(element);
-    if (content && content.toElement) content = content.toElement();
-    else if (!Object.isElement(content)) {
-      content = Object.toHTML(content);
-      var range = element.ownerDocument.createRange();
-      range.selectNode(element);
-      content.evalScripts.bind(content).defer();
-      content = range.createContextualFragment(content.stripScripts());
-    }
-    element.parentNode.replaceChild(content, element);
-    return element;
-  },
-
-  insert: function(element, insertions) {
-    element = $(element);
-
-    if (Object.isString(insertions) || Object.isNumber(insertions) ||
-        Object.isElement(insertions) || (insertions && (insertions.toElement || insertions.toHTML)))
-          insertions = {bottom:insertions};
-
-    var content, insert, tagName, childNodes;
-
-    for (var position in insertions) {
-      content  = insertions[position];
-      position = position.toLowerCase();
-      insert = Element._insertionTranslations[position];
-
-      if (content && content.toElement) content = content.toElement();
-      if (Object.isElement(content)) {
-        insert(element, content);
-        continue;
-      }
-
-      content = Object.toHTML(content);
-
-      tagName = ((position == 'before' || position == 'after')
-        ? element.parentNode : element).tagName.toUpperCase();
-
-      childNodes = Element._getContentFromAnonymousElement(tagName, content.stripScripts());
-
-      if (position == 'top' || position == 'after') childNodes.reverse();
-      childNodes.each(insert.curry(element));
-
-      content.evalScripts.bind(content).defer();
-    }
-
-    return element;
-  },
-
-  wrap: function(element, wrapper, attributes) {
-    element = $(element);
-    if (Object.isElement(wrapper))
-      $(wrapper).writeAttribute(attributes || { });
-    else if (Object.isString(wrapper)) wrapper = new Element(wrapper, attributes);
-    else wrapper = new Element('div', wrapper);
-    if (element.parentNode)
-      element.parentNode.replaceChild(wrapper, element);
-    wrapper.appendChild(element);
-    return wrapper;
-  },
-
-  inspect: function(element) {
-    element = $(element);
-    var result = '<' + element.tagName.toLowerCase();
-    $H({'id': 'id', 'className': 'class'}).each(function(pair) {
-      var property = pair.first(), attribute = pair.last();
-      var value = (element[property] || '').toString();
-      if (value) result += ' ' + attribute + '=' + value.inspect(true);
-    });
-    return result + '>';
-  },
-
-  recursivelyCollect: function(element, property) {
-    element = $(element);
-    var elements = [];
-    while (element = element[property])
-      if (element.nodeType == 1)
-        elements.push(Element.extend(element));
-    return elements;
-  },
-
-  ancestors: function(element) {
-    return $(element).recursivelyCollect('parentNode');
-  },
-
-  descendants: function(element) {
-    return $(element).select("*");
-  },
-
-  firstDescendant: function(element) {
-    element = $(element).firstChild;
-    while (element && element.nodeType != 1) element = element.nextSibling;
-    return $(element);
-  },
-
-  immediateDescendants: function(element) {
-    if (!(element = $(element).firstChild)) return [];
-    while (element && element.nodeType != 1) element = element.nextSibling;
-    if (element) return [element].concat($(element).nextSiblings());
-    return [];
-  },
-
-  previousSiblings: function(element) {
-    return $(element).recursivelyCollect('previousSibling');
-  },
-
-  nextSiblings: function(element) {
-    return $(element).recursivelyCollect('nextSibling');
-  },
-
-  siblings: function(element) {
-    element = $(element);
-    return element.previousSiblings().reverse().concat(element.nextSiblings());
-  },
-
-  match: function(element, selector) {
-    if (Object.isString(selector))
-      selector = new Selector(selector);
-    return selector.match($(element));
-  },
-
-  up: function(element, expression, index) {
-    element = $(element);
-    if (arguments.length == 1) return $(element.parentNode);
-    var ancestors = element.ancestors();
-    return Object.isNumber(expression) ? ancestors[expression] :
-      Selector.findElement(ancestors, expression, index);
-  },
-
-  down: function(element, expression, index) {
-    element = $(element);
-    if (arguments.length == 1) return element.firstDescendant();
-    return Object.isNumber(expression) ? element.descendants()[expression] :
-      Element.select(element, expression)[index || 0];
-  },
-
-  previous: function(element, expression, index) {
-    element = $(element);
-    if (arguments.length == 1) return $(Selector.handlers.previousElementSibling(element));
-    var previousSiblings = element.previousSiblings();
-    return Object.isNumber(expression) ? previousSiblings[expression] :
-      Selector.findElement(previousSiblings, expression, index);
-  },
-
-  next: function(element, expression, index) {
-    element = $(element);
-    if (arguments.length == 1) return $(Selector.handlers.nextElementSibling(element));
-    var nextSiblings = element.nextSiblings();
-    return Object.isNumber(expression) ? nextSiblings[expression] :
-      Selector.findElement(nextSiblings, expression, index);
-  },
-
-  select: function() {
-    var args = $A(arguments), element = $(args.shift());
-    return Selector.findChildElements(element, args);
-  },
-
-  adjacent: function() {
-    var args = $A(arguments), element = $(args.shift());
-    return Selector.findChildElements(element.parentNode, args).without(element);
-  },
-
-  identify: function(element) {
-    element = $(element);
-    var id = element.readAttribute('id'), self = arguments.callee;
-    if (id) return id;
-    do { id = 'anonymous_element_' + self.counter++ } while ($(id));
-    element.writeAttribute('id', id);
-    return id;
-  },
-
-  readAttribute: function(element, name) {
-    element = $(element);
-    if (Prototype.Browser.IE) {
-      var t = Element._attributeTranslations.read;
-      if (t.values[name]) return t.values[name](element, name);
-      if (t.names[name]) name = t.names[name];
-      if (name.include(':')) {
-        return (!element.attributes || !element.attributes[name]) ? null :
-         element.attributes[name].value;
-      }
-    }
-    return element.getAttribute(name);
-  },
-
-  writeAttribute: function(element, name, value) {
-    element = $(element);
-    var attributes = { }, t = Element._attributeTranslations.write;
-
-    if (typeof name == 'object') attributes = name;
-    else attributes[name] = Object.isUndefined(value) ? true : value;
-
-    for (var attr in attributes) {
-      name = t.names[attr] || attr;
-      value = attributes[attr];
-      if (t.values[attr]) name = t.values[attr](element, value);
-      if (value === false || value === null)
-        element.removeAttribute(name);
-      else if (value === true)
-        element.setAttribute(name, name);
-      else element.setAttribute(name, value);
-    }
-    return element;
-  },
-
-  getHeight: function(element) {
-    return $(element).getDimensions().height;
-  },
-
-  getWidth: function(element) {
-    return $(element).getDimensions().width;
-  },
-
-  classNames: function(element) {
-    return new Element.ClassNames(element);
-  },
-
-  hasClassName: function(element, className) {
-    if (!(element = $(element))) return;
-    var elementClassName = element.className;
-    return (elementClassName.length > 0 && (elementClassName == className ||
-      new RegExp("(^|\\s)" + className + "(\\s|$)").test(elementClassName)));
-  },
-
-  addClassName: function(element, className) {
-    if (!(element = $(element))) return;
-    if (!element.hasClassName(className))
-      element.className += (element.className ? ' ' : '') + className;
-    return element;
-  },
-
-  removeClassName: function(element, className) {
-    if (!(element = $(element))) return;
-    element.className = element.className.replace(
-      new RegExp("(^|\\s+)" + className + "(\\s+|$)"), ' ').strip();
-    return element;
-  },
-
-  toggleClassName: function(element, className) {
-    if (!(element = $(element))) return;
-    return element[element.hasClassName(className) ?
-      'removeClassName' : 'addClassName'](className);
-  },
-
-  cleanWhitespace: function(element) {
-    element = $(element);
-    var node = element.firstChild;
-    while (node) {
-      var nextNode = node.nextSibling;
-      if (node.nodeType == 3 && !/\S/.test(node.nodeValue))
-        element.removeChild(node);
-      node = nextNode;
-    }
-    return element;
-  },
-
-  empty: function(element) {
-    return $(element).innerHTML.blank();
-  },
-
-  descendantOf: function(element, ancestor) {
-    element = $(element), ancestor = $(ancestor);
-
-    if (element.compareDocumentPosition)
-      return (element.compareDocumentPosition(ancestor) & 8) === 8;
-
-    if (ancestor.contains)
-      return ancestor.contains(element) && ancestor !== element;
-
-    while (element = element.parentNode)
-      if (element == ancestor) return true;
-
-    return false;
-  },
-
-  scrollTo: function(element) {
-    element = $(element);
-    var pos = element.cumulativeOffset();
-    window.scrollTo(pos[0], pos[1]);
-    return element;
-  },
-
-  getStyle: function(element, style) {
-    element = $(element);
-    style = style == 'float' ? 'cssFloat' : style.camelize();
-    var value = element.style[style];
-    if (!value || value == 'auto') {
-      var css = document.defaultView.getComputedStyle(element, null);
-      value = css ? css[style] : null;
-    }
-    if (style == 'opacity') return value ? parseFloat(value) : 1.0;
-    return value == 'auto' ? null : value;
-  },
-
-  getOpacity: function(element) {
-    return $(element).getStyle('opacity');
-  },
-
-  setStyle: function(element, styles) {
-    element = $(element);
-    var elementStyle = element.style, match;
-    if (Object.isString(styles)) {
-      element.style.cssText += ';' + styles;
-      return styles.include('opacity') ?
-        element.setOpacity(styles.match(/opacity:\s*(\d?\.?\d*)/)[1]) : element;
-    }
-    for (var property in styles)
-      if (property == 'opacity') element.setOpacity(styles[property]);
-      else
-        elementStyle[(property == 'float' || property == 'cssFloat') ?
-          (Object.isUndefined(elementStyle.styleFloat) ? 'cssFloat' : 'styleFloat') :
-            property] = styles[property];
-
-    return element;
-  },
-
-  setOpacity: function(element, value) {
-    element = $(element);
-    element.style.opacity = (value == 1 || value === '') ? '' :
-      (value < 0.00001) ? 0 : value;
-    return element;
-  },
-
-  getDimensions: function(element) {
-    element = $(element);
-    var display = element.getStyle('display');
-    if (display != 'none' && display != null) // Safari bug
-      return {width: element.offsetWidth, height: element.offsetHeight};
-
-    var els = element.style;
-    var originalVisibility = els.visibility;
-    var originalPosition = els.position;
-    var originalDisplay = els.display;
-    els.visibility = 'hidden';
-    els.position = 'absolute';
-    els.display = 'block';
-    var originalWidth = element.clientWidth;
-    var originalHeight = element.clientHeight;
-    els.display = originalDisplay;
-    els.position = originalPosition;
-    els.visibility = originalVisibility;
-    return {width: originalWidth, height: originalHeight};
-  },
-
-  makePositioned: function(element) {
-    element = $(element);
-    var pos = Element.getStyle(element, 'position');
-    if (pos == 'static' || !pos) {
-      element._madePositioned = true;
-      element.style.position = 'relative';
-      if (Prototype.Browser.Opera) {
-        element.style.top = 0;
-        element.style.left = 0;
-      }
-    }
-    return element;
-  },
-
-  undoPositioned: function(element) {
-    element = $(element);
-    if (element._madePositioned) {
-      element._madePositioned = undefined;
-      element.style.position =
-        element.style.top =
-        element.style.left =
-        element.style.bottom =
-        element.style.right = '';
-    }
-    return element;
-  },
-
-  makeClipping: function(element) {
-    element = $(element);
-    if (element._overflow) return element;
-    element._overflow = Element.getStyle(element, 'overflow') || 'auto';
-    if (element._overflow !== 'hidden')
-      element.style.overflow = 'hidden';
-    return element;
-  },
-
-  undoClipping: function(element) {
-    element = $(element);
-    if (!element._overflow) return element;
-    element.style.overflow = element._overflow == 'auto' ? '' : element._overflow;
-    element._overflow = null;
-    return element;
-  },
-
-  cumulativeOffset: function(element) {
-    var valueT = 0, valueL = 0;
-    do {
-      valueT += element.offsetTop  || 0;
-      valueL += element.offsetLeft || 0;
-      element = element.offsetParent;
-    } while (element);
-    return Element._returnOffset(valueL, valueT);
-  },
-
-  positionedOffset: function(element) {
-    var valueT = 0, valueL = 0;
-    do {
-      valueT += element.offsetTop  || 0;
-      valueL += element.offsetLeft || 0;
-      element = element.offsetParent;
-      if (element) {
-        if (element.tagName.toUpperCase() == 'BODY') break;
-        var p = Element.getStyle(element, 'position');
-        if (p !== 'static') break;
-      }
-    } while (element);
-    return Element._returnOffset(valueL, valueT);
-  },
-
-  absolutize: function(element) {
-    element = $(element);
-    if (element.getStyle('position') == 'absolute') return element;
-
-    var offsets = element.positionedOffset();
-    var top     = offsets[1];
-    var left    = offsets[0];
-    var width   = element.clientWidth;
-    var height  = element.clientHeight;
-
-    element._originalLeft   = left - parseFloat(element.style.left  || 0);
-    element._originalTop    = top  - parseFloat(element.style.top || 0);
-    element._originalWidth  = element.style.width;
-    element._originalHeight = element.style.height;
-
-    element.style.position = 'absolute';
-    element.style.top    = top + 'px';
-    element.style.left   = left + 'px';
-    element.style.width  = width + 'px';
-    element.style.height = height + 'px';
-    return element;
-  },
-
-  relativize: function(element) {
-    element = $(element);
-    if (element.getStyle('position') == 'relative') return element;
-
-    element.style.position = 'relative';
-    var top  = parseFloat(element.style.top  || 0) - (element._originalTop || 0);
-    var left = parseFloat(element.style.left || 0) - (element._originalLeft || 0);
-
-    element.style.top    = top + 'px';
-    element.style.left   = left + 'px';
-    element.style.height = element._originalHeight;
-    element.style.width  = element._originalWidth;
-    return element;
-  },
-
-  cumulativeScrollOffset: function(element) {
-    var valueT = 0, valueL = 0;
-    do {
-      valueT += element.scrollTop  || 0;
-      valueL += element.scrollLeft || 0;
-      element = element.parentNode;
-    } while (element);
-    return Element._returnOffset(valueL, valueT);
-  },
-
-  getOffsetParent: function(element) {
-    if (element.offsetParent) return $(element.offsetParent);
-    if (element == document.body) return $(element);
-
-    while ((element = element.parentNode) && element != document.body)
-      if (Element.getStyle(element, 'position') != 'static')
-        return $(element);
-
-    return $(document.body);
-  },
-
-  viewportOffset: function(forElement) {
-    var valueT = 0, valueL = 0;
-
-    var element = forElement;
-    do {
-      valueT += element.offsetTop  || 0;
-      valueL += element.offsetLeft || 0;
-
-      if (element.offsetParent == document.body &&
-        Element.getStyle(element, 'position') == 'absolute') break;
-
-    } while (element = element.offsetParent);
-
-    element = forElement;
-    do {
-      if (!Prototype.Browser.Opera || (element.tagName && (element.tagName.toUpperCase() == 'BODY'))) {
-        valueT -= element.scrollTop  || 0;
-        valueL -= element.scrollLeft || 0;
-      }
-    } while (element = element.parentNode);
-
-    return Element._returnOffset(valueL, valueT);
-  },
-
-  clonePosition: function(element, source) {
-    var options = Object.extend({
-      setLeft:    true,
-      setTop:     true,
-      setWidth:   true,
-      setHeight:  true,
-      offsetTop:  0,
-      offsetLeft: 0
-    }, arguments[2] || { });
-
-    source = $(source);
-    var p = source.viewportOffset();
-
-    element = $(element);
-    var delta = [0, 0];
-    var parent = null;
-    if (Element.getStyle(element, 'position') == 'absolute') {
-      parent = element.getOffsetParent();
-      delta = parent.viewportOffset();
-    }
-
-    if (parent == document.body) {
-      delta[0] -= document.body.offsetLeft;
-      delta[1] -= document.body.offsetTop;
-    }
-
-    if (options.setLeft)   element.style.left  = (p[0] - delta[0] + options.offsetLeft) + 'px';
-    if (options.setTop)    element.style.top   = (p[1] - delta[1] + options.offsetTop) + 'px';
-    if (options.setWidth)  element.style.width = source.offsetWidth + 'px';
-    if (options.setHeight) element.style.height = source.offsetHeight + 'px';
-    return element;
-  }
-};
-
-Element.Methods.identify.counter = 1;
-
-Object.extend(Element.Methods, {
-  getElementsBySelector: Element.Methods.select,
-  childElements: Element.Methods.immediateDescendants
-});
-
-Element._attributeTranslations = {
-  write: {
-    names: {
-      className: 'class',
-      htmlFor:   'for'
-    },
-    values: { }
-  }
-};
-
-if (Prototype.Browser.Opera) {
-  Element.Methods.getStyle = Element.Methods.getStyle.wrap(
-    function(proceed, element, style) {
-      switch (style) {
-        case 'left': case 'top': case 'right': case 'bottom':
-          if (proceed(element, 'position') === 'static') return null;
-        case 'height': case 'width':
-          if (!Element.visible(element)) return null;
-
-          var dim = parseInt(proceed(element, style), 10);
-
-          if (dim !== element['offset' + style.capitalize()])
-            return dim + 'px';
-
-          var properties;
-          if (style === 'height') {
-            properties = ['border-top-width', 'padding-top',
-             'padding-bottom', 'border-bottom-width'];
-          }
-          else {
-            properties = ['border-left-width', 'padding-left',
-             'padding-right', 'border-right-width'];
-          }
-          return properties.inject(dim, function(memo, property) {
-            var val = proceed(element, property);
-            return val === null ? memo : memo - parseInt(val, 10);
-          }) + 'px';
-        default: return proceed(element, style);
-      }
-    }
-  );
-
-  Element.Methods.readAttribute = Element.Methods.readAttribute.wrap(
-    function(proceed, element, attribute) {
-      if (attribute === 'title') return element.title;
-      return proceed(element, attribute);
-    }
-  );
-}
-
-else if (Prototype.Browser.IE) {
-  Element.Methods.getOffsetParent = Element.Methods.getOffsetParent.wrap(
-    function(proceed, element) {
-      element = $(element);
-      try { element.offsetParent }
-      catch(e) { return $(document.body) }
-      var position = element.getStyle('position');
-      if (position !== 'static') return proceed(element);
-      element.setStyle({ position: 'relative' });
-      var value = proceed(element);
-      element.setStyle({ position: position });
-      return value;
-    }
-  );
-
-  $w('positionedOffset viewportOffset').each(function(method) {
-    Element.Methods[method] = Element.Methods[method].wrap(
-      function(proceed, element) {
-        element = $(element);
-        try { element.offsetParent }
-        catch(e) { return Element._returnOffset(0,0) }
-        var position = element.getStyle('position');
-        if (position !== 'static') return proceed(element);
-        var offsetParent = element.getOffsetParent();
-        if (offsetParent && offsetParent.getStyle('position') === 'fixed')
-          offsetParent.setStyle({ zoom: 1 });
-        element.setStyle({ position: 'relative' });
-        var value = proceed(element);
-        element.setStyle({ position: position });
-        return value;
-      }
-    );
-  });
-
-  Element.Methods.cumulativeOffset = Element.Methods.cumulativeOffset.wrap(
-    function(proceed, element) {
-      try { element.offsetParent }
-      catch(e) { return Element._returnOffset(0,0) }
-      return proceed(element);
-    }
-  );
-
-  Element.Methods.getStyle = function(element, style) {
-    element = $(element);
-    style = (style == 'float' || style == 'cssFloat') ? 'styleFloat' : style.camelize();
-    var value = element.style[style];
-    if (!value && element.currentStyle) value = element.currentStyle[style];
-
-    if (style == 'opacity') {
-      if (value = (element.getStyle('filter') || '').match(/alpha\(opacity=(.*)\)/))
-        if (value[1]) return parseFloat(value[1]) / 100;
-      return 1.0;
-    }
-
-    if (value == 'auto') {
-      if ((style == 'width' || style == 'height') && (element.getStyle('display') != 'none'))
-        return element['offset' + style.capitalize()] + 'px';
-      return null;
-    }
-    return value;
-  };
-
-  Element.Methods.setOpacity = function(element, value) {
-    function stripAlpha(filter){
-      return filter.replace(/alpha\([^\)]*\)/gi,'');
-    }
-    element = $(element);
-    var currentStyle = element.currentStyle;
-    if ((currentStyle && !currentStyle.hasLayout) ||
-      (!currentStyle && element.style.zoom == 'normal'))
-        element.style.zoom = 1;
-
-    var filter = element.getStyle('filter'), style = element.style;
-    if (value == 1 || value === '') {
-      (filter = stripAlpha(filter)) ?
-        style.filter = filter : style.removeAttribute('filter');
-      return element;
-    } else if (value < 0.00001) value = 0;
-    style.filter = stripAlpha(filter) +
-      'alpha(opacity=' + (value * 100) + ')';
-    return element;
-  };
-
-  Element._attributeTranslations = {
-    read: {
-      names: {
-        'class': 'className',
-        'for':   'htmlFor'
-      },
-      values: {
-        _getAttr: function(element, attribute) {
-          return element.getAttribute(attribute, 2);
-        },
-        _getAttrNode: function(element, attribute) {
-          var node = element.getAttributeNode(attribute);
-          return node ? node.value : "";
-        },
-        _getEv: function(element, attribute) {
-          attribute = element.getAttribute(attribute);
-          return attribute ? attribute.toString().slice(23, -2) : null;
-        },
-        _flag: function(element, attribute) {
-          return $(element).hasAttribute(attribute) ? attribute : null;
-        },
-        style: function(element) {
-          return element.style.cssText.toLowerCase();
-        },
-        title: function(element) {
-          return element.title;
-        }
-      }
-    }
-  };
-
-  Element._attributeTranslations.write = {
-    names: Object.extend({
-      cellpadding: 'cellPadding',
-      cellspacing: 'cellSpacing'
-    }, Element._attributeTranslations.read.names),
-    values: {
-      checked: function(element, value) {
-        element.checked = !!value;
-      },
-
-      style: function(element, value) {
-        element.style.cssText = value ? value : '';
-      }
-    }
-  };
-
-  Element._attributeTranslations.has = {};
-
-  $w('colSpan rowSpan vAlign dateTime accessKey tabIndex ' +
-      'encType maxLength readOnly longDesc frameBorder').each(function(attr) {
-    Element._attributeTranslations.write.names[attr.toLowerCase()] = attr;
-    Element._attributeTranslations.has[attr.toLowerCase()] = attr;
-  });
-
-  (function(v) {
-    Object.extend(v, {
-      href:        v._getAttr,
-      src:         v._getAttr,
-      type:        v._getAttr,
-      action:      v._getAttrNode,
-      disabled:    v._flag,
-      checked:     v._flag,
-      readonly:    v._flag,
-      multiple:    v._flag,
-      onload:      v._getEv,
-      onunload:    v._getEv,
-      onclick:     v._getEv,
-      ondblclick:  v._getEv,
-      onmousedown: v._getEv,
-      onmouseup:   v._getEv,
-      onmouseover: v._getEv,
-      onmousemove: v._getEv,
-      onmouseout:  v._getEv,
-      onfocus:     v._getEv,
-      onblur:      v._getEv,
-      onkeypress:  v._getEv,
-      onkeydown:   v._getEv,
-      onkeyup:     v._getEv,
-      onsubmit:    v._getEv,
-      onreset:     v._getEv,
-      onselect:    v._getEv,
-      onchange:    v._getEv
-    });
-  })(Element._attributeTranslations.read.values);
-}
-
-else if (Prototype.Browser.Gecko && /rv:1\.8\.0/.test(navigator.userAgent)) {
-  Element.Methods.setOpacity = function(element, value) {
-    element = $(element);
-    element.style.opacity = (value == 1) ? 0.999999 :
-      (value === '') ? '' : (value < 0.00001) ? 0 : value;
-    return element;
-  };
-}
-
-else if (Prototype.Browser.WebKit) {
-  Element.Methods.setOpacity = function(element, value) {
-    element = $(element);
-    element.style.opacity = (value == 1 || value === '') ? '' :
-      (value < 0.00001) ? 0 : value;
-
-    if (value == 1)
-      if(element.tagName.toUpperCase() == 'IMG' && element.width) {
-        element.width++; element.width--;
-      } else try {
-        var n = document.createTextNode(' ');
-        element.appendChild(n);
-        element.removeChild(n);
-      } catch (e) { }
-
-    return element;
-  };
-
-  Element.Methods.cumulativeOffset = function(element) {
-    var valueT = 0, valueL = 0;
-    do {
-      valueT += element.offsetTop  || 0;
-      valueL += element.offsetLeft || 0;
-      if (element.offsetParent == document.body)
-        if (Element.getStyle(element, 'position') == 'absolute') break;
-
-      element = element.offsetParent;
-    } while (element);
-
-    return Element._returnOffset(valueL, valueT);
-  };
-}
-
-if (Prototype.Browser.IE || Prototype.Browser.Opera) {
-  Element.Methods.update = function(element, content) {
-    element = $(element);
-
-    if (content && content.toElement) content = content.toElement();
-    if (Object.isElement(content)) return element.update().insert(content);
-
-    content = Object.toHTML(content);
-    var tagName = element.tagName.toUpperCase();
-
-    if (tagName in Element._insertionTranslations.tags) {
-      $A(element.childNodes).each(function(node) { element.removeChild(node) });
-      Element._getContentFromAnonymousElement(tagName, content.stripScripts())
-        .each(function(node) { element.appendChild(node) });
-    }
-    else element.innerHTML = content.stripScripts();
-
-    content.evalScripts.bind(content).defer();
-    return element;
-  };
-}
-
-if ('outerHTML' in document.createElement('div')) {
-  Element.Methods.replace = function(element, content) {
-    element = $(element);
-
-    if (content && content.toElement) content = content.toElement();
-    if (Object.isElement(content)) {
-      element.parentNode.replaceChild(content, element);
-      return element;
-    }
-
-    content = Object.toHTML(content);
-    var parent = element.parentNode, tagName = parent.tagName.toUpperCase();
-
-    if (Element._insertionTranslations.tags[tagName]) {
-      var nextSibling = element.next();
-      var fragments = Element._getContentFromAnonymousElement(tagName, content.stripScripts());
-      parent.removeChild(element);
-      if (nextSibling)
-        fragments.each(function(node) { parent.insertBefore(node, nextSibling) });
-      else
-        fragments.each(function(node) { parent.appendChild(node) });
-    }
-    else element.outerHTML = content.stripScripts();
-
-    content.evalScripts.bind(content).defer();
-    return element;
-  };
-}
-
-Element._returnOffset = function(l, t) {
-  var result = [l, t];
-  result.left = l;
-  result.top = t;
-  return result;
-};
-
-Element._getContentFromAnonymousElement = function(tagName, html) {
-  var div = new Element('div'), t = Element._insertionTranslations.tags[tagName];
-  if (t) {
-    div.innerHTML = t[0] + html + t[1];
-    t[2].times(function() { div = div.firstChild });
-  } else div.innerHTML = html;
-  return $A(div.childNodes);
-};
-
-Element._insertionTranslations = {
-  before: function(element, node) {
-    element.parentNode.insertBefore(node, element);
-  },
-  top: function(element, node) {
-    element.insertBefore(node, element.firstChild);
-  },
-  bottom: function(element, node) {
-    element.appendChild(node);
-  },
-  after: function(element, node) {
-    element.parentNode.insertBefore(node, element.nextSibling);
-  },
-  tags: {
-    TABLE:  ['<table>',                '</table>',                   1],
-    TBODY:  ['<table><tbody>',         '</tbody></table>',           2],
-    TR:     ['<table><tbody><tr>',     '</tr></tbody></table>',      3],
-    TD:     ['<table><tbody><tr><td>', '</td></tr></tbody></table>', 4],
-    SELECT: ['<select>',               '</select>',                  1]
-  }
-};
-
-(function() {
-  Object.extend(this.tags, {
-    THEAD: this.tags.TBODY,
-    TFOOT: this.tags.TBODY,
-    TH:    this.tags.TD
-  });
-}).call(Element._insertionTranslations);
-
-Element.Methods.Simulated = {
-  hasAttribute: function(element, attribute) {
-    attribute = Element._attributeTranslations.has[attribute] || attribute;
-    var node = $(element).getAttributeNode(attribute);
-    return !!(node && node.specified);
-  }
-};
-
-Element.Methods.ByTag = { };
-
-Object.extend(Element, Element.Methods);
-
-if (!Prototype.BrowserFeatures.ElementExtensions &&
-    document.createElement('div')['__proto__']) {
-  window.HTMLElement = { };
-  window.HTMLElement.prototype = document.createElement('div')['__proto__'];
-  Prototype.BrowserFeatures.ElementExtensions = true;
-}
-
-Element.extend = (function() {
-  if (Prototype.BrowserFeatures.SpecificElementExtensions)
-    return Prototype.K;
-
-  var Methods = { }, ByTag = Element.Methods.ByTag;
-
-  var extend = Object.extend(function(element) {
-    if (!element || element._extendedByPrototype ||
-        element.nodeType != 1 || element == window) return element;
-
-    var methods = Object.clone(Methods),
-      tagName = element.tagName.toUpperCase(), property, value;
-
-    if (ByTag[tagName]) Object.extend(methods, ByTag[tagName]);
-
-    for (property in methods) {
-      value = methods[property];
-      if (Object.isFunction(value) && !(property in element))
-        element[property] = value.methodize();
-    }
-
-    element._extendedByPrototype = Prototype.emptyFunction;
-    return element;
-
-  }, {
-    refresh: function() {
-      if (!Prototype.BrowserFeatures.ElementExtensions) {
-        Object.extend(Methods, Element.Methods);
-        Object.extend(Methods, Element.Methods.Simulated);
-      }
-    }
-  });
-
-  extend.refresh();
-  return extend;
-})();
-
-Element.hasAttribute = function(element, attribute) {
-  if (element.hasAttribute) return element.hasAttribute(attribute);
-  return Element.Methods.Simulated.hasAttribute(element, attribute);
-};
-
-Element.addMethods = function(methods) {
-  var F = Prototype.BrowserFeatures, T = Element.Methods.ByTag;
-
-  if (!methods) {
-    Object.extend(Form, Form.Methods);
-    Object.extend(Form.Element, Form.Element.Methods);
-    Object.extend(Element.Methods.ByTag, {
-      "FORM":     Object.clone(Form.Methods),
-      "INPUT":    Object.clone(Form.Element.Methods),
-      "SELECT":   Object.clone(Form.Element.Methods),
-      "TEXTAREA": Object.clone(Form.Element.Methods)
-    });
-  }
-
-  if (arguments.length == 2) {
-    var tagName = methods;
-    methods = arguments[1];
-  }
-
-  if (!tagName) Object.extend(Element.Methods, methods || { });
-  else {
-    if (Object.isArray(tagName)) tagName.each(extend);
-    else extend(tagName);
-  }
-
-  function extend(tagName) {
-    tagName = tagName.toUpperCase();
-    if (!Element.Methods.ByTag[tagName])
-      Element.Methods.ByTag[tagName] = { };
-    Object.extend(Element.Methods.ByTag[tagName], methods);
-  }
-
-  function copy(methods, destination, onlyIfAbsent) {
-    onlyIfAbsent = onlyIfAbsent || false;
-    for (var property in methods) {
-      var value = methods[property];
-      if (!Object.isFunction(value)) continue;
-      if (!onlyIfAbsent || !(property in destination))
-        destination[property] = value.methodize();
-    }
-  }
-
-  function findDOMClass(tagName) {
-    var klass;
-    var trans = {
-      "OPTGROUP": "OptGroup", "TEXTAREA": "TextArea", "P": "Paragraph",
-      "FIELDSET": "FieldSet", "UL": "UList", "OL": "OList", "DL": "DList",
-      "DIR": "Directory", "H1": "Heading", "H2": "Heading", "H3": "Heading",
-      "H4": "Heading", "H5": "Heading", "H6": "Heading", "Q": "Quote",
-      "INS": "Mod", "DEL": "Mod", "A": "Anchor", "IMG": "Image", "CAPTION":
-      "TableCaption", "COL": "TableCol", "COLGROUP": "TableCol", "THEAD":
-      "TableSection", "TFOOT": "TableSection", "TBODY": "TableSection", "TR":
-      "TableRow", "TH": "TableCell", "TD": "TableCell", "FRAMESET":
-      "FrameSet", "IFRAME": "IFrame"
-    };
-    if (trans[tagName]) klass = 'HTML' + trans[tagName] + 'Element';
-    if (window[klass]) return window[klass];
-    klass = 'HTML' + tagName + 'Element';
-    if (window[klass]) return window[klass];
-    klass = 'HTML' + tagName.capitalize() + 'Element';
-    if (window[klass]) return window[klass];
-
-    window[klass] = { };
-    window[klass].prototype = document.createElement(tagName)['__proto__'];
-    return window[klass];
-  }
-
-  if (F.ElementExtensions) {
-    copy(Element.Methods, HTMLElement.prototype);
-    copy(Element.Methods.Simulated, HTMLElement.prototype, true);
-  }
-
-  if (F.SpecificElementExtensions) {
-    for (var tag in Element.Methods.ByTag) {
-      var klass = findDOMClass(tag);
-      if (Object.isUndefined(klass)) continue;
-      copy(T[tag], klass.prototype);
-    }
-  }
-
-  Object.extend(Element, Element.Methods);
-  delete Element.ByTag;
-
-  if (Element.extend.refresh) Element.extend.refresh();
-  Element.cache = { };
-};
-
-document.viewport = {
-  getDimensions: function() {
-    var dimensions = { }, B = Prototype.Browser;
-    $w('width height').each(function(d) {
-      var D = d.capitalize();
-      if (B.WebKit && !document.evaluate) {
-        dimensions[d] = self['inner' + D];
-      } else if (B.Opera && parseFloat(window.opera.version()) < 9.5) {
-        dimensions[d] = document.body['client' + D]
-      } else {
-        dimensions[d] = document.documentElement['client' + D];
-      }
-    });
-    return dimensions;
-  },
-
-  getWidth: function() {
-    return this.getDimensions().width;
-  },
-
-  getHeight: function() {
-    return this.getDimensions().height;
-  },
-
-  getScrollOffsets: function() {
-    return Element._returnOffset(
-      window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft,
-      window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop);
-  }
-};
-/* Portions of the Selector class are derived from Jack Slocum's DomQuery,
- * part of YUI-Ext version 0.40, distributed under the terms of an MIT-style
- * license.  Please see http://www.yui-ext.com/ for more information. */
-
-var Selector = Class.create({
-  initialize: function(expression) {
-    this.expression = expression.strip();
-
-    if (this.shouldUseSelectorsAPI()) {
-      this.mode = 'selectorsAPI';
-    } else if (this.shouldUseXPath()) {
-      this.mode = 'xpath';
-      this.compileXPathMatcher();
-    } else {
-      this.mode = "normal";
-      this.compileMatcher();
-    }
-
-  },
-
-  shouldUseXPath: function() {
-    if (!Prototype.BrowserFeatures.XPath) return false;
-
-    var e = this.expression;
-
-    if (Prototype.Browser.WebKit &&
-     (e.include("-of-type") || e.include(":empty")))
-      return false;
-
-    if ((/(\[[\w-]*?:|:checked)/).test(e))
-      return false;
-
-    return true;
-  },
-
-  shouldUseSelectorsAPI: function() {
-    if (!Prototype.BrowserFeatures.SelectorsAPI) return false;
-
-    if (!Selector._div) Selector._div = new Element('div');
-
-    try {
-      Selector._div.querySelector(this.expression);
-    } catch(e) {
-      return false;
-    }
-
-    return true;
-  },
-
-  compileMatcher: function() {
-    var e = this.expression, ps = Selector.patterns, h = Selector.handlers,
-        c = Selector.criteria, le, p, m;
-
-    if (Selector._cache[e]) {
-      this.matcher = Selector._cache[e];
-      return;
-    }
-
-    this.matcher = ["this.matcher = function(root) {",
-                    "var r = root, h = Selector.handlers, c = false, n;"];
-
-    while (e && le != e && (/\S/).test(e)) {
-      le = e;
-      for (var i in ps) {
-        p = ps[i];
-        if (m = e.match(p)) {
-          this.matcher.push(Object.isFunction(c[i]) ? c[i](m) :
-            new Template(c[i]).evaluate(m));
-          e = e.replace(m[0], '');
-          break;
-        }
-      }
-    }
-
-    this.matcher.push("return h.unique(n);\n}");
-    eval(this.matcher.join('\n'));
-    Selector._cache[this.expression] = this.matcher;
-  },
-
-  compileXPathMatcher: function() {
-    var e = this.expression, ps = Selector.patterns,
-        x = Selector.xpath, le, m;
-
-    if (Selector._cache[e]) {
-      this.xpath = Selector._cache[e]; return;
-    }
-
-    this.matcher = ['.//*'];
-    while (e && le != e && (/\S/).test(e)) {
-      le = e;
-      for (var i in ps) {
-        if (m = e.match(ps[i])) {
-          this.matcher.push(Object.isFunction(x[i]) ? x[i](m) :
-            new Template(x[i]).evaluate(m));
-          e = e.replace(m[0], '');
-          break;
-        }
-      }
-    }
-
-    this.xpath = this.matcher.join('');
-    Selector._cache[this.expression] = this.xpath;
-  },
-
-  findElements: function(root) {
-    root = root || document;
-    var e = this.expression, results;
-
-    switch (this.mode) {
-      case 'selectorsAPI':
-        if (root !== document) {
-          var oldId = root.id, id = $(root).identify();
-          e = "#" + id + " " + e;
-        }
-
-        results = $A(root.querySelectorAll(e)).map(Element.extend);
-        root.id = oldId;
-
-        return results;
-      case 'xpath':
-        return document._getElementsByXPath(this.xpath, root);
-      default:
-       return this.matcher(root);
-    }
-  },
-
-  match: function(element) {
-    this.tokens = [];
-
-    var e = this.expression, ps = Selector.patterns, as = Selector.assertions;
-    var le, p, m;
-
-    while (e && le !== e && (/\S/).test(e)) {
-      le = e;
-      for (var i in ps) {
-        p = ps[i];
-        if (m = e.match(p)) {
-          if (as[i]) {
-            this.tokens.push([i, Object.clone(m)]);
-            e = e.replace(m[0], '');
-          } else {
-            return this.findElements(document).include(element);
-          }
-        }
-      }
-    }
-
-    var match = true, name, matches;
-    for (var i = 0, token; token = this.tokens[i]; i++) {
-      name = token[0], matches = token[1];
-      if (!Selector.assertions[name](element, matches)) {
-        match = false; break;
-      }
-    }
-
-    return match;
-  },
-
-  toString: function() {
-    return this.expression;
-  },
-
-  inspect: function() {
-    return "#<Selector:" + this.expression.inspect() + ">";
-  }
-});
-
-Object.extend(Selector, {
-  _cache: { },
-
-  xpath: {
-    descendant:   "//*",
-    child:        "/*",
-    adjacent:     "/following-sibling::*[1]",
-    laterSibling: '/following-sibling::*',
-    tagName:      function(m) {
-      if (m[1] == '*') return '';
-      return "[local-name()='" + m[1].toLowerCase() +
-             "' or local-name()='" + m[1].toUpperCase() + "']";
-    },
-    className:    "[contains(concat(' ', @class, ' '), ' #{1} ')]",
-    id:           "[@id='#{1}']",
-    attrPresence: function(m) {
-      m[1] = m[1].toLowerCase();
-      return new Template("[@#{1}]").evaluate(m);
-    },
-    attr: function(m) {
-      m[1] = m[1].toLowerCase();
-      m[3] = m[5] || m[6];
-      return new Template(Selector.xpath.operators[m[2]]).evaluate(m);
-    },
-    pseudo: function(m) {
-      var h = Selector.xpath.pseudos[m[1]];
-      if (!h) return '';
-      if (Object.isFunction(h)) return h(m);
-      return new Template(Selector.xpath.pseudos[m[1]]).evaluate(m);
-    },
-    operators: {
-      '=':  "[@#{1}='#{3}']",
-      '!=': "[@#{1}!='#{3}']",
-      '^=': "[starts-with(@#{1}, '#{3}')]",
-      '$=': "[substring(@#{1}, (string-length(@#{1}) - string-length('#{3}') + 1))='#{3}']",
-      '*=': "[contains(@#{1}, '#{3}')]",
-      '~=': "[contains(concat(' ', @#{1}, ' '), ' #{3} ')]",
-      '|=': "[contains(concat('-', @#{1}, '-'), '-#{3}-')]"
-    },
-    pseudos: {
-      'first-child': '[not(preceding-sibling::*)]',
-      'last-child':  '[not(following-sibling::*)]',
-      'only-child':  '[not(preceding-sibling::* or following-sibling::*)]',
-      'empty':       "[count(*) = 0 and (count(text()) = 0)]",
-      'checked':     "[@checked]",
-      'disabled':    "[(@disabled) and (@type!='hidden')]",
-      'enabled':     "[not(@disabled) and (@type!='hidden')]",
-      'not': function(m) {
-        var e = m[6], p = Selector.patterns,
-            x = Selector.xpath, le, v;
-
-        var exclusion = [];
-        while (e && le != e && (/\S/).test(e)) {
-          le = e;
-          for (var i in p) {
-            if (m = e.match(p[i])) {
-              v = Object.isFunction(x[i]) ? x[i](m) : new Template(x[i]).evaluate(m);
-              exclusion.push("(" + v.substring(1, v.length - 1) + ")");
-              e = e.replace(m[0], '');
-              break;
-            }
-          }
-        }
-        return "[not(" + exclusion.join(" and ") + ")]";
-      },
-      'nth-child':      function(m) {
-        return Selector.xpath.pseudos.nth("(count(./preceding-sibling::*) + 1) ", m);
-      },
-      'nth-last-child': function(m) {
-        return Selector.xpath.pseudos.nth("(count(./following-sibling::*) + 1) ", m);
-      },
-      'nth-of-type':    function(m) {
-        return Selector.xpath.pseudos.nth("position() ", m);
-      },
-      'nth-last-of-type': function(m) {
-        return Selector.xpath.pseudos.nth("(last() + 1 - position()) ", m);
-      },
-      'first-of-type':  function(m) {
-        m[6] = "1"; return Selector.xpath.pseudos['nth-of-type'](m);
-      },
-      'last-of-type':   function(m) {
-        m[6] = "1"; return Selector.xpath.pseudos['nth-last-of-type'](m);
-      },
-      'only-of-type':   function(m) {
-        var p = Selector.xpath.pseudos; return p['first-of-type'](m) + p['last-of-type'](m);
-      },
-      nth: function(fragment, m) {
-        var mm, formula = m[6], predicate;
-        if (formula == 'even') formula = '2n+0';
-        if (formula == 'odd')  formula = '2n+1';
-        if (mm = formula.match(/^(\d+)$/)) // digit only
-          return '[' + fragment + "= " + mm[1] + ']';
-        if (mm = formula.match(/^(-?\d*)?n(([+-])(\d+))?/)) { // an+b
-          if (mm[1] == "-") mm[1] = -1;
-          var a = mm[1] ? Number(mm[1]) : 1;
-          var b = mm[2] ? Number(mm[2]) : 0;
-          predicate = "[((#{fragment} - #{b}) mod #{a} = 0) and " +
-          "((#{fragment} - #{b}) div #{a} >= 0)]";
-          return new Template(predicate).evaluate({
-            fragment: fragment, a: a, b: b });
-        }
-      }
-    }
-  },
-
-  criteria: {
-    tagName:      'n = h.tagName(n, r, "#{1}", c);      c = false;',
-    className:    'n = h.className(n, r, "#{1}", c);    c = false;',
-    id:           'n = h.id(n, r, "#{1}", c);           c = false;',
-    attrPresence: 'n = h.attrPresence(n, r, "#{1}", c); c = false;',
-    attr: function(m) {
-      m[3] = (m[5] || m[6]);
-      return new Template('n = h.attr(n, r, "#{1}", "#{3}", "#{2}", c); c = false;').evaluate(m);
-    },
-    pseudo: function(m) {
-      if (m[6]) m[6] = m[6].replace(/"/g, '\\"');
-      return new Template('n = h.pseudo(n, "#{1}", "#{6}", r, c); c = false;').evaluate(m);
-    },
-    descendant:   'c = "descendant";',
-    child:        'c = "child";',
-    adjacent:     'c = "adjacent";',
-    laterSibling: 'c = "laterSibling";'
-  },
-
-  patterns: {
-    laterSibling: /^\s*~\s*/,
-    child:        /^\s*>\s*/,
-    adjacent:     /^\s*\+\s*/,
-    descendant:   /^\s/,
-
-    tagName:      /^\s*(\*|[\w\-]+)(\b|$)?/,
-    id:           /^#([\w\-\*]+)(\b|$)/,
-    className:    /^\.([\w\-\*]+)(\b|$)/,
-    pseudo:
-/^:((first|last|nth|nth-last|only)(-child|-of-type)|empty|checked|(en|dis)abled|not)(\((.*?)\))?(\b|$|(?=\s|[:+~>]))/,
-    attrPresence: /^\[((?:[\w]+:)?[\w]+)\]/,
-    attr:         /\[((?:[\w-]*:)?[\w-]+)\s*(?:([!^$*~|]?=)\s*((['"])([^\4]*?)\4|([^'"][^\]]*?)))?\]/
-  },
-
-  assertions: {
-    tagName: function(element, matches) {
-      return matches[1].toUpperCase() == element.tagName.toUpperCase();
-    },
-
-    className: function(element, matches) {
-      return Element.hasClassName(element, matches[1]);
-    },
-
-    id: function(element, matches) {
-      return element.id === matches[1];
-    },
-
-    attrPresence: function(element, matches) {
-      return Element.hasAttribute(element, matches[1]);
-    },
-
-    attr: function(element, matches) {
-      var nodeValue = Element.readAttribute(element, matches[1]);
-      return nodeValue && Selector.operators[matches[2]](nodeValue, matches[5] || matches[6]);
-    }
-  },
-
-  handlers: {
-    concat: function(a, b) {
-      for (var i = 0, node; node = b[i]; i++)
-        a.push(node);
-      return a;
-    },
-
-    mark: function(nodes) {
-      var _true = Prototype.emptyFunction;
-      for (var i = 0, node; node = nodes[i]; i++)
-        node._countedByPrototype = _true;
-      return nodes;
-    },
-
-    unmark: function(nodes) {
-      for (var i = 0, node; node = nodes[i]; i++)
-        node._countedByPrototype = undefined;
-      return nodes;
-    },
-
-    index: function(parentNode, reverse, ofType) {
-      parentNode._countedByPrototype = Prototype.emptyFunction;
-      if (reverse) {
-        for (var nodes = parentNode.childNodes, i = nodes.length - 1, j = 1; i >= 0; i--) {
-          var node = nodes[i];
-          if (node.nodeType == 1 && (!ofType || node._countedByPrototype)) node.nodeIndex = j++;
-        }
-      } else {
-        for (var i = 0, j = 1, nodes = parentNode.childNodes; node = nodes[i]; i++)
-          if (node.nodeType == 1 && (!ofType || node._countedByPrototype)) node.nodeIndex = j++;
-      }
-    },
-
-    unique: function(nodes) {
-      if (nodes.length == 0) return nodes;
-      var results = [], n;
-      for (var i = 0, l = nodes.length; i < l; i++)
-        if (!(n = nodes[i])._countedByPrototype) {
-          n._countedByPrototype = Prototype.emptyFunction;
-          results.push(Element.extend(n));
-        }
-      return Selector.handlers.unmark(results);
-    },
-
-    descendant: function(nodes) {
-      var h = Selector.handlers;
-      for (var i = 0, results = [], node; node = nodes[i]; i++)
-        h.concat(results, node.getElementsByTagName('*'));
-      return results;
-    },
-
-    child: function(nodes) {
-      var h = Selector.handlers;
-      for (var i = 0, results = [], node; node = nodes[i]; i++) {
-        for (var j = 0, child; child = node.childNodes[j]; j++)
-          if (child.nodeType == 1 && child.tagName != '!') results.push(child);
-      }
-      return results;
-    },
-
-    adjacent: function(nodes) {
-      for (var i = 0, results = [], node; node = nodes[i]; i++) {
-        var next = this.nextElementSibling(node);
-        if (next) results.push(next);
-      }
-      return results;
-    },
-
-    laterSibling: function(nodes) {
-      var h = Selector.handlers;
-      for (var i = 0, results = [], node; node = nodes[i]; i++)
-        h.concat(results, Element.nextSiblings(node));
-      return results;
-    },
-
-    nextElementSibling: function(node) {
-      while (node = node.nextSibling)
-        if (node.nodeType == 1) return node;
-      return null;
-    },
-
-    previousElementSibling: function(node) {
-      while (node = node.previousSibling)
-        if (node.nodeType == 1) return node;
-      return null;
-    },
-
-    tagName: function(nodes, root, tagName, combinator) {
-      var uTagName = tagName.toUpperCase();
-      var results = [], h = Selector.handlers;
-      if (nodes) {
-        if (combinator) {
-          if (combinator == "descendant") {
-            for (var i = 0, node; node = nodes[i]; i++)
-              h.concat(results, node.getElementsByTagName(tagName));
-            return results;
-          } else nodes = this[combinator](nodes);
-          if (tagName == "*") return nodes;
-        }
-        for (var i = 0, node; node = nodes[i]; i++)
-          if (node.tagName.toUpperCase() === uTagName) results.push(node);
-        return results;
-      } else return root.getElementsByTagName(tagName);
-    },
-
-    id: function(nodes, root, id, combinator) {
-      var targetNode = $(id), h = Selector.handlers;
-      if (!targetNode) return [];
-      if (!nodes && root == document) return [targetNode];
-      if (nodes) {
-        if (combinator) {
-          if (combinator == 'child') {
-            for (var i = 0, node; node = nodes[i]; i++)
-              if (targetNode.parentNode == node) return [targetNode];
-          } else if (combinator == 'descendant') {
-            for (var i = 0, node; node = nodes[i]; i++)
-              if (Element.descendantOf(targetNode, node)) return [targetNode];
-          } else if (combinator == 'adjacent') {
-            for (var i = 0, node; node = nodes[i]; i++)
-              if (Selector.handlers.previousElementSibling(targetNode) == node)
-                return [targetNode];
-          } else nodes = h[combinator](nodes);
-        }
-        for (var i = 0, node; node = nodes[i]; i++)
-          if (node == targetNode) return [targetNode];
-        return [];
-      }
-      return (targetNode && Element.descendantOf(targetNode, root)) ? [targetNode] : [];
-    },
-
-    className: function(nodes, root, className, combinator) {
-      if (nodes && combinator) nodes = this[combinator](nodes);
-      return Selector.handlers.byClassName(nodes, root, className);
-    },
-
-    byClassName: function(nodes, root, className) {
-      if (!nodes) nodes = Selector.handlers.descendant([root]);
-      var needle = ' ' + className + ' ';
-      for (var i = 0, results = [], node, nodeClassName; node = nodes[i]; i++) {
-        nodeClassName = node.className;
-        if (nodeClassName.length == 0) continue;
-        if (nodeClassName == className || (' ' + nodeClassName + ' ').include(needle))
-          results.push(node);
-      }
-      return results;
-    },
-
-    attrPresence: function(nodes, root, attr, combinator) {
-      if (!nodes) nodes = root.getElementsByTagName("*");
-      if (nodes && combinator) nodes = this[combinator](nodes);
-      var results = [];
-      for (var i = 0, node; node = nodes[i]; i++)
-        if (Element.hasAttribute(node, attr)) results.push(node);
-      return results;
-    },
-
-    attr: function(nodes, root, attr, value, operator, combinator) {
-      if (!nodes) nodes = root.getElementsByTagName("*");
-      if (nodes && combinator) nodes = this[combinator](nodes);
-      var handler = Selector.operators[operator], results = [];
-      for (var i = 0, node; node = nodes[i]; i++) {
-        var nodeValue = Element.readAttribute(node, attr);
-        if (nodeValue === null) continue;
-        if (handler(nodeValue, value)) results.push(node);
-      }
-      return results;
-    },
-
-    pseudo: function(nodes, name, value, root, combinator) {
-      if (nodes && combinator) nodes = this[combinator](nodes);
-      if (!nodes) nodes = root.getElementsByTagName("*");
-      return Selector.pseudos[name](nodes, value, root);
-    }
-  },
-
-  pseudos: {
-    'first-child': function(nodes, value, root) {
-      for (var i = 0, results = [], node; node = nodes[i]; i++) {
-        if (Selector.handlers.previousElementSibling(node)) continue;
-          results.push(node);
-      }
-      return results;
-    },
-    'last-child': function(nodes, value, root) {
-      for (var i = 0, results = [], node; node = nodes[i]; i++) {
-        if (Selector.handlers.nextElementSibling(node)) continue;
-          results.push(node);
-      }
-      return results;
-    },
-    'only-child': function(nodes, value, root) {
-      var h = Selector.handlers;
-      for (var i = 0, results = [], node; node = nodes[i]; i++)
-        if (!h.previousElementSibling(node) && !h.nextElementSibling(node))
-          results.push(node);
-      return results;
-    },
-    'nth-child':        function(nodes, formula, root) {
-      return Selector.pseudos.nth(nodes, formula, root);
-    },
-    'nth-last-child':   function(nodes, formula, root) {
-      return Selector.pseudos.nth(nodes, formula, root, true);
-    },
-    'nth-of-type':      function(nodes, formula, root) {
-      return Selector.pseudos.nth(nodes, formula, root, false, true);
-    },
-    'nth-last-of-type': function(nodes, formula, root) {
-      return Selector.pseudos.nth(nodes, formula, root, true, true);
-    },
-    'first-of-type':    function(nodes, formula, root) {
-      return Selector.pseudos.nth(nodes, "1", root, false, true);
-    },
-    'last-of-type':     function(nodes, formula, root) {
-      return Selector.pseudos.nth(nodes, "1", root, true, true);
-    },
-    'only-of-type':     function(nodes, formula, root) {
-      var p = Selector.pseudos;
-      return p['last-of-type'](p['first-of-type'](nodes, formula, root), formula, root);
-    },
-
-    getIndices: function(a, b, total) {
-      if (a == 0) return b > 0 ? [b] : [];
-      return $R(1, total).inject([], function(memo, i) {
-        if (0 == (i - b) % a && (i - b) / a >= 0) memo.push(i);
-        return memo;
-      });
-    },
-
-    nth: function(nodes, formula, root, reverse, ofType) {
-      if (nodes.length == 0) return [];
-      if (formula == 'even') formula = '2n+0';
-      if (formula == 'odd')  formula = '2n+1';
-      var h = Selector.handlers, results = [], indexed = [], m;
-      h.mark(nodes);
-      for (var i = 0, node; node = nodes[i]; i++) {
-        if (!node.parentNode._countedByPrototype) {
-          h.index(node.parentNode, reverse, ofType);
-          indexed.push(node.parentNode);
-        }
-      }
-      if (formula.match(/^\d+$/)) { // just a number
-        formula = Number(formula);
-        for (var i = 0, node; node = nodes[i]; i++)
-          if (node.nodeIndex == formula) results.push(node);
-      } else if (m = formula.match(/^(-?\d*)?n(([+-])(\d+))?/)) { // an+b
-        if (m[1] == "-") m[1] = -1;
-        var a = m[1] ? Number(m[1]) : 1;
-        var b = m[2] ? Number(m[2]) : 0;
-        var indices = Selector.pseudos.getIndices(a, b, nodes.length);
-        for (var i = 0, node, l = indices.length; node = nodes[i]; i++) {
-          for (var j = 0; j < l; j++)
-            if (node.nodeIndex == indices[j]) results.push(node);
-        }
-      }
-      h.unmark(nodes);
-      h.unmark(indexed);
-      return results;
-    },
-
-    'empty': function(nodes, value, root) {
-      for (var i = 0, results = [], node; node = nodes[i]; i++) {
-        if (node.tagName == '!' || node.firstChild) continue;
-        results.push(node);
-      }
-      return results;
-    },
-
-    'not': function(nodes, selector, root) {
-      var h = Selector.handlers, selectorType, m;
-      var exclusions = new Selector(selector).findElements(root);
-      h.mark(exclusions);
-      for (var i = 0, results = [], node; node = nodes[i]; i++)
-        if (!node._countedByPrototype) results.push(node);
-      h.unmark(exclusions);
-      return results;
-    },
-
-    'enabled': function(nodes, value, root) {
-      for (var i = 0, results = [], node; node = nodes[i]; i++)
-        if (!node.disabled && (!node.type || node.type !== 'hidden'))
-          results.push(node);
-      return results;
-    },
-
-    'disabled': function(nodes, value, root) {
-      for (var i = 0, results = [], node; node = nodes[i]; i++)
-        if (node.disabled) results.push(node);
-      return results;
-    },
-
-    'checked': function(nodes, value, root) {
-      for (var i = 0, results = [], node; node = nodes[i]; i++)
-        if (node.checked) results.push(node);
-      return results;
-    }
-  },
-
-  operators: {
-    '=':  function(nv, v) { return nv == v; },
-    '!=': function(nv, v) { return nv != v; },
-    '^=': function(nv, v) { return nv == v || nv && nv.startsWith(v); },
-    '$=': function(nv, v) { return nv == v || nv && nv.endsWith(v); },
-    '*=': function(nv, v) { return nv == v || nv && nv.include(v); },
-    '$=': function(nv, v) { return nv.endsWith(v); },
-    '*=': function(nv, v) { return nv.include(v); },
-    '~=': function(nv, v) { return (' ' + nv + ' ').include(' ' + v + ' '); },
-    '|=': function(nv, v) { return ('-' + (nv || "").toUpperCase() +
-     '-').include('-' + (v || "").toUpperCase() + '-'); }
-  },
-
-  split: function(expression) {
-    var expressions = [];
-    expression.scan(/(([\w#:.~>+()\s-]+|\*|\[.*?\])+)\s*(,|$)/, function(m) {
-      expressions.push(m[1].strip());
-    });
-    return expressions;
-  },
-
-  matchElements: function(elements, expression) {
-    var matches = $$(expression), h = Selector.handlers;
-    h.mark(matches);
-    for (var i = 0, results = [], element; element = elements[i]; i++)
-      if (element._countedByPrototype) results.push(element);
-    h.unmark(matches);
-    return results;
-  },
-
-  findElement: function(elements, expression, index) {
-    if (Object.isNumber(expression)) {
-      index = expression; expression = false;
-    }
-    return Selector.matchElements(elements, expression || '*')[index || 0];
-  },
-
-  findChildElements: function(element, expressions) {
-    expressions = Selector.split(expressions.join(','));
-    var results = [], h = Selector.handlers;
-    for (var i = 0, l = expressions.length, selector; i < l; i++) {
-      selector = new Selector(expressions[i].strip());
-      h.concat(results, selector.findElements(element));
-    }
-    return (l > 1) ? h.unique(results) : results;
-  }
-});
-
-if (Prototype.Browser.IE) {
-  Object.extend(Selector.handlers, {
-    concat: function(a, b) {
-      for (var i = 0, node; node = b[i]; i++)
-        if (node.tagName !== "!") a.push(node);
-      return a;
-    },
-
-    unmark: function(nodes) {
-      for (var i = 0, node; node = nodes[i]; i++)
-        node.removeAttribute('_countedByPrototype');
-      return nodes;
-    }
-  });
-}
-
-function $$() {
-  return Selector.findChildElements(document, $A(arguments));
-}
-var Form = {
-  reset: function(form) {
-    $(form).reset();
-    return form;
-  },
-
-  serializeElements: function(elements, options) {
-    if (typeof options != 'object') options = { hash: !!options };
-    else if (Object.isUndefined(options.hash)) options.hash = true;
-    var key, value, submitted = false, submit = options.submit;
-
-    var data = elements.inject({ }, function(result, element) {
-      if (!element.disabled && element.name) {
-        key = element.name; value = $(element).getValue();
-        if (value != null && element.type != 'file' && (element.type != 'submit' || (!submitted &&
-            submit !== false && (!submit || key == submit) && (submitted = true)))) {
-          if (key in result) {
-            if (!Object.isArray(result[key])) result[key] = [result[key]];
-            result[key].push(value);
-          }
-          else result[key] = value;
-        }
-      }
-      return result;
-    });
-
-    return options.hash ? data : Object.toQueryString(data);
-  }
-};
-
-Form.Methods = {
-  serialize: function(form, options) {
-    return Form.serializeElements(Form.getElements(form), options);
-  },
-
-  getElements: function(form) {
-    return $A($(form).getElementsByTagName('*')).inject([],
-      function(elements, child) {
-        if (Form.Element.Serializers[child.tagName.toLowerCase()])
-          elements.push(Element.extend(child));
-        return elements;
-      }
-    );
-  },
-
-  getInputs: function(form, typeName, name) {
-    form = $(form);
-    var inputs = form.getElementsByTagName('input');
-
-    if (!typeName && !name) return $A(inputs).map(Element.extend);
-
-    for (var i = 0, matchingInputs = [], length = inputs.length; i < length; i++) {
-      var input = inputs[i];
-      if ((typeName && input.type != typeName) || (name && input.name != name))
-        continue;
-      matchingInputs.push(Element.extend(input));
-    }
-
-    return matchingInputs;
-  },
-
-  disable: function(form) {
-    form = $(form);
-    Form.getElements(form).invoke('disable');
-    return form;
-  },
-
-  enable: function(form) {
-    form = $(form);
-    Form.getElements(form).invoke('enable');
-    return form;
-  },
-
-  findFirstElement: function(form) {
-    var elements = $(form).getElements().findAll(function(element) {
-      return 'hidden' != element.type && !element.disabled;
-    });
-    var firstByIndex = elements.findAll(function(element) {
-      return element.hasAttribute('tabIndex') && element.tabIndex >= 0;
-    }).sortBy(function(element) { return element.tabIndex }).first();
-
-    return firstByIndex ? firstByIndex : elements.find(function(element) {
-      return ['input', 'select', 'textarea'].include(element.tagName.toLowerCase());
-    });
-  },
-
-  focusFirstElement: function(form) {
-    form = $(form);
-    form.findFirstElement().activate();
-    return form;
-  },
-
-  request: function(form, options) {
-    form = $(form), options = Object.clone(options || { });
-
-    var params = options.parameters, action = form.readAttribute('action') || '';
-    if (action.blank()) action = window.location.href;
-    options.parameters = form.serialize(true);
-
-    if (params) {
-      if (Object.isString(params)) params = params.toQueryParams();
-      Object.extend(options.parameters, params);
-    }
-
-    if (form.hasAttribute('method') && !options.method)
-      options.method = form.method;
-
-    return new Ajax.Request(action, options);
-  }
-};
-
-/*--------------------------------------------------------------------------*/
-
-Form.Element = {
-  focus: function(element) {
-    $(element).focus();
-    return element;
-  },
-
-  select: function(element) {
-    $(element).select();
-    return element;
-  }
-};
-
-Form.Element.Methods = {
-  serialize: function(element) {
-    element = $(element);
-    if (!element.disabled && element.name) {
-      var value = element.getValue();
-      if (value != undefined) {
-        var pair = { };
-        pair[element.name] = value;
-        return Object.toQueryString(pair);
-      }
-    }
-    return '';
-  },
-
-  getValue: function(element) {
-    element = $(element);
-    var method = element.tagName.toLowerCase();
-    return Form.Element.Serializers[method](element);
-  },
-
-  setValue: function(element, value) {
-    element = $(element);
-    var method = element.tagName.toLowerCase();
-    Form.Element.Serializers[method](element, value);
-    return element;
-  },
-
-  clear: function(element) {
-    $(element).value = '';
-    return element;
-  },
-
-  present: function(element) {
-    return $(element).value != '';
-  },
-
-  activate: function(element) {
-    element = $(element);
-    try {
-      element.focus();
-      if (element.select && (element.tagName.toLowerCase() != 'input' ||
-          !['button', 'reset', 'submit'].include(element.type)))
-        element.select();
-    } catch (e) { }
-    return element;
-  },
-
-  disable: function(element) {
-    element = $(element);
-    element.disabled = true;
-    return element;
-  },
-
-  enable: function(element) {
-    element = $(element);
-    element.disabled = false;
-    return element;
-  }
-};
-
-/*--------------------------------------------------------------------------*/
-
-var Field = Form.Element;
-var $F = Form.Element.Methods.getValue;
-
-/*--------------------------------------------------------------------------*/
-
-Form.Element.Serializers = {
-  input: function(element, value) {
-    switch (element.type.toLowerCase()) {
-      case 'checkbox':
-      case 'radio':
-        return Form.Element.Serializers.inputSelector(element, value);
-      default:
-        return Form.Element.Serializers.textarea(element, value);
-    }
-  },
-
-  inputSelector: function(element, value) {
-    if (Object.isUndefined(value)) return element.checked ? element.value : null;
-    else element.checked = !!value;
-  },
-
-  textarea: function(element, value) {
-    if (Object.isUndefined(value)) return element.value;
-    else element.value = value;
-  },
-
-  select: function(element, value) {
-    if (Object.isUndefined(value))
-      return this[element.type == 'select-one' ?
-        'selectOne' : 'selectMany'](element);
-    else {
-      var opt, currentValue, single = !Object.isArray(value);
-      for (var i = 0, length = element.length; i < length; i++) {
-        opt = element.options[i];
-        currentValue = this.optionValue(opt);
-        if (single) {
-          if (currentValue == value) {
-            opt.selected = true;
-            return;
-          }
-        }
-        else opt.selected = value.include(currentValue);
-      }
-    }
-  },
-
-  selectOne: function(element) {
-    var index = element.selectedIndex;
-    return index >= 0 ? this.optionValue(element.options[index]) : null;
-  },
-
-  selectMany: function(element) {
-    var values, length = element.length;
-    if (!length) return null;
-
-    for (var i = 0, values = []; i < length; i++) {
-      var opt = element.options[i];
-      if (opt.selected) values.push(this.optionValue(opt));
-    }
-    return values;
-  },
-
-  optionValue: function(opt) {
-    return Element.extend(opt).hasAttribute('value') ? opt.value : opt.text;
-  }
-};
-
-/*--------------------------------------------------------------------------*/
-
-Abstract.TimedObserver = Class.create(PeriodicalExecuter, {
-  initialize: function($super, element, frequency, callback) {
-    $super(callback, frequency);
-    this.element   = $(element);
-    this.lastValue = this.getValue();
-  },
-
-  execute: function() {
-    var value = this.getValue();
-    if (Object.isString(this.lastValue) && Object.isString(value) ?
-        this.lastValue != value : String(this.lastValue) != String(value)) {
-      this.callback(this.element, value);
-      this.lastValue = value;
-    }
-  }
-});
-
-Form.Element.Observer = Class.create(Abstract.TimedObserver, {
-  getValue: function() {
-    return Form.Element.getValue(this.element);
-  }
-});
-
-Form.Observer = Class.create(Abstract.TimedObserver, {
-  getValue: function() {
-    return Form.serialize(this.element);
-  }
-});
-
-/*--------------------------------------------------------------------------*/
-
-Abstract.EventObserver = Class.create({
-  initialize: function(element, callback) {
-    this.element  = $(element);
-    this.callback = callback;
-
-    this.lastValue = this.getValue();
-    if (this.element.tagName.toLowerCase() == 'form')
-      this.registerFormCallbacks();
-    else
-      this.registerCallback(this.element);
-  },
-
-  onElementEvent: function() {
-    var value = this.getValue();
-    if (this.lastValue != value) {
-      this.callback(this.element, value);
-      this.lastValue = value;
-    }
-  },
-
-  registerFormCallbacks: function() {
-    Form.getElements(this.element).each(this.registerCallback, this);
-  },
-
-  registerCallback: function(element) {
-    if (element.type) {
-      switch (element.type.toLowerCase()) {
-        case 'checkbox':
-        case 'radio':
-          Event.observe(element, 'click', this.onElementEvent.bind(this));
-          break;
-        default:
-          Event.observe(element, 'change', this.onElementEvent.bind(this));
-          break;
-      }
-    }
-  }
-});
-
-Form.Element.EventObserver = Class.create(Abstract.EventObserver, {
-  getValue: function() {
-    return Form.Element.getValue(this.element);
-  }
-});
-
-Form.EventObserver = Class.create(Abstract.EventObserver, {
-  getValue: function() {
-    return Form.serialize(this.element);
-  }
-});
-if (!window.Event) var Event = { };
-
-Object.extend(Event, {
-  KEY_BACKSPACE: 8,
-  KEY_TAB:       9,
-  KEY_RETURN:   13,
-  KEY_ESC:      27,
-  KEY_LEFT:     37,
-  KEY_UP:       38,
-  KEY_RIGHT:    39,
-  KEY_DOWN:     40,
-  KEY_DELETE:   46,
-  KEY_HOME:     36,
-  KEY_END:      35,
-  KEY_PAGEUP:   33,
-  KEY_PAGEDOWN: 34,
-  KEY_INSERT:   45,
-
-  cache: { },
-
-  relatedTarget: function(event) {
-    var element;
-    switch(event.type) {
-      case 'mouseover': element = event.fromElement; break;
-      case 'mouseout':  element = event.toElement;   break;
-      default: return null;
-    }
-    return Element.extend(element);
-  }
-});
-
-Event.Methods = (function() {
-  var isButton;
-
-  if (Prototype.Browser.IE) {
-    var buttonMap = { 0: 1, 1: 4, 2: 2 };
-    isButton = function(event, code) {
-      return event.button == buttonMap[code];
-    };
-
-  } else if (Prototype.Browser.WebKit) {
-    isButton = function(event, code) {
-      switch (code) {
-        case 0: return event.which == 1 && !event.metaKey;
-        case 1: return event.which == 1 && event.metaKey;
-        default: return false;
-      }
-    };
-
-  } else {
-    isButton = function(event, code) {
-      return event.which ? (event.which === code + 1) : (event.button === code);
-    };
-  }
-
-  return {
-    isLeftClick:   function(event) { return isButton(event, 0) },
-    isMiddleClick: function(event) { return isButton(event, 1) },
-    isRightClick:  function(event) { return isButton(event, 2) },
-
-    element: function(event) {
-      event = Event.extend(event);
-
-      var node          = event.target,
-          type          = event.type,
-          currentTarget = event.currentTarget;
-
-      if (currentTarget && currentTarget.tagName) {
-        if (type === 'load' || type === 'error' ||
-          (type === 'click' && currentTarget.tagName.toLowerCase() === 'input'
-            && currentTarget.type === 'radio'))
-              node = currentTarget;
-      }
-      if (node.nodeType == Node.TEXT_NODE) node = node.parentNode;
-      return Element.extend(node);
-    },
-
-    findElement: function(event, expression) {
-      var element = Event.element(event);
-      if (!expression) return element;
-      var elements = [element].concat(element.ancestors());
-      return Selector.findElement(elements, expression, 0);
-    },
-
-    pointer: function(event) {
-      var docElement = document.documentElement,
-      body = document.body || { scrollLeft: 0, scrollTop: 0 };
-      return {
-        x: event.pageX || (event.clientX +
-          (docElement.scrollLeft || body.scrollLeft) -
-          (docElement.clientLeft || 0)),
-        y: event.pageY || (event.clientY +
-          (docElement.scrollTop || body.scrollTop) -
-          (docElement.clientTop || 0))
-      };
-    },
-
-    pointerX: function(event) { return Event.pointer(event).x },
-    pointerY: function(event) { return Event.pointer(event).y },
-
-    stop: function(event) {
-      Event.extend(event);
-      event.preventDefault();
-      event.stopPropagation();
-      event.stopped = true;
-    }
-  };
-})();
-
-Event.extend = (function() {
-  var methods = Object.keys(Event.Methods).inject({ }, function(m, name) {
-    m[name] = Event.Methods[name].methodize();
-    return m;
-  });
-
-  if (Prototype.Browser.IE) {
-    Object.extend(methods, {
-      stopPropagation: function() { this.cancelBubble = true },
-      preventDefault:  function() { this.returnValue = false },
-      inspect: function() { return "[object Event]" }
-    });
-
-    return function(event) {
-      if (!event) return false;
-      if (event._extendedByPrototype) return event;
-
-      event._extendedByPrototype = Prototype.emptyFunction;
-      var pointer = Event.pointer(event);
-      Object.extend(event, {
-        target: event.srcElement,
-        relatedTarget: Event.relatedTarget(event),
-        pageX:  pointer.x,
-        pageY:  pointer.y
-      });
-      return Object.extend(event, methods);
-    };
-
-  } else {
-    Event.prototype = Event.prototype || document.createEvent("HTMLEvents")['__proto__'];
-    Object.extend(Event.prototype, methods);
-    return Prototype.K;
-  }
-})();
-
-Object.extend(Event, (function() {
-  var cache = Event.cache;
-
-  function getEventID(element) {
-    if (element._prototypeEventID) return element._prototypeEventID[0];
-    arguments.callee.id = arguments.callee.id || 1;
-    return element._prototypeEventID = [++arguments.callee.id];
-  }
-
-  function getDOMEventName(eventName) {
-    if (eventName && eventName.include(':')) return "dataavailable";
-    return eventName;
-  }
-
-  function getCacheForID(id) {
-    return cache[id] = cache[id] || { };
-  }
-
-  function getWrappersForEventName(id, eventName) {
-    var c = getCacheForID(id);
-    return c[eventName] = c[eventName] || [];
-  }
-
-  function createWrapper(element, eventName, handler) {
-    var id = getEventID(element);
-    var c = getWrappersForEventName(id, eventName);
-    if (c.pluck("handler").include(handler)) return false;
-
-    var wrapper = function(event) {
-      if (!Event || !Event.extend ||
-        (event.eventName && event.eventName != eventName))
-          return false;
-
-      Event.extend(event);
-      handler.call(element, event);
-    };
-
-    wrapper.handler = handler;
-    c.push(wrapper);
-    return wrapper;
-  }
-
-  function findWrapper(id, eventName, handler) {
-    var c = getWrappersForEventName(id, eventName);
-    return c.find(function(wrapper) { return wrapper.handler == handler });
-  }
-
-  function destroyWrapper(id, eventName, handler) {
-    var c = getCacheForID(id);
-    if (!c[eventName]) return false;
-    c[eventName] = c[eventName].without(findWrapper(id, eventName, handler));
-  }
-
-  function destroyCache() {
-    for (var id in cache)
-      for (var eventName in cache[id])
-        cache[id][eventName] = null;
-  }
-
-
-  if (window.attachEvent) {
-    window.attachEvent("onunload", destroyCache);
-  }
-
-  if (Prototype.Browser.WebKit) {
-    window.addEventListener('unload', Prototype.emptyFunction, false);
-  }
-
-  return {
-    observe: function(element, eventName, handler) {
-      element = $(element);
-      var name = getDOMEventName(eventName);
-
-      var wrapper = createWrapper(element, eventName, handler);
-      if (!wrapper) return element;
-
-      if (element.addEventListener) {
-        element.addEventListener(name, wrapper, false);
-      } else {
-        element.attachEvent("on" + name, wrapper);
-      }
-
-      return element;
-    },
-
-    stopObserving: function(element, eventName, handler) {
-      element = $(element);
-      var id = getEventID(element), name = getDOMEventName(eventName);
-
-      if (!handler && eventName) {
-        getWrappersForEventName(id, eventName).each(function(wrapper) {
-          element.stopObserving(eventName, wrapper.handler);
-        });
-        return element;
-
-      } else if (!eventName) {
-        Object.keys(getCacheForID(id)).each(function(eventName) {
-          element.stopObserving(eventName);
-        });
-        return element;
-      }
-
-      var wrapper = findWrapper(id, eventName, handler);
-      if (!wrapper) return element;
-
-      if (element.removeEventListener) {
-        element.removeEventListener(name, wrapper, false);
-      } else {
-        element.detachEvent("on" + name, wrapper);
-      }
-
-      destroyWrapper(id, eventName, handler);
-
-      return element;
-    },
-
-    fire: function(element, eventName, memo) {
-      element = $(element);
-      if (element == document && document.createEvent && !element.dispatchEvent)
-        element = document.documentElement;
-
-      var event;
-      if (document.createEvent) {
-        event = document.createEvent("HTMLEvents");
-        event.initEvent("dataavailable", true, true);
-      } else {
-        event = document.createEventObject();
-        event.eventType = "ondataavailable";
-      }
-
-      event.eventName = eventName;
-      event.memo = memo || { };
-
-      if (document.createEvent) {
-        element.dispatchEvent(event);
-      } else {
-        element.fireEvent(event.eventType, event);
-      }
-
-      return Event.extend(event);
-    }
-  };
-})());
-
-Object.extend(Event, Event.Methods);
-
-Element.addMethods({
-  fire:          Event.fire,
-  observe:       Event.observe,
-  stopObserving: Event.stopObserving
-});
-
-Object.extend(document, {
-  fire:          Element.Methods.fire.methodize(),
-  observe:       Element.Methods.observe.methodize(),
-  stopObserving: Element.Methods.stopObserving.methodize(),
-  loaded:        false
-});
-
-(function() {
-  /* Support for the DOMContentLoaded event is based on work by Dan Webb,
-     Matthias Miller, Dean Edwards and John Resig. */
-
-  var timer;
-
-  function fireContentLoadedEvent() {
-    if (document.loaded) return;
-    if (timer) window.clearInterval(timer);
-    document.fire("dom:loaded");
-    document.loaded = true;
-  }
-
-  if (document.addEventListener) {
-    if (Prototype.Browser.WebKit) {
-      timer = window.setInterval(function() {
-        if (/loaded|complete/.test(document.readyState))
-          fireContentLoadedEvent();
-      }, 0);
-
-      Event.observe(window, "load", fireContentLoadedEvent);
-
-    } else {
-      document.addEventListener("DOMContentLoaded",
-        fireContentLoadedEvent, false);
-    }
-
-  } else {
-    document.write("<script id=__onDOMContentLoaded defer src=//:><\/script>");
-    $("__onDOMContentLoaded").onreadystatechange = function() {
-      if (this.readyState == "complete") {
-        this.onreadystatechange = null;
-        fireContentLoadedEvent();
-      }
-    };
-  }
-})();
-/*------------------------------- DEPRECATED -------------------------------*/
-
-Hash.toQueryString = Object.toQueryString;
-
-var Toggle = { display: Element.toggle };
-
-Element.Methods.childOf = Element.Methods.descendantOf;
-
-var Insertion = {
-  Before: function(element, content) {
-    return Element.insert(element, {before:content});
-  },
-
-  Top: function(element, content) {
-    return Element.insert(element, {top:content});
-  },
-
-  Bottom: function(element, content) {
-    return Element.insert(element, {bottom:content});
-  },
-
-  After: function(element, content) {
-    return Element.insert(element, {after:content});
-  }
-};
-
-var $continue = new Error('"throw $continue" is deprecated, use "return" instead');
-
-var Position = {
-  includeScrollOffsets: false,
-
-  prepare: function() {
-    this.deltaX =  window.pageXOffset
-                || document.documentElement.scrollLeft
-                || document.body.scrollLeft
-                || 0;
-    this.deltaY =  window.pageYOffset
-                || document.documentElement.scrollTop
-                || document.body.scrollTop
-                || 0;
-  },
-
-  within: function(element, x, y) {
-    if (this.includeScrollOffsets)
-      return this.withinIncludingScrolloffsets(element, x, y);
-    this.xcomp = x;
-    this.ycomp = y;
-    this.offset = Element.cumulativeOffset(element);
-
-    return (y >= this.offset[1] &&
-            y <  this.offset[1] + element.offsetHeight &&
-            x >= this.offset[0] &&
-            x <  this.offset[0] + element.offsetWidth);
-  },
-
-  withinIncludingScrolloffsets: function(element, x, y) {
-    var offsetcache = Element.cumulativeScrollOffset(element);
-
-    this.xcomp = x + offsetcache[0] - this.deltaX;
-    this.ycomp = y + offsetcache[1] - this.deltaY;
-    this.offset = Element.cumulativeOffset(element);
-
-    return (this.ycomp >= this.offset[1] &&
-            this.ycomp <  this.offset[1] + element.offsetHeight &&
-            this.xcomp >= this.offset[0] &&
-            this.xcomp <  this.offset[0] + element.offsetWidth);
-  },
-
-  overlap: function(mode, element) {
-    if (!mode) return 0;
-    if (mode == 'vertical')
-      return ((this.offset[1] + element.offsetHeight) - this.ycomp) /
-        element.offsetHeight;
-    if (mode == 'horizontal')
-      return ((this.offset[0] + element.offsetWidth) - this.xcomp) /
-        element.offsetWidth;
-  },
-
-
-  cumulativeOffset: Element.Methods.cumulativeOffset,
-
-  positionedOffset: Element.Methods.positionedOffset,
-
-  absolutize: function(element) {
-    Position.prepare();
-    return Element.absolutize(element);
-  },
-
-  relativize: function(element) {
-    Position.prepare();
-    return Element.relativize(element);
-  },
-
-  realOffset: Element.Methods.cumulativeScrollOffset,
-
-  offsetParent: Element.Methods.getOffsetParent,
-
-  page: Element.Methods.viewportOffset,
-
-  clone: function(source, target, options) {
-    options = options || { };
-    return Element.clonePosition(target, source, options);
-  }
-};
-
-/*--------------------------------------------------------------------------*/
-
-if (!document.getElementsByClassName) document.getElementsByClassName = function(instanceMethods){
-  function iter(name) {
-    return name.blank() ? null : "[contains(concat(' ', @class, ' '), ' " + name + " ')]";
-  }
-
-  instanceMethods.getElementsByClassName = Prototype.BrowserFeatures.XPath ?
-  function(element, className) {
-    className = className.toString().strip();
-    var cond = /\s/.test(className) ? $w(className).map(iter).join('') : iter(className);
-    return cond ? document._getElementsByXPath('.//*' + cond, element) : [];
-  } : function(element, className) {
-    className = className.toString().strip();
-    var elements = [], classNames = (/\s/.test(className) ? $w(className) : null);
-    if (!classNames && !className) return elements;
-
-    var nodes = $(element).getElementsByTagName('*');
-    className = ' ' + className + ' ';
-
-    for (var i = 0, child, cn; child = nodes[i]; i++) {
-      if (child.className && (cn = ' ' + child.className + ' ') && (cn.include(className) ||
-          (classNames && classNames.all(function(name) {
-            return !name.toString().blank() && cn.include(' ' + name + ' ');
-          }))))
-        elements.push(Element.extend(child));
-    }
-    return elements;
-  };
-
-  return function(className, parentElement) {
-    return $(parentElement || document.body).getElementsByClassName(className);
-  };
-}(Element.Methods);
-
-/*--------------------------------------------------------------------------*/
-
-Element.ClassNames = Class.create();
-Element.ClassNames.prototype = {
-  initialize: function(element) {
-    this.element = $(element);
-  },
-
-  _each: function(iterator) {
-    this.element.className.split(/\s+/).select(function(name) {
-      return name.length > 0;
-    })._each(iterator);
-  },
-
-  set: function(className) {
-    this.element.className = className;
-  },
-
-  add: function(classNameToAdd) {
-    if (this.include(classNameToAdd)) return;
-    this.set($A(this).concat(classNameToAdd).join(' '));
-  },
-
-  remove: function(classNameToRemove) {
-    if (!this.include(classNameToRemove)) return;
-    this.set($A(this).without(classNameToRemove).join(' '));
-  },
-
-  toString: function() {
-    return $A(this).join(' ');
-  }
-};
-
-Object.extend(Element.ClassNames.prototype, Enumerable);
-
-/*--------------------------------------------------------------------------*/
-
-Element.addMethods();
+ * Date: 2009-02-19 17:34:21 -0500 (Thu, 19 Feb 2009)
+ * Revision: 6246
+ */
+(function(){var l=this,g,y=l.jQuery,p=l.$,o=l.jQuery=l.$=function(E,F){return new o.fn.init(E,F)},D=/^[^<]*(<(.|\s)+>)[^>]*$|^#([\w-]+)$/,f=/^.[^:#\[\.,]*$/;o.fn=o.prototype={init:function(E,H){E=E||document;if(E.nodeType){this[0]=E;this.length=1;this.context=E;return this}if(typeof E==="string"){var G=D.exec(E);if(G&&(G[1]||!H)){if(G[1]){E=o.clean([G[1]],H)}else{var I=document.getElementById(G[3]);if(I&&I.id!=G[3]){return o().find(E)}var F=o(I||[]);F.context=document;F.selector=E;return F}}else{return o(H).find(E)}}else{if(o.isFunction(E)){return o(document).ready(E)}}if(E.selector&&E.context){this.selector=E.selector;this.context=E.context}return this.setArray(o.isArray(E)?E:o.makeArray(E))},selector:"",jquery:"1.3.2",size:function(){return this.length},get:function(E){return E===g?Array.prototype.slice.call(this):this[E]},pushStack:function(F,H,E){var G=o(F);G.prevObject=this;G.context=this.context;if(H==="find"){G.selector=this.selector+(this.selector?" ":"")+E}else{if(H){G.selector=this.selector+"."+H+"("+E+")"}}return G},setArray:function(E){this.length=0;Array.prototype.push.apply(this,E);return this},each:function(F,E){return o.each(this,F,E)},index:function(E){return o.inArray(E&&E.jquery?E[0]:E,this)},attr:function(F,H,G){var E=F;if(typeof F==="string"){if(H===g){return this[0]&&o[G||"attr"](this[0],F)}else{E={};E[F]=H}}return this.each(function(I){for(F in E){o.attr(G?this.style:this,F,o.prop(this,E[F],G,I,F))}})},css:function(E,F){if((E=="width"||E=="height")&&parseFloat(F)<0){F=g}return this.attr(E,F,"curCSS")},text:function(F){if(typeof F!=="object"&&F!=null){return this.empty().append((this[0]&&this[0].ownerDocument||document).createTextNode(F))}var E="";o.each(F||this,function(){o.each(this.childNodes,function(){if(this.nodeType!=8){E+=this.nodeType!=1?this.nodeValue:o.fn.text([this])}})});return E},wrapAll:function(E){if(this[0]){var F=o(E,this[0].ownerDocument).clone();if(this[0].parentNode){F.insertBefore(this[0])}F.map(function(){var G=this;while(G.firstChild){G=G.firstChild}return G}).append(this)}return this},wrapInner:function(E){return this.each(function(){o(this).contents().wrapAll(E)})},wrap:function(E){return this.each(function(){o(this).wrapAll(E)})},append:function(){return this.domManip(arguments,true,function(E){if(this.nodeType==1){this.appendChild(E)}})},prepend:function(){return this.domManip(arguments,true,function(E){if(this.nodeType==1){this.insertBefore(E,this.firstChild)}})},before:function(){return this.domManip(arguments,false,function(E){this.parentNode.insertBefore(E,this)})},after:function(){return this.domManip(arguments,false,function(E){this.parentNode.insertBefore(E,this.nextSibling)})},end:function(){return this.prevObject||o([])},push:[].push,sort:[].sort,splice:[].splice,find:function(E){if(this.length===1){var F=this.pushStack([],"find",E);F.length=0;o.find(E,this[0],F);return F}else{return this.pushStack(o.unique(o.map(this,function(G){return o.find(E,G)})),"find",E)}},clone:function(G){var E=this.map(function(){if(!o.support.noCloneEvent&&!o.isXMLDoc(this)){var I=this.outerHTML;if(!I){var J=this.ownerDocument.createElement("div");J.appendChild(this.cloneNode(true));I=J.innerHTML}return o.clean([I.replace(/ jQuery\d+="(?:\d+|null)"/g,"").replace(/^\s*/,"")])[0]}else{return this.cloneNode(true)}});if(G===true){var H=this.find("*").andSelf(),F=0;E.find("*").andSelf().each(function(){if(this.nodeName!==H[F].nodeName){return}var I=o.data(H[F],"events");for(var K in I){for(var J in I[K]){o.event.add(this,K,I[K][J],I[K][J].data)}}F++})}return E},filter:function(E){return this.pushStack(o.isFunction(E)&&o.grep(this,function(G,F){return E.call(G,F)})||o.multiFilter(E,o.grep(this,function(F){return F.nodeType===1})),"filter",E)},closest:function(E){var G=o.expr.match.POS.test(E)?o(E):null,F=0;return this.map(function(){var H=this;while(H&&H.ownerDocument){if(G?G.index(H)>-1:o(H).is(E)){o.data(H,"closest",F);return H}H=H.parentNode;F++}})},not:function(E){if(typeof E==="string"){if(f.test(E)){return this.pushStack(o.multiFilter(E,this,true),"not",E)}else{E=o.multiFilter(E,this)}}var F=E.length&&E[E.length-1]!==g&&!E.nodeType;return this.filter(function(){return F?o.inArray(this,E)<0:this!=E})},add:function(E){return this.pushStack(o.unique(o.merge(this.get(),typeof E==="string"?o(E):o.makeArray(E))))},is:function(E){return !!E&&o.multiFilter(E,this).length>0},hasClass:function(E){return !!E&&this.is("."+E)},val:function(K){if(K===g){var E=this[0];if(E){if(o.nodeName(E,"option")){return(E.attributes.value||{}).specified?E.value:E.text}if(o.nodeName(E,"select")){var I=E.selectedIndex,L=[],M=E.options,H=E.type=="select-one";if(I<0){return null}for(var F=H?I:0,J=H?I+1:M.length;F<J;F++){var G=M[F];if(G.selected){K=o(G).val();if(H){return K}L.push(K)}}return L}return(E.value||"").replace(/\r/g,"")}return g}if(typeof K==="number"){K+=""}return this.each(function(){if(this.nodeType!=1){return}if(o.isArray(K)&&/radio|checkbox/.test(this.type)){this.checked=(o.inArray(this.value,K)>=0||o.inArray(this.name,K)>=0)}else{if(o.nodeName(this,"select")){var N=o.makeArray(K);o("option",this).each(function(){this.selected=(o.inArray(this.value,N)>=0||o.inArray(this.text,N)>=0)});if(!N.length){this.selectedIndex=-1}}else{this.value=K}}})},html:function(E){return E===g?(this[0]?this[0].innerHTML.replace(/ jQuery\d+="(?:\d+|null)"/g,""):null):this.empty().append(E)},replaceWith:function(E){return this.after(E).remove()},eq:function(E){return this.slice(E,+E+1)},slice:function(){return this.pushStack(Array.prototype.slice.apply(this,arguments),"slice",Array.prototype.slice.call(arguments).join(","))},map:function(E){return this.pushStack(o.map(this,function(G,F){return E.call(G,F,G)}))},andSelf:function(){return this.add(this.prevObject)},domManip:function(J,M,L){if(this[0]){var I=(this[0].ownerDocument||this[0]).createDocumentFragment(),F=o.clean(J,(this[0].ownerDocument||this[0]),I),H=I.firstChild;if(H){for(var G=0,E=this.length;G<E;G++){L.call(K(this[G],H),this.length>1||G>0?I.cloneNode(true):I)}}if(F){o.each(F,z)}}return this;function K(N,O){return M&&o.nodeName(N,"table")&&o.nodeName(O,"tr")?(N.getElementsByTagName("tbody")[0]||N.appendChild(N.ownerDocument.createElement("tbody"))):N}}};o.fn.init.prototype=o.fn;function z(E,F){if(F.src){o.ajax({url:F.src,async:false,dataType:"script"})}else{o.globalEval(F.text||F.textContent||F.innerHTML||"")}if(F.parentNode){F.parentNode.removeChild(F)}}function e(){return +new Date}o.extend=o.fn.extend=function(){var J=arguments[0]||{},H=1,I=arguments.length,E=false,G;if(typeof J==="boolean"){E=J;J=arguments[1]||{};H=2}if(typeof J!=="object"&&!o.isFunction(J)){J={}}if(I==H){J=this;--H}for(;H<I;H++){if((G=arguments[H])!=null){for(var F in G){var K=J[F],L=G[F];if(J===L){continue}if(E&&L&&typeof L==="object"&&!L.nodeType){J[F]=o.extend(E,K||(L.length!=null?[]:{}),L)}else{if(L!==g){J[F]=L}}}}}return J};var b=/z-?index|font-?weight|opacity|zoom|line-?height/i,q=document.defaultView||{},s=Object.prototype.toString;o.extend({noConflict:function(E){l.$=p;if(E){l.jQuery=y}return o},isFunction:function(E){return s.call(E)==="[object Function]"},isArray:function(E){return s.call(E)==="[object Array]"},isXMLDoc:function(E){return E.nodeType===9&&E.documentElement.nodeName!=="HTML"||!!E.ownerDocument&&o.isXMLDoc(E.ownerDocument)},globalEval:function(G){if(G&&/\S/.test(G)){var F=document.getElementsByTagName("head")[0]||document.documentElement,E=document.createElement("script");E.type="text/javascript";if(o.support.scriptEval){E.appendChild(document.createTextNode(G))}else{E.text=G}F.insertBefore(E,F.firstChild);F.removeChild(E)}},nodeName:function(F,E){return F.nodeName&&F.nodeName.toUpperCase()==E.toUpperCase()},each:function(G,K,F){var E,H=0,I=G.length;if(F){if(I===g){for(E in G){if(K.apply(G[E],F)===false){break}}}else{for(;H<I;){if(K.apply(G[H++],F)===false){break}}}}else{if(I===g){for(E in G){if(K.call(G[E],E,G[E])===false){break}}}else{for(var J=G[0];H<I&&K.call(J,H,J)!==false;J=G[++H]){}}}return G},prop:function(H,I,G,F,E){if(o.isFunction(I)){I=I.call(H,F)}return typeof I==="number"&&G=="curCSS"&&!b.test(E)?I+"px":I},className:{add:function(E,F){o.each((F||"").split(/\s+/),function(G,H){if(E.nodeType==1&&!o.className.has(E.className,H)){E.className+=(E.className?" ":"")+H}})},remove:function(E,F){if(E.nodeType==1){E.className=F!==g?o.grep(E.className.split(/\s+/),function(G){return !o.className.has(F,G)}).join(" "):""}},has:function(F,E){return F&&o.inArray(E,(F.className||F).toString().split(/\s+/))>-1}},swap:function(H,G,I){var E={};for(var F in G){E[F]=H.style[F];H.style[F]=G[F]}I.call(H);for(var F in G){H.style[F]=E[F]}},css:function(H,F,J,E){if(F=="width"||F=="height"){var L,G={position:"absolute",visibility:"hidden",display:"block"},K=F=="width"?["Left","Right"]:["Top","Bottom"];function I(){L=F=="width"?H.offsetWidth:H.offsetHeight;if(E==="border"){return}o.each(K,function(){if(!E){L-=parseFloat(o.curCSS(H,"padding"+this,true))||0}if(E==="margin"){L+=parseFloat(o.curCSS(H,"margin"+this,true))||0}else{L-=parseFloat(o.curCSS(H,"border"+this+"Width",true))||0}})}if(H.offsetWidth!==0){I()}else{o.swap(H,G,I)}return Math.max(0,Math.round(L))}return o.curCSS(H,F,J)},curCSS:function(I,F,G){var L,E=I.style;if(F=="opacity"&&!o.support.opacity){L=o.attr(E,"opacity");return L==""?"1":L}if(F.match(/float/i)){F=w}if(!G&&E&&E[F]){L=E[F]}else{if(q.getComputedStyle){if(F.match(/float/i)){F="float"}F=F.replace(/([A-Z])/g,"-$1").toLowerCase();var M=q.getComputedStyle(I,null);if(M){L=M.getPropertyValue(F)}if(F=="opacity"&&L==""){L="1"}}else{if(I.currentStyle){var J=F.replace(/\-(\w)/g,function(N,O){return O.toUpperCase()});L=I.currentStyle[F]||I.currentStyle[J];if(!/^\d+(px)?$/i.test(L)&&/^\d/.test(L)){var H=E.left,K=I.runtimeStyle.left;I.runtimeStyle.left=I.currentStyle.left;E.left=L||0;L=E.pixelLeft+"px";E.left=H;I.runtimeStyle.left=K}}}}return L},clean:function(F,K,I){K=K||document;if(typeof K.createElement==="undefined"){K=K.ownerDocument||K[0]&&K[0].ownerDocument||document}if(!I&&F.length===1&&typeof F[0]==="string"){var H=/^<(\w+)\s*\/?>$/.exec(F[0]);if(H){return[K.createElement(H[1])]}}var G=[],E=[],L=K.createElement("div");o.each(F,function(P,S){if(typeof S==="number"){S+=""}if(!S){return}if(typeof S==="string"){S=S.replace(/(<(\w+)[^>]*?)\/>/g,function(U,V,T){return T.match(/^(abbr|br|col|img|input|link|meta|param|hr|area|embed)$/i)?U:V+"></"+T+">"});var O=S.replace(/^\s+/,"").substring(0,10).toLowerCase();var Q=!O.indexOf("<opt")&&[1,"<select multiple='multiple'>","</select>"]||!O.indexOf("<leg")&&[1,"<fieldset>","</fieldset>"]||O.match(/^<(thead|tbody|tfoot|colg|cap)/)&&[1,"<table>","</table>"]||!O.indexOf("<tr")&&[2,"<table><tbody>","</tbody></table>"]||(!O.indexOf("<td")||!O.indexOf("<th"))&&[3,"<table><tbody><tr>","</tr></tbody></table>"]||!O.indexOf("<col")&&[2,"<table><tbody></tbody><colgroup>","</colgroup></table>"]||!o.support.htmlSerialize&&[1,"div<div>","</div>"]||[0,"",""];L.innerHTML=Q[1]+S+Q[2];while(Q[0]--){L=L.lastChild}if(!o.support.tbody){var R=/<tbody/i.test(S),N=!O.indexOf("<table")&&!R?L.firstChild&&L.firstChild.childNodes:Q[1]=="<table>"&&!R?L.childNodes:[];for(var M=N.length-1;M>=0;--M){if(o.nodeName(N[M],"tbody")&&!N[M].childNodes.length){N[M].parentNode.removeChild(N[M])}}}if(!o.support.leadingWhitespace&&/^\s/.test(S)){L.insertBefore(K.createTextNode(S.match(/^\s*/)[0]),L.firstChild)}S=o.makeArray(L.childNodes)}if(S.nodeType){G.push(S)}else{G=o.merge(G,S)}});if(I){for(var J=0;G[J];J++){if(o.nodeName(G[J],"script")&&(!G[J].type||G[J].type.toLowerCase()==="text/javascript")){E.push(G[J].parentNode?G[J].parentNode.removeChild(G[J]):G[J])}else{if(G[J].nodeType===1){G.splice.apply(G,[J+1,0].concat(o.makeArray(G[J].getElementsByTagName("script"))))}I.appendChild(G[J])}}return E}return G},attr:function(J,G,K){if(!J||J.nodeType==3||J.nodeType==8){return g}var H=!o.isXMLDoc(J),L=K!==g;G=H&&o.props[G]||G;if(J.tagName){var F=/href|src|style/.test(G);if(G=="selected"&&J.parentNode){J.parentNode.selectedIndex}if(G in J&&H&&!F){if(L){if(G=="type"&&o.nodeName(J,"input")&&J.parentNode){throw"type property can't be changed"}J[G]=K}if(o.nodeName(J,"form")&&J.getAttributeNode(G)){return J.getAttributeNode(G).nodeValue}if(G=="tabIndex"){var I=J.getAttributeNode("tabIndex");return I&&I.specified?I.value:J.nodeName.match(/(button|input|object|select|textarea)/i)?0:J.nodeName.match(/^(a|area)$/i)&&J.href?0:g}return J[G]}if(!o.support.style&&H&&G=="style"){return o.attr(J.style,"cssText",K)}if(L){J.setAttribute(G,""+K)}var E=!o.support.hrefNormalized&&H&&F?J.getAttribute(G,2):J.getAttribute(G);return E===null?g:E}if(!o.support.opacity&&G=="opacity"){if(L){J.zoom=1;J.filter=(J.filter||"").replace(/alpha\([^)]*\)/,"")+(parseInt(K)+""=="NaN"?"":"alpha(opacity="+K*100+")")}return J.filter&&J.filter.indexOf("opacity=")>=0?(parseFloat(J.filter.match(/opacity=([^)]*)/)[1])/100)+"":""}G=G.replace(/-([a-z])/ig,function(M,N){return N.toUpperCase()});if(L){J[G]=K}return J[G]},trim:function(E){return(E||"").replace(/^\s+|\s+$/g,"")},makeArray:function(G){var E=[];if(G!=null){var F=G.length;if(F==null||typeof G==="string"||o.isFunction(G)||G.setInterval){E[0]=G}else{while(F){E[--F]=G[F]}}}return E},inArray:function(G,H){for(var E=0,F=H.length;E<F;E++){if(H[E]===G){return E}}return -1},merge:function(H,E){var F=0,G,I=H.length;if(!o.support.getAll){while((G=E[F++])!=null){if(G.nodeType!=8){H[I++]=G}}}else{while((G=E[F++])!=null){H[I++]=G}}return H},unique:function(K){var F=[],E={};try{for(var G=0,H=K.length;G<H;G++){var J=o.data(K[G]);if(!E[J]){E[J]=true;F.push(K[G])}}}catch(I){F=K}return F},grep:function(F,J,E){var G=[];for(var H=0,I=F.length;H<I;H++){if(!E!=!J(F[H],H)){G.push(F[H])}}return G},map:function(E,J){var F=[];for(var G=0,H=E.length;G<H;G++){var I=J(E[G],G);if(I!=null){F[F.length]=I}}return F.concat.apply([],F)}});var C=navigator.userAgent.toLowerCase();o.browser={version:(C.match(/.+(?:rv|it|ra|ie)[\/: ]([\d.]+)/)||[0,"0"])[1],safari:/webkit/.test(C),opera:/opera/.test(C),msie:/msie/.test(C)&&!/opera/.test(C),mozilla:/mozilla/.test(C)&&!/(compatible|webkit)/.test(C)};o.each({parent:function(E){return E.parentNode},parents:function(E){return o.dir(E,"parentNode")},next:function(E){return o.nth(E,2,"nextSibling")},prev:function(E){return o.nth(E,2,"previousSibling")},nextAll:function(E){return o.dir(E,"nextSibling")},prevAll:function(E){return o.dir(E,"previousSibling")},siblings:function(E){return o.sibling(E.parentNode.firstChild,E)},children:function(E){return o.sibling(E.firstChild)},contents:function(E){return o.nodeName(E,"iframe")?E.contentDocument||E.contentWindow.document:o.makeArray(E.childNodes)}},function(E,F){o.fn[E]=function(G){var H=o.map(this,F);if(G&&typeof G=="string"){H=o.multiFilter(G,H)}return this.pushStack(o.unique(H),E,G)}});o.each({appendTo:"append",prependTo:"prepend",insertBefore:"before",insertAfter:"after",replaceAll:"replaceWith"},function(E,F){o.fn[E]=function(G){var J=[],L=o(G);for(var K=0,H=L.length;K<H;K++){var I=(K>0?this.clone(true):this).get();o.fn[F].apply(o(L[K]),I);J=J.concat(I)}return this.pushStack(J,E,G)}});o.each({removeAttr:function(E){o.attr(this,E,"");if(this.nodeType==1){this.removeAttribute(E)}},addClass:function(E){o.className.add(this,E)},removeClass:function(E){o.className.remove(this,E)},toggleClass:function(F,E){if(typeof E!=="boolean"){E=!o.className.has(this,F)}o.className[E?"add":"remove"](this,F)},remove:function(E){if(!E||o.filter(E,[this]).length){o("*",this).add([this]).each(function(){o.event.remove(this);o.removeData(this)});if(this.parentNode){this.parentNode.removeChild(this)}}},empty:function(){o(this).children().remove();while(this.firstChild){this.removeChild(this.firstChild)}}},function(E,F){o.fn[E]=function(){return this.each(F,arguments)}});function j(E,F){return E[0]&&parseInt(o.curCSS(E[0],F,true),10)||0}var h="jQuery"+e(),v=0,A={};o.extend({cache:{},data:function(F,E,G){F=F==l?A:F;var H=F[h];if(!H){H=F[h]=++v}if(E&&!o.cache[H]){o.cache[H]={}}if(G!==g){o.cache[H][E]=G}return E?o.cache[H][E]:H},removeData:function(F,E){F=F==l?A:F;var H=F[h];if(E){if(o.cache[H]){delete o.cache[H][E];E="";for(E in o.cache[H]){break}if(!E){o.removeData(F)}}}else{try{delete F[h]}catch(G){if(F.removeAttribute){F.removeAttribute(h)}}delete o.cache[H]}},queue:function(F,E,H){if(F){E=(E||"fx")+"queue";var G=o.data(F,E);if(!G||o.isArray(H)){G=o.data(F,E,o.makeArray(H))}else{if(H){G.push(H)}}}return G},dequeue:function(H,G){var E=o.queue(H,G),F=E.shift();if(!G||G==="fx"){F=E[0]}if(F!==g){F.call(H)}}});o.fn.extend({data:function(E,G){var H=E.split(".");H[1]=H[1]?"."+H[1]:"";if(G===g){var F=this.triggerHandler("getData"+H[1]+"!",[H[0]]);if(F===g&&this.length){F=o.data(this[0],E)}return F===g&&H[1]?this.data(H[0]):F}else{return this.trigger("setData"+H[1]+"!",[H[0],G]).each(function(){o.data(this,E,G)})}},removeData:function(E){return this.each(function(){o.removeData(this,E)})},queue:function(E,F){if(typeof E!=="string"){F=E;E="fx"}if(F===g){return o.queue(this[0],E)}return this.each(function(){var G=o.queue(this,E,F);if(E=="fx"&&G.length==1){G[0].call(this)}})},dequeue:function(E){return this.each(function(){o.dequeue(this,E)})}});
+/*
+ * Sizzle CSS Selector Engine - v0.9.3
+ *  Copyright 2009, The Dojo Foundation
+ *  Released under the MIT, BSD, and GPL Licenses.
+ *  More information: http://sizzlejs.com/
+ */
+(function(){var R=/((?:\((?:\([^()]+\)|[^()]+)+\)|\[(?:\[[^[\]]*\]|['"][^'"]*['"]|[^[\]'"]+)+\]|\\.|[^ >+~,(\[\\]+)+|[>+~])(\s*,\s*)?/g,L=0,H=Object.prototype.toString;var F=function(Y,U,ab,ac){ab=ab||[];U=U||document;if(U.nodeType!==1&&U.nodeType!==9){return[]}if(!Y||typeof Y!=="string"){return ab}var Z=[],W,af,ai,T,ad,V,X=true;R.lastIndex=0;while((W=R.exec(Y))!==null){Z.push(W[1]);if(W[2]){V=RegExp.rightContext;break}}if(Z.length>1&&M.exec(Y)){if(Z.length===2&&I.relative[Z[0]]){af=J(Z[0]+Z[1],U)}else{af=I.relative[Z[0]]?[U]:F(Z.shift(),U);while(Z.length){Y=Z.shift();if(I.relative[Y]){Y+=Z.shift()}af=J(Y,af)}}}else{var ae=ac?{expr:Z.pop(),set:E(ac)}:F.find(Z.pop(),Z.length===1&&U.parentNode?U.parentNode:U,Q(U));af=F.filter(ae.expr,ae.set);if(Z.length>0){ai=E(af)}else{X=false}while(Z.length){var ah=Z.pop(),ag=ah;if(!I.relative[ah]){ah=""}else{ag=Z.pop()}if(ag==null){ag=U}I.relative[ah](ai,ag,Q(U))}}if(!ai){ai=af}if(!ai){throw"Syntax error, unrecognized expression: "+(ah||Y)}if(H.call(ai)==="[object Array]"){if(!X){ab.push.apply(ab,ai)}else{if(U.nodeType===1){for(var aa=0;ai[aa]!=null;aa++){if(ai[aa]&&(ai[aa]===true||ai[aa].nodeType===1&&K(U,ai[aa]))){ab.push(af[aa])}}}else{for(var aa=0;ai[aa]!=null;aa++){if(ai[aa]&&ai[aa].nodeType===1){ab.push(af[aa])}}}}}else{E(ai,ab)}if(V){F(V,U,ab,ac);if(G){hasDuplicate=false;ab.sort(G);if(hasDuplicate){for(var aa=1;aa<ab.length;aa++){if(ab[aa]===ab[aa-1]){ab.splice(aa--,1)}}}}}return ab};F.matches=function(T,U){return F(T,null,null,U)};F.find=function(aa,T,ab){var Z,X;if(!aa){return[]}for(var W=0,V=I.order.length;W<V;W++){var Y=I.order[W],X;if((X=I.match[Y].exec(aa))){var U=RegExp.leftContext;if(U.substr(U.length-1)!=="\\"){X[1]=(X[1]||"").replace(/\\/g,"");Z=I.find[Y](X,T,ab);if(Z!=null){aa=aa.replace(I.match[Y],"");break}}}}if(!Z){Z=T.getElementsByTagName("*")}return{set:Z,expr:aa}};F.filter=function(ad,ac,ag,W){var V=ad,ai=[],aa=ac,Y,T,Z=ac&&ac[0]&&Q(ac[0]);while(ad&&ac.length){for(var ab in I.filter){if((Y=I.match[ab].exec(ad))!=null){var U=I.filter[ab],ah,af;T=false;if(aa==ai){ai=[]}if(I.preFilter[ab]){Y=I.preFilter[ab](Y,aa,ag,ai,W,Z);if(!Y){T=ah=true}else{if(Y===true){continue}}}if(Y){for(var X=0;(af=aa[X])!=null;X++){if(af){ah=U(af,Y,X,aa);var ae=W^!!ah;if(ag&&ah!=null){if(ae){T=true}else{aa[X]=false}}else{if(ae){ai.push(af);T=true}}}}}if(ah!==g){if(!ag){aa=ai}ad=ad.replace(I.match[ab],"");if(!T){return[]}break}}}if(ad==V){if(T==null){throw"Syntax error, unrecognized expression: "+ad}else{break}}V=ad}return aa};var I=F.selectors={order:["ID","NAME","TAG"],match:{ID:/#((?:[\w\u00c0-\uFFFF_-]|\\.)+)/,CLASS:/\.((?:[\w\u00c0-\uFFFF_-]|\\.)+)/,NAME:/\[name=['"]*((?:[\w\u00c0-\uFFFF_-]|\\.)+)['"]*\]/,ATTR:/\[\s*((?:[\w\u00c0-\uFFFF_-]|\\.)+)\s*(?:(\S?=)\s*(['"]*)(.*?)\3|)\s*\]/,TAG:/^((?:[\w\u00c0-\uFFFF\*_-]|\\.)+)/,CHILD:/:(only|nth|last|first)-child(?:\((even|odd|[\dn+-]*)\))?/,POS:/:(nth|eq|gt|lt|first|last|even|odd)(?:\((\d*)\))?(?=[^-]|$)/,PSEUDO:/:((?:[\w\u00c0-\uFFFF_-]|\\.)+)(?:\((['"]*)((?:\([^\)]+\)|[^\2\(\)]*)+)\2\))?/},attrMap:{"class":"className","for":"htmlFor"},attrHandle:{href:function(T){return T.getAttribute("href")}},relative:{"+":function(aa,T,Z){var X=typeof T==="string",ab=X&&!/\W/.test(T),Y=X&&!ab;if(ab&&!Z){T=T.toUpperCase()}for(var W=0,V=aa.length,U;W<V;W++){if((U=aa[W])){while((U=U.previousSibling)&&U.nodeType!==1){}aa[W]=Y||U&&U.nodeName===T?U||false:U===T}}if(Y){F.filter(T,aa,true)}},">":function(Z,U,aa){var X=typeof U==="string";if(X&&!/\W/.test(U)){U=aa?U:U.toUpperCase();for(var V=0,T=Z.length;V<T;V++){var Y=Z[V];if(Y){var W=Y.parentNode;Z[V]=W.nodeName===U?W:false}}}else{for(var V=0,T=Z.length;V<T;V++){var Y=Z[V];if(Y){Z[V]=X?Y.parentNode:Y.parentNode===U}}if(X){F.filter(U,Z,true)}}},"":function(W,U,Y){var V=L++,T=S;if(!U.match(/\W/)){var X=U=Y?U:U.toUpperCase();T=P}T("parentNode",U,V,W,X,Y)},"~":function(W,U,Y){var V=L++,T=S;if(typeof U==="string"&&!U.match(/\W/)){var X=U=Y?U:U.toUpperCase();T=P}T("previousSibling",U,V,W,X,Y)}},find:{ID:function(U,V,W){if(typeof V.getElementById!=="undefined"&&!W){var T=V.getElementById(U[1]);return T?[T]:[]}},NAME:function(V,Y,Z){if(typeof Y.getElementsByName!=="undefined"){var U=[],X=Y.getElementsByName(V[1]);for(var W=0,T=X.length;W<T;W++){if(X[W].getAttribute("name")===V[1]){U.push(X[W])}}return U.length===0?null:U}},TAG:function(T,U){return U.getElementsByTagName(T[1])}},preFilter:{CLASS:function(W,U,V,T,Z,aa){W=" "+W[1].replace(/\\/g,"")+" ";if(aa){return W}for(var X=0,Y;(Y=U[X])!=null;X++){if(Y){if(Z^(Y.className&&(" "+Y.className+" ").indexOf(W)>=0)){if(!V){T.push(Y)}}else{if(V){U[X]=false}}}}return false},ID:function(T){return T[1].replace(/\\/g,"")},TAG:function(U,T){for(var V=0;T[V]===false;V++){}return T[V]&&Q(T[V])?U[1]:U[1].toUpperCase()},CHILD:function(T){if(T[1]=="nth"){var U=/(-?)(\d*)n((?:\+|-)?\d*)/.exec(T[2]=="even"&&"2n"||T[2]=="odd"&&"2n+1"||!/\D/.test(T[2])&&"0n+"+T[2]||T[2]);T[2]=(U[1]+(U[2]||1))-0;T[3]=U[3]-0}T[0]=L++;return T},ATTR:function(X,U,V,T,Y,Z){var W=X[1].replace(/\\/g,"");if(!Z&&I.attrMap[W]){X[1]=I.attrMap[W]}if(X[2]==="~="){X[4]=" "+X[4]+" "}return X},PSEUDO:function(X,U,V,T,Y){if(X[1]==="not"){if(X[3].match(R).length>1||/^\w/.test(X[3])){X[3]=F(X[3],null,null,U)}else{var W=F.filter(X[3],U,V,true^Y);if(!V){T.push.apply(T,W)}return false}}else{if(I.match.POS.test(X[0])||I.match.CHILD.test(X[0])){return true}}return X},POS:function(T){T.unshift(true);return T}},filters:{enabled:function(T){return T.disabled===false&&T.type!=="hidden"},disabled:function(T){return T.disabled===true},checked:function(T){return T.checked===true},selected:function(T){T.parentNode.selectedIndex;return T.selected===true},parent:function(T){return !!T.firstChild},empty:function(T){return !T.firstChild},has:function(V,U,T){return !!F(T[3],V).length},header:function(T){return/h\d/i.test(T.nodeName)},text:function(T){return"text"===T.type},radio:function(T){return"radio"===T.type},checkbox:function(T){return"checkbox"===T.type},file:function(T){return"file"===T.type},password:function(T){return"password"===T.type},submit:function(T){return"submit"===T.type},image:function(T){return"image"===T.type},reset:function(T){return"reset"===T.type},button:function(T){return"button"===T.type||T.nodeName.toUpperCase()==="BUTTON"},input:function(T){return/input|select|textarea|button/i.test(T.nodeName)}},setFilters:{first:function(U,T){return T===0},last:function(V,U,T,W){return U===W.length-1},even:function(U,T){return T%2===0},odd:function(U,T){return T%2===1},lt:function(V,U,T){return U<T[3]-0},gt:function(V,U,T){return U>T[3]-0},nth:function(V,U,T){return T[3]-0==U},eq:function(V,U,T){return T[3]-0==U}},filter:{PSEUDO:function(Z,V,W,aa){var U=V[1],X=I.filters[U];if(X){return X(Z,W,V,aa)}else{if(U==="contains"){return(Z.textContent||Z.innerText||"").indexOf(V[3])>=0}else{if(U==="not"){var Y=V[3];for(var W=0,T=Y.length;W<T;W++){if(Y[W]===Z){return false}}return true}}}},CHILD:function(T,W){var Z=W[1],U=T;switch(Z){case"only":case"first":while(U=U.previousSibling){if(U.nodeType===1){return false}}if(Z=="first"){return true}U=T;case"last":while(U=U.nextSibling){if(U.nodeType===1){return false}}return true;case"nth":var V=W[2],ac=W[3];if(V==1&&ac==0){return true}var Y=W[0],ab=T.parentNode;if(ab&&(ab.sizcache!==Y||!T.nodeIndex)){var X=0;for(U=ab.firstChild;U;U=U.nextSibling){if(U.nodeType===1){U.nodeIndex=++X}}ab.sizcache=Y}var aa=T.nodeIndex-ac;if(V==0){return aa==0}else{return(aa%V==0&&aa/V>=0)}}},ID:function(U,T){return U.nodeType===1&&U.getAttribute("id")===T},TAG:function(U,T){return(T==="*"&&U.nodeType===1)||U.nodeName===T},CLASS:function(U,T){return(" "+(U.className||U.getAttribute("class"))+" ").indexOf(T)>-1},ATTR:function(Y,W){var V=W[1],T=I.attrHandle[V]?I.attrHandle[V](Y):Y[V]!=null?Y[V]:Y.getAttribute(V),Z=T+"",X=W[2],U=W[4];return T==null?X==="!=":X==="="?Z===U:X==="*="?Z.indexOf(U)>=0:X==="~="?(" "+Z+" ").indexOf(U)>=0:!U?Z&&T!==false:X==="!="?Z!=U:X==="^="?Z.indexOf(U)===0:X==="$="?Z.substr(Z.length-U.length)===U:X==="|="?Z===U||Z.substr(0,U.length+1)===U+"-":false},POS:function(X,U,V,Y){var T=U[2],W=I.setFilters[T];if(W){return W(X,V,U,Y)}}}};var M=I.match.POS;for(var O in I.match){I.match[O]=RegExp(I.match[O].source+/(?![^\[]*\])(?![^\(]*\))/.source)}var E=function(U,T){U=Array.prototype.slice.call(U);if(T){T.push.apply(T,U);return T}return U};try{Array.prototype.slice.call(document.documentElement.childNodes)}catch(N){E=function(X,W){var U=W||[];if(H.call(X)==="[object Array]"){Array.prototype.push.apply(U,X)}else{if(typeof X.length==="number"){for(var V=0,T=X.length;V<T;V++){U.push(X[V])}}else{for(var V=0;X[V];V++){U.push(X[V])}}}return U}}var G;if(document.documentElement.compareDocumentPosition){G=function(U,T){var V=U.compareDocumentPosition(T)&4?-1:U===T?0:1;if(V===0){hasDuplicate=true}return V}}else{if("sourceIndex" in document.documentElement){G=function(U,T){var V=U.sourceIndex-T.sourceIndex;if(V===0){hasDuplicate=true}return V}}else{if(document.createRange){G=function(W,U){var V=W.ownerDocument.createRange(),T=U.ownerDocument.createRange();V.selectNode(W);V.collapse(true);T.selectNode(U);T.collapse(true);var X=V.compareBoundaryPoints(Range.START_TO_END,T);if(X===0){hasDuplicate=true}return X}}}}(function(){var U=document.createElement("form"),V="script"+(new Date).getTime();U.innerHTML="<input name='"+V+"'/>";var T=document.documentElement;T.insertBefore(U,T.firstChild);if(!!document.getElementById(V)){I.find.ID=function(X,Y,Z){if(typeof Y.getElementById!=="undefined"&&!Z){var W=Y.getElementById(X[1]);return W?W.id===X[1]||typeof W.getAttributeNode!=="undefined"&&W.getAttributeNode("id").nodeValue===X[1]?[W]:g:[]}};I.filter.ID=function(Y,W){var X=typeof Y.getAttributeNode!=="undefined"&&Y.getAttributeNode("id");return Y.nodeType===1&&X&&X.nodeValue===W}}T.removeChild(U)})();(function(){var T=document.createElement("div");T.appendChild(document.createComment(""));if(T.getElementsByTagName("*").length>0){I.find.TAG=function(U,Y){var X=Y.getElementsByTagName(U[1]);if(U[1]==="*"){var W=[];for(var V=0;X[V];V++){if(X[V].nodeType===1){W.push(X[V])}}X=W}return X}}T.innerHTML="<a href='#'></a>";if(T.firstChild&&typeof T.firstChild.getAttribute!=="undefined"&&T.firstChild.getAttribute("href")!=="#"){I.attrHandle.href=function(U){return U.getAttribute("href",2)}}})();if(document.querySelectorAll){(function(){var T=F,U=document.createElement("div");U.innerHTML="<p class='TEST'></p>";if(U.querySelectorAll&&U.querySelectorAll(".TEST").length===0){return}F=function(Y,X,V,W){X=X||document;if(!W&&X.nodeType===9&&!Q(X)){try{return E(X.querySelectorAll(Y),V)}catch(Z){}}return T(Y,X,V,W)};F.find=T.find;F.filter=T.filter;F.selectors=T.selectors;F.matches=T.matches})()}if(document.getElementsByClassName&&document.documentElement.getElementsByClassName){(function(){var T=document.createElement("div");T.innerHTML="<div class='test e'></div><div class='test'></div>";if(T.getElementsByClassName("e").length===0){return}T.lastChild.className="e";if(T.getElementsByClassName("e").length===1){return}I.order.splice(1,0,"CLASS");I.find.CLASS=function(U,V,W){if(typeof V.getElementsByClassName!=="undefined"&&!W){return V.getElementsByClassName(U[1])}}})()}function P(U,Z,Y,ad,aa,ac){var ab=U=="previousSibling"&&!ac;for(var W=0,V=ad.length;W<V;W++){var T=ad[W];if(T){if(ab&&T.nodeType===1){T.sizcache=Y;T.sizset=W}T=T[U];var X=false;while(T){if(T.sizcache===Y){X=ad[T.sizset];break}if(T.nodeType===1&&!ac){T.sizcache=Y;T.sizset=W}if(T.nodeName===Z){X=T;break}T=T[U]}ad[W]=X}}}function S(U,Z,Y,ad,aa,ac){var ab=U=="previousSibling"&&!ac;for(var W=0,V=ad.length;W<V;W++){var T=ad[W];if(T){if(ab&&T.nodeType===1){T.sizcache=Y;T.sizset=W}T=T[U];var X=false;while(T){if(T.sizcache===Y){X=ad[T.sizset];break}if(T.nodeType===1){if(!ac){T.sizcache=Y;T.sizset=W}if(typeof Z!=="string"){if(T===Z){X=true;break}}else{if(F.filter(Z,[T]).length>0){X=T;break}}}T=T[U]}ad[W]=X}}}var K=document.compareDocumentPosition?function(U,T){return U.compareDocumentPosition(T)&16}:function(U,T){return U!==T&&(U.contains?U.contains(T):true)};var Q=function(T){return T.nodeType===9&&T.documentElement.nodeName!=="HTML"||!!T.ownerDocument&&Q(T.ownerDocument)};var J=function(T,aa){var W=[],X="",Y,V=aa.nodeType?[aa]:aa;while((Y=I.match.PSEUDO.exec(T))){X+=Y[0];T=T.replace(I.match.PSEUDO,"")}T=I.relative[T]?T+"*":T;for(var Z=0,U=V.length;Z<U;Z++){F(T,V[Z],W)}return F.filter(X,W)};o.find=F;o.filter=F.filter;o.expr=F.selectors;o.expr[":"]=o.expr.filters;F.selectors.filters.hidden=function(T){return T.offsetWidth===0||T.offsetHeight===0};F.selectors.filters.visible=function(T){return T.offsetWidth>0||T.offsetHeight>0};F.selectors.filters.animated=function(T){return o.grep(o.timers,function(U){return T===U.elem}).length};o.multiFilter=function(V,T,U){if(U){V=":not("+V+")"}return F.matches(V,T)};o.dir=function(V,U){var T=[],W=V[U];while(W&&W!=document){if(W.nodeType==1){T.push(W)}W=W[U]}return T};o.nth=function(X,T,V,W){T=T||1;var U=0;for(;X;X=X[V]){if(X.nodeType==1&&++U==T){break}}return X};o.sibling=function(V,U){var T=[];for(;V;V=V.nextSibling){if(V.nodeType==1&&V!=U){T.push(V)}}return T};return;l.Sizzle=F})();o.event={add:function(I,F,H,K){if(I.nodeType==3||I.nodeType==8){return}if(I.setInterval&&I!=l){I=l}if(!H.guid){H.guid=this.guid++}if(K!==g){var G=H;H=this.proxy(G);H.data=K}var E=o.data(I,"events")||o.data(I,"events",{}),J=o.data(I,"handle")||o.data(I,"handle",function(){return typeof o!=="undefined"&&!o.event.triggered?o.event.handle.apply(arguments.callee.elem,arguments):g});J.elem=I;o.each(F.split(/\s+/),function(M,N){var O=N.split(".");N=O.shift();H.type=O.slice().sort().join(".");var L=E[N];if(o.event.specialAll[N]){o.event.specialAll[N].setup.call(I,K,O)}if(!L){L=E[N]={};if(!o.event.special[N]||o.event.special[N].setup.call(I,K,O)===false){if(I.addEventListener){I.addEventListener(N,J,false)}else{if(I.attachEvent){I.attachEvent("on"+N,J)}}}}L[H.guid]=H;o.event.global[N]=true});I=null},guid:1,global:{},remove:function(K,H,J){if(K.nodeType==3||K.nodeType==8){return}var G=o.data(K,"events"),F,E;if(G){if(H===g||(typeof H==="string"&&H.charAt(0)==".")){for(var I in G){this.remove(K,I+(H||""))}}else{if(H.type){J=H.handler;H=H.type}o.each(H.split(/\s+/),function(M,O){var Q=O.split(".");O=Q.shift();var N=RegExp("(^|\\.)"+Q.slice().sort().join(".*\\.")+"(\\.|$)");if(G[O]){if(J){delete G[O][J.guid]}else{for(var P in G[O]){if(N.test(G[O][P].type)){delete G[O][P]}}}if(o.event.specialAll[O]){o.event.specialAll[O].teardown.call(K,Q)}for(F in G[O]){break}if(!F){if(!o.event.special[O]||o.event.special[O].teardown.call(K,Q)===false){if(K.removeEventListener){K.removeEventListener(O,o.data(K,"handle"),false)}else{if(K.detachEvent){K.detachEvent("on"+O,o.data(K,"handle"))}}}F=null;delete G[O]}}})}for(F in G){break}if(!F){var L=o.data(K,"handle");if(L){L.elem=null}o.removeData(K,"events");o.removeData(K,"handle")}}},trigger:function(I,K,H,E){var G=I.type||I;if(!E){I=typeof I==="object"?I[h]?I:o.extend(o.Event(G),I):o.Event(G);if(G.indexOf("!")>=0){I.type=G=G.slice(0,-1);I.exclusive=true}if(!H){I.stopPropagation();if(this.global[G]){o.each(o.cache,function(){if(this.events&&this.events[G]){o.event.trigger(I,K,this.handle.elem)}})}}if(!H||H.nodeType==3||H.nodeType==8){return g}I.result=g;I.target=H;K=o.makeArray(K);K.unshift(I)}I.currentTarget=H;var J=o.data(H,"handle");if(J){J.apply(H,K)}if((!H[G]||(o.nodeName(H,"a")&&G=="click"))&&H["on"+G]&&H["on"+G].apply(H,K)===false){I.result=false}if(!E&&H[G]&&!I.isDefaultPrevented()&&!(o.nodeName(H,"a")&&G=="click")){this.triggered=true;try{H[G]()}catch(L){}}this.triggered=false;if(!I.isPropagationStopped()){var F=H.parentNode||H.ownerDocument;if(F){o.event.trigger(I,K,F,true)}}},handle:function(K){var J,E;K=arguments[0]=o.event.fix(K||l.event);K.currentTarget=this;var L=K.type.split(".");K.type=L.shift();J=!L.length&&!K.exclusive;var I=RegExp("(^|\\.)"+L.slice().sort().join(".*\\.")+"(\\.|$)");E=(o.data(this,"events")||{})[K.type];for(var G in E){var H=E[G];if(J||I.test(H.type)){K.handler=H;K.data=H.data;var F=H.apply(this,arguments);if(F!==g){K.result=F;if(F===false){K.preventDefault();K.stopPropagation()}}if(K.isImmediatePropagationStopped()){break}}}},props:"altKey attrChange attrName bubbles button cancelable charCode clientX clientY ctrlKey currentTarget data detail eventPhase fromElement handler keyCode metaKey newValue originalTarget pageX pageY prevValue relatedNode relatedTarget screenX screenY shiftKey srcElement target toElement view wheelDelta which".split(" "),fix:function(H){if(H[h]){return H}var F=H;H=o.Event(F);for(var G=this.props.length,J;G;){J=this.props[--G];H[J]=F[J]}if(!H.target){H.target=H.srcElement||document}if(H.target.nodeType==3){H.target=H.target.parentNode}if(!H.relatedTarget&&H.fromElement){H.relatedTarget=H.fromElement==H.target?H.toElement:H.fromElement}if(H.pageX==null&&H.clientX!=null){var I=document.documentElement,E=document.body;H.pageX=H.clientX+(I&&I.scrollLeft||E&&E.scrollLeft||0)-(I.clientLeft||0);H.pageY=H.clientY+(I&&I.scrollTop||E&&E.scrollTop||0)-(I.clientTop||0)}if(!H.which&&((H.charCode||H.charCode===0)?H.charCode:H.keyCode)){H.which=H.charCode||H.keyCode}if(!H.metaKey&&H.ctrlKey){H.metaKey=H.ctrlKey}if(!H.which&&H.button){H.which=(H.button&1?1:(H.button&2?3:(H.button&4?2:0)))}return H},proxy:function(F,E){E=E||function(){return F.apply(this,arguments)};E.guid=F.guid=F.guid||E.guid||this.guid++;return E},special:{ready:{setup:B,teardown:function(){}}},specialAll:{live:{setup:function(E,F){o.event.add(this,F[0],c)},teardown:function(G){if(G.length){var E=0,F=RegExp("(^|\\.)"+G[0]+"(\\.|$)");o.each((o.data(this,"events").live||{}),function(){if(F.test(this.type)){E++}});if(E<1){o.event.remove(this,G[0],c)}}}}}};o.Event=function(E){if(!this.preventDefault){return new o.Event(E)}if(E&&E.type){this.originalEvent=E;this.type=E.type}else{this.type=E}this.timeStamp=e();this[h]=true};function k(){return false}function u(){return true}o.Event.prototype={preventDefault:function(){this.isDefaultPrevented=u;var E=this.originalEvent;if(!E){return}if(E.preventDefault){E.preventDefault()}E.returnValue=false},stopPropagation:function(){this.isPropagationStopped=u;var E=this.originalEvent;if(!E){return}if(E.stopPropagation){E.stopPropagation()}E.cancelBubble=true},stopImmediatePropagation:function(){this.isImmediatePropagationStopped=u;this.stopPropagation()},isDefaultPrevented:k,isPropagationStopped:k,isImmediatePropagationStopped:k};var a=function(F){var E=F.relatedTarget;while(E&&E!=this){try{E=E.parentNode}catch(G){E=this}}if(E!=this){F.type=F.data;o.event.handle.apply(this,arguments)}};o.each({mouseover:"mouseenter",mouseout:"mouseleave"},function(F,E){o.event.special[E]={setup:function(){o.event.add(this,F,a,E)},teardown:function(){o.event.remove(this,F,a)}}});o.fn.extend({bind:function(F,G,E){return F=="unload"?this.one(F,G,E):this.each(function(){o.event.add(this,F,E||G,E&&G)})},one:function(G,H,F){var E=o.event.proxy(F||H,function(I){o(this).unbind(I,E);return(F||H).apply(this,arguments)});return this.each(function(){o.event.add(this,G,E,F&&H)})},unbind:function(F,E){return this.each(function(){o.event.remove(this,F,E)})},trigger:function(E,F){return this.each(function(){o.event.trigger(E,F,this)})},triggerHandler:function(E,G){if(this[0]){var F=o.Event(E);F.preventDefault();F.stopPropagation();o.event.trigger(F,G,this[0]);return F.result}},toggle:function(G){var E=arguments,F=1;while(F<E.length){o.event.proxy(G,E[F++])}return this.click(o.event.proxy(G,function(H){this.lastToggle=(this.lastToggle||0)%F;H.preventDefault();return E[this.lastToggle++].apply(this,arguments)||false}))},hover:function(E,F){return this.mouseenter(E).mouseleave(F)},ready:function(E){B();if(o.isReady){E.call(document,o)}else{o.readyList.push(E)}return this},live:function(G,F){var E=o.event.proxy(F);E.guid+=this.selector+G;o(document).bind(i(G,this.selector),this.selector,E);return this},die:function(F,E){o(document).unbind(i(F,this.selector),E?{guid:E.guid+this.selector+F}:null);return this}});function c(H){var E=RegExp("(^|\\.)"+H.type+"(\\.|$)"),G=true,F=[];o.each(o.data(this,"events").live||[],function(I,J){if(E.test(J.type)){var K=o(H.target).closest(J.data)[0];if(K){F.push({elem:K,fn:J})}}});F.sort(function(J,I){return o.data(J.elem,"closest")-o.data(I.elem,"closest")});o.each(F,function(){if(this.fn.call(this.elem,H,this.fn.data)===false){return(G=false)}});return G}function i(F,E){return["live",F,E.replace(/\./g,"`").replace(/ /g,"|")].join(".")}o.extend({isReady:false,readyList:[],ready:function(){if(!o.isReady){o.isReady=true;if(o.readyList){o.each(o.readyList,function(){this.call(document,o)});o.readyList=null}o(document).triggerHandler("ready")}}});var x=false;function B(){if(x){return}x=true;if(document.addEventListener){document.addEventListener("DOMContentLoaded",function(){document.removeEventListener("DOMContentLoaded",arguments.callee,false);o.ready()},false)}else{if(document.attachEvent){document.attachEvent("onreadystatechange",function(){if(document.readyState==="complete"){document.detachEvent("onreadystatechange",arguments.callee);o.ready()}});if(document.documentElement.doScroll&&l==l.top){(function(){if(o.isReady){return}try{document.documentElement.doScroll("left")}catch(E){setTimeout(arguments.callee,0);return}o.ready()})()}}}o.event.add(l,"load",o.ready)}o.each(("blur,focus,load,resize,scroll,unload,click,dblclick,mousedown,mouseup,mousemove,mouseover,mouseout,mouseenter,mouseleave,change,select,submit,keydown,keypress,keyup,error").split(","),function(F,E){o.fn[E]=function(G){return G?this.bind(E,G):this.trigger(E)}});o(l).bind("unload",function(){for(var E in o.cache){if(E!=1&&o.cache[E].handle){o.event.remove(o.cache[E].handle.elem)}}});(function(){o.support={};var F=document.documentElement,G=document.createElement("script"),K=document.createElement("div"),J="script"+(new Date).getTime();K.style.display="none";K.innerHTML='   <link/><table></table><a href="/a" style="color:red;float:left;opacity:.5;">a</a><select><option>text</option></select><object><param/></object>';var H=K.getElementsByTagName("*"),E=K.getElementsByTagName("a")[0];if(!H||!H.length||!E){return}o.support={leadingWhitespace:K.firstChild.nodeType==3,tbody:!K.getElementsByTagName("tbody").length,objectAll:!!K.getElementsByTagName("object")[0].getElementsByTagName("*").length,htmlSerialize:!!K.getElementsByTagName("link").length,style:/red/.test(E.getAttribute("style")),hrefNormalized:E.getAttribute("href")==="/a",opacity:E.style.opacity==="0.5",cssFloat:!!E.style.cssFloat,scriptEval:false,noCloneEvent:true,boxModel:null};G.type="text/javascript";try{G.appendChild(document.createTextNode("window."+J+"=1;"))}catch(I){}F.insertBefore(G,F.firstChild);if(l[J]){o.support.scriptEval=true;delete l[J]}F.removeChild(G);if(K.attachEvent&&K.fireEvent){K.attachEvent("onclick",function(){o.support.noCloneEvent=false;K.detachEvent("onclick",arguments.callee)});K.cloneNode(true).fireEvent("onclick")}o(function(){var L=document.createElement("div");L.style.width=L.style.paddingLeft="1px";document.body.appendChild(L);o.boxModel=o.support.boxModel=L.offsetWidth===2;document.body.removeChild(L).style.display="none"})})();var w=o.support.cssFloat?"cssFloat":"styleFloat";o.props={"for":"htmlFor","class":"className","float":w,cssFloat:w,styleFloat:w,readonly:"readOnly",maxlength:"maxLength",cellspacing:"cellSpacing",rowspan:"rowSpan",tabindex:"tabIndex"};o.fn.extend({_load:o.fn.load,load:function(G,J,K){if(typeof G!=="string"){return this._load(G)}var I=G.indexOf(" ");if(I>=0){var E=G.slice(I,G.length);G=G.slice(0,I)}var H="GET";if(J){if(o.isFunction(J)){K=J;J=null}else{if(typeof J==="object"){J=o.param(J);H="POST"}}}var F=this;o.ajax({url:G,type:H,dataType:"html",data:J,complete:function(M,L){if(L=="success"||L=="notmodified"){F.html(E?o("<div/>").append(M.responseText.replace(/<script(.|\s)*?\/script>/g,"")).find(E):M.responseText)}if(K){F.each(K,[M.responseText,L,M])}}});return this},serialize:function(){return o.param(this.serializeArray())},serializeArray:function(){return this.map(function(){return this.elements?o.makeArray(this.elements):this}).filter(function(){return this.name&&!this.disabled&&(this.checked||/select|textarea/i.test(this.nodeName)||/text|hidden|password|search/i.test(this.type))}).map(function(E,F){var G=o(this).val();return G==null?null:o.isArray(G)?o.map(G,function(I,H){return{name:F.name,value:I}}):{name:F.name,value:G}}).get()}});o.each("ajaxStart,ajaxStop,ajaxComplete,ajaxError,ajaxSuccess,ajaxSend".split(","),function(E,F){o.fn[F]=function(G){return this.bind(F,G)}});var r=e();o.extend({get:function(E,G,H,F){if(o.isFunction(G)){H=G;G=null}return o.ajax({type:"GET",url:E,data:G,success:H,dataType:F})},getScript:function(E,F){return o.get(E,null,F,"script")},getJSON:function(E,F,G){return o.get(E,F,G,"json")},post:function(E,G,H,F){if(o.isFunction(G)){H=G;G={}}return o.ajax({type:"POST",url:E,data:G,success:H,dataType:F})},ajaxSetup:function(E){o.extend(o.ajaxSettings,E)},ajaxSettings:{url:location.href,global:true,type:"GET",contentType:"application/x-www-form-urlencoded",processData:true,async:true,xhr:function(){return l.ActiveXObject?new ActiveXObject("Microsoft.XMLHTTP"):new XMLHttpRequest()},accepts:{xml:"application/xml, text/xml",html:"text/html",script:"text/javascript, application/javascript",json:"application/json, text/javascript",text:"text/plain",_default:"*/*"}},lastModified:{},ajax:function(M){M=o.extend(true,M,o.extend(true,{},o.ajaxSettings,M));var W,F=/=\?(&|$)/g,R,V,G=M.type.toUpperCase();if(M.data&&M.processData&&typeof M.data!=="string"){M.data=o.param(M.data)}if(M.dataType=="jsonp"){if(G=="GET"){if(!M.url.match(F)){M.url+=(M.url.match(/\?/)?"&":"?")+(M.jsonp||"callback")+"=?"}}else{if(!M.data||!M.data.match(F)){M.data=(M.data?M.data+"&":"")+(M.jsonp||"callback")+"=?"}}M.dataType="json"}if(M.dataType=="json"&&(M.data&&M.data.match(F)||M.url.match(F))){W="jsonp"+r++;if(M.data){M.data=(M.data+"").replace(F,"="+W+"$1")}M.url=M.url.replace(F,"="+W+"$1");M.dataType="script";l[W]=function(X){V=X;I();L();l[W]=g;try{delete l[W]}catch(Y){}if(H){H.removeChild(T)}}}if(M.dataType=="script"&&M.cache==null){M.cache=false}if(M.cache===false&&G=="GET"){var E=e();var U=M.url.replace(/(\?|&)_=.*?(&|$)/,"$1_="+E+"$2");M.url=U+((U==M.url)?(M.url.match(/\?/)?"&":"?")+"_="+E:"")}if(M.data&&G=="GET"){M.url+=(M.url.match(/\?/)?"&":"?")+M.data;M.data=null}if(M.global&&!o.active++){o.event.trigger("ajaxStart")}var Q=/^(\w+:)?\/\/([^\/?#]+)/.exec(M.url);if(M.dataType=="script"&&G=="GET"&&Q&&(Q[1]&&Q[1]!=location.protocol||Q[2]!=location.host)){var H=document.getElementsByTagName("head")[0];var T=document.createElement("script");T.src=M.url;if(M.scriptCharset){T.charset=M.scriptCharset}if(!W){var O=false;T.onload=T.onreadystatechange=function(){if(!O&&(!this.readyState||this.readyState=="loaded"||this.readyState=="complete")){O=true;I();L();T.onload=T.onreadystatechange=null;H.removeChild(T)}}}H.appendChild(T);return g}var K=false;var J=M.xhr();if(M.username){J.open(G,M.url,M.async,M.username,M.password)}else{J.open(G,M.url,M.async)}try{if(M.data){J.setRequestHeader("Content-Type",M.contentType)}if(M.ifModified){J.setRequestHeader("If-Modified-Since",o.lastModified[M.url]||"Thu, 01 Jan 1970 00:00:00 GMT")}J.setRequestHeader("X-Requested-With","XMLHttpRequest");J.setRequestHeader("Accept",M.dataType&&M.accepts[M.dataType]?M.accepts[M.dataType]+", */*":M.accepts._default)}catch(S){}if(M.beforeSend&&M.beforeSend(J,M)===false){if(M.global&&!--o.active){o.event.trigger("ajaxStop")}J.abort();return false}if(M.global){o.event.trigger("ajaxSend",[J,M])}var N=function(X){if(J.readyState==0){if(P){clearInterval(P);P=null;if(M.global&&!--o.active){o.event.trigger("ajaxStop")}}}else{if(!K&&J&&(J.readyState==4||X=="timeout")){K=true;if(P){clearInterval(P);P=null}R=X=="timeout"?"timeout":!o.httpSuccess(J)?"error":M.ifModified&&o.httpNotModified(J,M.url)?"notmodified":"success";if(R=="success"){try{V=o.httpData(J,M.dataType,M)}catch(Z){R="parsererror"}}if(R=="success"){var Y;try{Y=J.getResponseHeader("Last-Modified")}catch(Z){}if(M.ifModified&&Y){o.lastModified[M.url]=Y}if(!W){I()}}else{o.handleError(M,J,R)}L();if(X){J.abort()}if(M.async){J=null}}}};if(M.async){var P=setInterval(N,13);if(M.timeout>0){setTimeout(function(){if(J&&!K){N("timeout")}},M.timeout)}}try{J.send(M.data)}catch(S){o.handleError(M,J,null,S)}if(!M.async){N()}function I(){if(M.success){M.success(V,R)}if(M.global){o.event.trigger("ajaxSuccess",[J,M])}}function L(){if(M.complete){M.complete(J,R)}if(M.global){o.event.trigger("ajaxComplete",[J,M])}if(M.global&&!--o.active){o.event.trigger("ajaxStop")}}return J},handleError:function(F,H,E,G){if(F.error){F.error(H,E,G)}if(F.global){o.event.trigger("ajaxError",[H,F,G])}},active:0,httpSuccess:function(F){try{return !F.status&&location.protocol=="file:"||(F.status>=200&&F.status<300)||F.status==304||F.status==1223}catch(E){}return false},httpNotModified:function(G,E){try{var H=G.getResponseHeader("Last-Modified");return G.status==304||H==o.lastModified[E]}catch(F){}return false},httpData:function(J,H,G){var F=J.getResponseHeader("content-type"),E=H=="xml"||!H&&F&&F.indexOf("xml")>=0,I=E?J.responseXML:J.responseText;if(E&&I.documentElement.tagName=="parsererror"){throw"parsererror"}if(G&&G.dataFilter){I=G.dataFilter(I,H)}if(typeof I==="string"){if(H=="script"){o.globalEval(I)}if(H=="json"){I=l["eval"]("("+I+")")}}return I},param:function(E){var G=[];function H(I,J){G[G.length]=encodeURIComponent(I)+"="+encodeURIComponent(J)}if(o.isArray(E)||E.jquery){o.each(E,function(){H(this.name,this.value)})}else{for(var F in E){if(o.isArray(E[F])){o.each(E[F],function(){H(F,this)})}else{H(F,o.isFunction(E[F])?E[F]():E[F])}}}return G.join("&").replace(/%20/g,"+")}});var m={},n,d=[["height","marginTop","marginBottom","paddingTop","paddingBottom"],["width","marginLeft","marginRight","paddingLeft","paddingRight"],["opacity"]];function t(F,E){var G={};o.each(d.concat.apply([],d.slice(0,E)),function(){G[this]=F});return G}o.fn.extend({show:function(J,L){if(J){return this.animate(t("show",3),J,L)}else{for(var H=0,F=this.length;H<F;H++){var E=o.data(this[H],"olddisplay");this[H].style.display=E||"";if(o.css(this[H],"display")==="none"){var G=this[H].tagName,K;if(m[G]){K=m[G]}else{var I=o("<"+G+" />").appendTo("body");K=I.css("display");if(K==="none"){K="block"}I.remove();m[G]=K}o.data(this[H],"olddisplay",K)}}for(var H=0,F=this.length;H<F;H++){this[H].style.display=o.data(this[H],"olddisplay")||""}return this}},hide:function(H,I){if(H){return this.animate(t("hide",3),H,I)}else{for(var G=0,F=this.length;G<F;G++){var E=o.data(this[G],"olddisplay");if(!E&&E!=="none"){o.data(this[G],"olddisplay",o.css(this[G],"display"))}}for(var G=0,F=this.length;G<F;G++){this[G].style.display="none"}return this}},_toggle:o.fn.toggle,toggle:function(G,F){var E=typeof G==="boolean";return o.isFunction(G)&&o.isFunction(F)?this._toggle.apply(this,arguments):G==null||E?this.each(function(){var H=E?G:o(this).is(":hidden");o(this)[H?"show":"hide"]()}):this.animate(t("toggle",3),G,F)},fadeTo:function(E,G,F){return this.animate({opacity:G},E,F)},animate:function(I,F,H,G){var E=o.speed(F,H,G);return this[E.queue===false?"each":"queue"](function(){var K=o.extend({},E),M,L=this.nodeType==1&&o(this).is(":hidden"),J=this;for(M in I){if(I[M]=="hide"&&L||I[M]=="show"&&!L){return K.complete.call(this)}if((M=="height"||M=="width")&&this.style){K.display=o.css(this,"display");K.overflow=this.style.overflow}}if(K.overflow!=null){this.style.overflow="hidden"}K.curAnim=o.extend({},I);o.each(I,function(O,S){var R=new o.fx(J,K,O);if(/toggle|show|hide/.test(S)){R[S=="toggle"?L?"show":"hide":S](I)}else{var Q=S.toString().match(/^([+-]=)?([\d+-.]+)(.*)$/),T=R.cur(true)||0;if(Q){var N=parseFloat(Q[2]),P=Q[3]||"px";if(P!="px"){J.style[O]=(N||1)+P;T=((N||1)/R.cur(true))*T;J.style[O]=T+P}if(Q[1]){N=((Q[1]=="-="?-1:1)*N)+T}R.custom(T,N,P)}else{R.custom(T,S,"")}}});return true})},stop:function(F,E){var G=o.timers;if(F){this.queue([])}this.each(function(){for(var H=G.length-1;H>=0;H--){if(G[H].elem==this){if(E){G[H](true)}G.splice(H,1)}}});if(!E){this.dequeue()}return this}});o.each({slideDown:t("show",1),slideUp:t("hide",1),slideToggle:t("toggle",1),fadeIn:{opacity:"show"},fadeOut:{opacity:"hide"}},function(E,F){o.fn[E]=function(G,H){return this.animate(F,G,H)}});o.extend({speed:function(G,H,F){var E=typeof G==="object"?G:{complete:F||!F&&H||o.isFunction(G)&&G,duration:G,easing:F&&H||H&&!o.isFunction(H)&&H};E.duration=o.fx.off?0:typeof E.duration==="number"?E.duration:o.fx.speeds[E.duration]||o.fx.speeds._default;E.old=E.complete;E.complete=function(){if(E.queue!==false){o(this).dequeue()}if(o.isFunction(E.old)){E.old.call(this)}};return E},easing:{linear:function(G,H,E,F){return E+F*G},swing:function(G,H,E,F){return((-Math.cos(G*Math.PI)/2)+0.5)*F+E}},timers:[],fx:function(F,E,G){this.options=E;this.elem=F;this.prop=G;if(!E.orig){E.orig={}}}});o.fx.prototype={update:function(){if(this.options.step){this.options.step.call(this.elem,this.now,this)}(o.fx.step[this.prop]||o.fx.step._default)(this);if((this.prop=="height"||this.prop=="width")&&this.elem.style){this.elem.style.display="block"}},cur:function(F){if(this.elem[this.prop]!=null&&(!this.elem.style||this.elem.style[this.prop]==null)){return this.elem[this.prop]}var E=parseFloat(o.css(this.elem,this.prop,F));return E&&E>-10000?E:parseFloat(o.curCSS(this.elem,this.prop))||0},custom:function(I,H,G){this.startTime=e();this.start=I;this.end=H;this.unit=G||this.unit||"px";this.now=this.start;this.pos=this.state=0;var E=this;function F(J){return E.step(J)}F.elem=this.elem;if(F()&&o.timers.push(F)&&!n){n=setInterval(function(){var K=o.timers;for(var J=0;J<K.length;J++){if(!K[J]()){K.splice(J--,1)}}if(!K.length){clearInterval(n);n=g}},13)}},show:function(){this.options.orig[this.prop]=o.attr(this.elem.style,this.prop);this.options.show=true;this.custom(this.prop=="width"||this.prop=="height"?1:0,this.cur());o(this.elem).show()},hide:function(){this.options.orig[this.prop]=o.attr(this.elem.style,this.prop);this.options.hide=true;this.custom(this.cur(),0)},step:function(H){var G=e();if(H||G>=this.options.duration+this.startTime){this.now=this.end;this.pos=this.state=1;this.update();this.options.curAnim[this.prop]=true;var E=true;for(var F in this.options.curAnim){if(this.options.curAnim[F]!==true){E=false}}if(E){if(this.options.display!=null){this.elem.style.overflow=this.options.overflow;this.elem.style.display=this.options.display;if(o.css(this.elem,"display")=="none"){this.elem.style.display="block"}}if(this.options.hide){o(this.elem).hide()}if(this.options.hide||this.options.show){for(var I in this.options.curAnim){o.attr(this.elem.style,I,this.options.orig[I])}}this.options.complete.call(this.elem)}return false}else{var J=G-this.startTime;this.state=J/this.options.duration;this.pos=o.easing[this.options.easing||(o.easing.swing?"swing":"linear")](this.state,J,0,1,this.options.duration);this.now=this.start+((this.end-this.start)*this.pos);this.update()}return true}};o.extend(o.fx,{speeds:{slow:600,fast:200,_default:400},step:{opacity:function(E){o.attr(E.elem.style,"opacity",E.now)},_default:function(E){if(E.elem.style&&E.elem.style[E.prop]!=null){E.elem.style[E.prop]=E.now+E.unit}else{E.elem[E.prop]=E.now}}}});if(document.documentElement.getBoundingClientRect){o.fn.offset=function(){if(!this[0]){return{top:0,left:0}}if(this[0]===this[0].ownerDocument.body){return o.offset.bodyOffset(this[0])}var G=this[0].getBoundingClientRect(),J=this[0].ownerDocument,F=J.body,E=J.documentElement,L=E.clientTop||F.clientTop||0,K=E.clientLeft||F.clientLeft||0,I=G.top+(self.pageYOffset||o.boxModel&&E.scrollTop||F.scrollTop)-L,H=G.left+(self.pageXOffset||o.boxModel&&E.scrollLeft||F.scrollLeft)-K;return{top:I,left:H}}}else{o.fn.offset=function(){if(!this[0]){return{top:0,left:0}}if(this[0]===this[0].ownerDocument.body){return o.offset.bodyOffset(this[0])}o.offset.initialized||o.offset.initialize();var J=this[0],G=J.offsetParent,F=J,O=J.ownerDocument,M,H=O.documentElement,K=O.body,L=O.defaultView,E=L.getComputedStyle(J,null),N=J.offsetTop,I=J.offsetLeft;while((J=J.parentNode)&&J!==K&&J!==H){M=L.getComputedStyle(J,null);N-=J.scrollTop,I-=J.scrollLeft;if(J===G){N+=J.offsetTop,I+=J.offsetLeft;if(o.offset.doesNotAddBorder&&!(o.offset.doesAddBorderForTableAndCells&&/^t(able|d|h)$/i.test(J.tagName))){N+=parseInt(M.borderTopWidth,10)||0,I+=parseInt(M.borderLeftWidth,10)||0}F=G,G=J.offsetParent}if(o.offset.subtractsBorderForOverflowNotVisible&&M.overflow!=="visible"){N+=parseInt(M.borderTopWidth,10)||0,I+=parseInt(M.borderLeftWidth,10)||0}E=M}if(E.position==="relative"||E.position==="static"){N+=K.offsetTop,I+=K.offsetLeft}if(E.position==="fixed"){N+=Math.max(H.scrollTop,K.scrollTop),I+=Math.max(H.scrollLeft,K.scrollLeft)}return{top:N,left:I}}}o.offset={initialize:function(){if(this.initialized){return}var L=document.body,F=document.createElement("div"),H,G,N,I,M,E,J=L.style.marginTop,K='<div style="position:absolute;top:0;left:0;margin:0;border:5px solid #000;padding:0;width:1px;height:1px;"><div></div></div><table style="position:absolute;top:0;left:0;margin:0;border:5px solid #000;padding:0;width:1px;height:1px;" cellpadding="0" cellspacing="0"><tr><td></td></tr></table>';M={position:"absolute",top:0,left:0,margin:0,border:0,width:"1px",height:"1px",visibility:"hidden"};for(E in M){F.style[E]=M[E]}F.innerHTML=K;L.insertBefore(F,L.firstChild);H=F.firstChild,G=H.firstChild,I=H.nextSibling.firstChild.firstChild;this.doesNotAddBorder=(G.offsetTop!==5);this.doesAddBorderForTableAndCells=(I.offsetTop===5);H.style.overflow="hidden",H.style.position="relative";this.subtractsBorderForOverflowNotVisible=(G.offsetTop===-5);L.style.marginTop="1px";this.doesNotIncludeMarginInBodyOffset=(L.offsetTop===0);L.style.marginTop=J;L.removeChild(F);this.initialized=true},bodyOffset:function(E){o.offset.initialized||o.offset.initialize();var G=E.offsetTop,F=E.offsetLeft;if(o.offset.doesNotIncludeMarginInBodyOffset){G+=parseInt(o.curCSS(E,"marginTop",true),10)||0,F+=parseInt(o.curCSS(E,"marginLeft",true),10)||0}return{top:G,left:F}}};o.fn.extend({position:function(){var I=0,H=0,F;if(this[0]){var G=this.offsetParent(),J=this.offset(),E=/^body|html$/i.test(G[0].tagName)?{top:0,left:0}:G.offset();J.top-=j(this,"marginTop");J.left-=j(this,"marginLeft");E.top+=j(G,"borderTopWidth");E.left+=j(G,"borderLeftWidth");F={top:J.top-E.top,left:J.left-E.left}}return F},offsetParent:function(){var E=this[0].offsetParent||document.body;while(E&&(!/^body|html$/i.test(E.tagName)&&o.css(E,"position")=="static")){E=E.offsetParent}return o(E)}});o.each(["Left","Top"],function(F,E){var G="scroll"+E;o.fn[G]=function(H){if(!this[0]){return null}return H!==g?this.each(function(){this==l||this==document?l.scrollTo(!F?H:o(l).scrollLeft(),F?H:o(l).scrollTop()):this[G]=H}):this[0]==l||this[0]==document?self[F?"pageYOffset":"pageXOffset"]||o.boxModel&&document.documentElement[G]||document.body[G]:this[0][G]}});o.each(["Height","Width"],function(I,G){var E=I?"Left":"Top",H=I?"Right":"Bottom",F=G.toLowerCase();o.fn["inner"+G]=function(){return this[0]?o.css(this[0],F,false,"padding"):null};o.fn["outer"+G]=function(K){return this[0]?o.css(this[0],F,false,K?"margin":"border"):null};var J=G.toLowerCase();o.fn[J]=function(K){return this[0]==l?document.compatMode=="CSS1Compat"&&document.documentElement["client"+G]||document.body["client"+G]:this[0]==document?Math.max(document.documentElement["client"+G],document.body["scroll"+G],document.documentElement["scroll"+G],document.body["offset"+G],document.documentElement["offset"+G]):K===g?(this.length?o.css(this[0],J):null):this.css(J,typeof K==="string"?K:K+"px")}})})();
 /**
-  main namespace for the library
+   main namespace for the library
 */
 var Siesta = {};
 
 /**
-  By default the framework is not packaged.
-  This setting will be overriden by sprockets
-  when requiring the next script
+   By default the framework is not packaged.
+   This setting will be overriden by sprockets
+   when requiring the next script
 */
 Siesta.isPackaged = false;
 Siesta.isPackaged = true;
 
 /**
-  main namespace for the framework
+   main namespace for the framework
 */
 Siesta.Framework = {};
 
 /**
-  constants
+   constants
 
 */
 Siesta.Constants = {};
 Siesta.Constants.SUCCESS = "success";
 Siesta.Constants.FAILURE = "failure";
+Siesta.Constants.RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+Siesta.Constants.SIESTA_ID = "http://semantic_rest/siesta#id";
+
 
 /**
-  Checks if one function is defined in the
-  runtime.
-  - fn : Lambda function wrapping the symbol
-         to check.
+   Checks if one function is defined in the
+   runtime.
+   - fn : Lambda function wrapping the symbol
+   to check.
 */
 Siesta.defined = function(fn) {
-  try {
-    fn();
-    return true;
-  } catch(ex) {
-    return false;
-  }
+    try {
+        fn();
+        return true;
+    } catch(ex) {
+        return false;
+    }
 };
 
 
 /**
-  Tests if we are executing under Rhino
+   Tests if we are executing under Rhino
 */
 Siesta.isRhino = function() {
     return Siesta.defined(function(){gc});
 };
 
 /**
-  Returns the current path in the browser till the last '/' (not included)
+   Returns the current path in the browser till the last '/' (not included)
 */
 Siesta.currentPath = function() {
-        return location.href.split("/").slice(0,-1).join("/");
+    return location.href.split("/").slice(0,-1).join("/");
 };
 
 
 /**
-  generic load of scripts it should load
-  with the Rhino 'load' function or with
-  the javascript framework in the browser
-  - scriptPath : path to the script to load.
+   generic load of scripts it should load
+   with the Rhino 'load' function or with
+   the javascript framework in the browser
+   - scriptPath : path to the script to load.
 */
 Siesta.load = function(scriptPath)  {
     if(Siesta.isRhino()) {
@@ -4309,8 +103,8 @@ Siesta.load = function(scriptPath)  {
 };
 
 /**
-  load scripts from the path specified from the initial base directory
-  - scriptPath : path to the script to load.
+   load scripts from the path specified from the initial base directory
+   - scriptPath : path to the script to load.
 */
 Siesta.loadFromBase = function(scriptPath)  {
     if(Siesta.isRhino()) {
@@ -4331,33 +125,105 @@ Siesta.loadFromBase = function(scriptPath)  {
 };
 
 /**
-  Allow the enumeration of object methods in Rhino
+   Allow the enumeration of object methods in Rhino
 */
 /*
-Object.prototype.methods = function() {
-    var ms = [];
-    counter = 0;
-    for(var i in this) {
-        ms[counter] = i;
-        if(Siesta.isRhino()) {
-            print(counter+": "+i);
-        }
-        counter++;
-    }
+  Object.prototype.methods = function() {
+  var ms = [];
+  counter = 0;
+  for(var i in this) {
+  ms[counter] = i;
+  if(Siesta.isRhino()) {
+  print(counter+": "+i);
+  }
+  counter++;
+  }
 
-    ms;
-}
+  ms;
+  }
 */
 
+
 /**
- *  Let's load microtype if we are in
- *  Rhino to have basic class support.
- *  If we're in a browser, Prototype
- *  will be loaded.
+ *  XSD datatypes support.
  */
-if(Siesta.isRhino()) {
-    load("microtype.js");
-}
+Siesta.XSD = {};
+Siesta.XSD.DATATYPES = {
+    datatype:"http://www.w3.org/2000/01/rdf-schema#Datatype",
+    string:"http://www.w3.org/2001/XMLSchema#string",
+    boolean:"http://www.w3.org/2001/XMLSchema#boolean",
+    decimal:"http://www.w3.org/2001/XMLSchema#decimal",
+    float:"http://www.w3.org/2001/XMLSchema#float",
+    double:"http://www.w3.org/2001/XMLSchema#double",
+    dateTime:"http://www.w3.org/2001/XMLSchema#dateTime",
+    time:"http://www.w3.org/2001/XMLSchema#time",
+    date:"http://www.w3.org/2001/XMLSchema#date",
+    gYearMonth:"http://www.w3.org/2001/XMLSchema#gYearMonth",
+    gYear:"http://www.w3.org/2001/XMLSchema#gYear",
+    gMonthDay:"http://www.w3.org/2001/XMLSchema#gMonthDay",
+    gDay:"http://www.w3.org/2001/XMLSchema#gDay",
+    gMonth:"http://www.w3.org/2001/XMLSchema#gMonth",
+    hexBinary:"http://www.w3.org/2001/XMLSchema#hexBinary",
+    base64Binary:"http://www.w3.org/2001/XMLSchema#base64Binary",
+    anyURI:"http://www.w3.org/2001/XMLSchema#anyURI",
+    normalizedString:"http://www.w3.org/2001/XMLSchema#normalizedString",
+    token:"http://www.w3.org/2001/XMLSchema#token",
+    language:"http://www.w3.org/2001/XMLSchema#language",
+    NMTOKEN:"http://www.w3.org/2001/XMLSchema#NMTOKEN",
+    Name:"http://www.w3.org/2001/XMLSchema#Name",
+    NCName:"http://www.w3.org/2001/XMLSchema#NCName",
+    integer:"http://www.w3.org/2001/XMLSchema#integer",
+    nonPositiveInteger:"http://www.w3.org/2001/XMLSchema#nonPositiveInteger",
+    negativeInteger:"http://www.w3.org/2001/XMLSchema#negativeInteger",
+    long:"http://www.w3.org/2001/XMLSchema#long",
+    int:"http://www.w3.org/2001/XMLSchema#int",
+    short:"http://www.w3.org/2001/XMLSchema#short",
+    byte:"http://www.w3.org/2001/XMLSchema#byte",
+    nonNegativeInteger:"http://www.w3.org/2001/XMLSchema#nonNegativeInteger",
+    unsignedLong:"http://www.w3.org/2001/XMLSchema#unsignedLong",
+    unsignedInt:"http://www.w3.org/2001/XMLSchema#unsignedInt",
+    unsignedShort:"http://www.w3.org/2001/XMLSchema#unsignedShort",
+    unsignedByte:"http://www.w3.org/2001/XMLSchema#unsignedByte",
+    positiveInteger:"http://www.w3.org/2001/XMLSchema#positiveInteger" };
+
+
+Siesta.XSD.DATATYPES_INV = {};
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2000/01/rdf-schema#Datatype"] = "datatype";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#string"] = "string";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#boolean"]= "boolean";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#decimal"] = "decimal";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#float"] = "float";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#double"] = "double";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#dateTime"] = "dateTime";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#time"] = "time";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#date"] = "date";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#gYearMonth"] = "gYearMonth";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#gYear"] = "gYear";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#gMonthDay"] = "gMonthDay";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#gDay"] = "gDay";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#gMonth"] = "gMonth";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#hexBinary"] = "hexBinary";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#base64Binary"] = "base64Binary";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#anyURI"] = "anyURI";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#normalizedString"] = "normalizedString";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#token"] = "token";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#language"] = "language";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#NMTOKEN"] = "NMTOKEN";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#Name"] = "Name";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#NCName"] = "NCName";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#integer"] = "integer";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#nonPositiveInteger"] = "nonPositiveInteger";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#negativeInteger"] = "negativeInteger";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#long"] = "long";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#int"] = "int";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#short"] = "short";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#byte"] = "byte";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#nonNegativeInteger"] = "nonNegativeInteger";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#unsignedLong"] = "unsignedLong";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#unsignedInt"] = "unsignedInt";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#unsignedShort"] = "unsignedShort";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#unsignedByte"] = "unsignedByte";
+Siesta.XSD.DATATYPES_INV["http://www.w3.org/2001/XMLSchema#positiveInteger" ] = "positiveInteger";
 
 /**
  *  Registers a new namespace in the javascript
@@ -4374,7 +240,7 @@ Siesta.registerNamespace = function() {
         try {
             var res = eval(nsPath);
             if(res == null) {
-                throw new Exception();
+                throw "Non existant path";
             }
         } catch(e) {
             eval(nsPath + " = {};");
@@ -4382,33 +248,45 @@ Siesta.registerNamespace = function() {
     }
 }
 
+Siesta.Framework.classBuilder = function(origin,specification) {
+    for(var member in specification) {
+        origin.prototype[member] = specification[member];
+    }
+}
+
 /**
- *  Namespace object definition.
- *  Stores a name and url for the namespace.
- */
-Siesta.Framework.Namespace = Class.create();
-Siesta.Framework.Namespace.prototype = {
+     *  Namespace object definition.
+     *  Stores a name and url for the namespace.
+     */
+Siesta.Framework.Namespace = function(name,uri) { this.initialize(name,uri) };
+Siesta.Framework.classBuilder(Siesta.Framework.Namespace, {
 
     /**
-     *  Builds a new namespace.
-     *
-     *  @arguments
-     *  - name: the name of the namespace.
-     *  - uri: the uri of this namespace.
-     */
+         *  Builds a new namespace.
+         *
+         *  @arguments
+         *  - name: the name of the namespace.
+         *  - uri: the uri of this namespace.
+         */
     initialize: function(name,uri) {
         this.name = name;
         this.uri = uri;
         this.__type = 'namespace';
     }
-};
-
+});
 /**
  *  Uri object definition.
  *  Stores a a Uri for the namespace.
  */
-Siesta.Framework.Uri = Class.create();
-Siesta.Framework.Uri.prototype = {
+Siesta.Framework.Uri = function() {
+  if(arguments.length == 2) {
+      this.initialize(arguments[0],arguments[1]);
+  } else if(arguments.length == 1) {
+      this.initialize(arguments[0]);
+  }
+};
+
+Siesta.Framework.classBuilder(Siesta.Framework.Uri, {
 
     /**
      *  Builds a new Uri object.
@@ -4443,21 +321,20 @@ Siesta.Framework.Uri.prototype = {
             return this.namespace + this.value;
         }
     }
-};
-
+});
 /**
  *  BlankNode object definition.
  */
-Siesta.Framework.BlankNode = Class.create();
-Siesta.Framework.BlankNode.prototype = {
+Siesta.Framework.BlankNode = function(identifier) { this.initialize(identifier) };
+Siesta.Framework.classBuilder(Siesta.Framework.BlankNode, {
 
     /**
-     *  Builds a new BlankNode object.
-     *
-     *  @arguments
-     *  - identifier: the identifier of the blank node.
-     *
-     */
+         *  Builds a new BlankNode object.
+         *
+         *  @arguments
+         *  - identifier: the identifier of the blank node.
+         *
+         */
     initialize: function(identifier) {
         if(identifier == null) {
             throw new Error("Trying to create a Siesta.Framework.BlankNode with a null identifier");
@@ -4468,32 +345,31 @@ Siesta.Framework.BlankNode.prototype = {
     },
 
     /**
-     * Human readable representation of this URI
-     */
+             * Human readable representation of this URI
+             */
     toString: function() {
         return "_:"+this.value;
     }
-};
-
+});
 
 /**
  *  Literal object definition.
  */
-Siesta.Framework.Literal = Class.create();
-Siesta.Framework.Literal.prototype = {
+Siesta.Framework.Literal = function(options) { this.initialize(options) };
+Siesta.Framework.classBuilder(Siesta.Framework.Literal, {
 
     /**
-     *  Builds a new Literal object.
-     *
-     *  @arguments
-     *  - object with the following fields:
-     *    - value: mandator value for the literal.
-     *    - language: optional language for the literal.
-     *    - type: optional Siesta.framework.Uri for the type.
-     *
-     *  @throws
-     *  - an exception is thrown if no value or namespace and value are given.
-     */
+         *  Builds a new Literal object.
+         *
+         *  @arguments
+         *  - object with the following fields:
+         *    - value: mandator value for the literal.
+         *    - language: optional language for the literal.
+         *    - type: optional Siesta.framework.Uri for the type.
+         *
+         *  @throws
+         *  - an exception is thrown if no value or namespace and value are given.
+         */
     initialize: function(options) {
         if(options.value == null) {
             throw new Error("Trying to create null Siesta.Framework.Literal");
@@ -4514,8 +390,8 @@ Siesta.Framework.Literal.prototype = {
     },
 
     /**
-     * Human readable representation of this URI
-     */
+             * Human readable representation of this URI
+             */
     toString: function() {
         var str = '"'+this.value+'"';
         if(this.type != null) {
@@ -4527,8 +403,7 @@ Siesta.Framework.Literal.prototype = {
 
         return str;
     }
-};
-
+});
 /**
  *  Triple object definition to
  *  be shared between drivers
@@ -4537,17 +412,27 @@ Siesta.Framework.Literal.prototype = {
  *  the subject, predicate and object of the
  *  triple.
  */
-Siesta.Framework.Triple = Class.create();
-Siesta.Framework.Triple.prototype = {
+Siesta.Framework.Triple = function() {
+        if(arguments.length == 3) {
+            this.initialize(arguments[0],arguments[1],arguments[2]);
+        } else if(arguments.length == 2) {
+            this.initialize(arguments[0],arguments[1]);
+        } else if(arguments.length == 1) {
+            this.initialize(arguments[0]);
+        } else {
+            this.initialize();
+        }
+};
+Siesta.Framework.classBuilder(Siesta.Framework.Triple, {
     /**
-     * Builds a new Triple.
-     * Every argument is optional.
-     *
-     * @arguments:
-     * - subject: the subject of the triple.
-     * - predicate: the predicate of the triple.
-     * - object: the object of the triple.
-     */
+         * Builds a new Triple.
+         * Every argument is optional.
+         *
+         * @arguments:
+         * - subject: the subject of the triple.
+         * - predicate: the predicate of the triple.
+         * - object: the object of the triple.
+         */
     initialize: function() {
         if(arguments.length == 3) {
             this.subject = arguments[0];
@@ -4570,11 +455,11 @@ Siesta.Framework.Triple.prototype = {
     },
 
     /**
-     * Test if subject, predicate and object
-     * are set for this triple.
-     *
-     * @returns Bool
-     */
+             * Test if subject, predicate and object
+             * are set for this triple.
+             *
+             * @returns Bool
+             */
     isValid: function() {
         return (this.subject != null &&
                 this.predicate != null &&
@@ -4582,13 +467,12 @@ Siesta.Framework.Triple.prototype = {
     },
 
     /**
-     *  Human readable representation of this triple.
-     */
+             *  Human readable representation of this triple.
+             */
     toString: function() {
         return "("+this.subject+","+this.predicate+","+this.object+")";
     }
-};
-
+});
 /**
  *  Graph object definition to
  *  be shared between drivers
@@ -4597,8 +481,8 @@ Siesta.Framework.Triple.prototype = {
  *  each driver must manipulate this graph and
  *  transform it to their native representation.
  */
-Siesta.Framework.Graph = Class.create();
-Siesta.Framework.Graph.prototype = {
+Siesta.Framework.Graph = function() { this.initialize() };
+Siesta.Framework.classBuilder(Siesta.Framework.Graph, {
     initialize: function() {
 
         this.namespaces = {};
@@ -4611,27 +495,90 @@ Siesta.Framework.Graph.prototype = {
 
         this.baseUri = null;
 
+        this.blankNodeCounter = 0;
+
+        this.respectBlankNodeCounter = false;
+
+        this.__blankNodeMap = {};
     },
 
     /**
-     *  Adds a new namespace to this graph.
-     *
-     *  @arguments
-     *  - aNamespace: the namespace to be added
-     */
+             *  Resets the mapping of blank nodes
+             */
+    resetBlankNodeMapping: function() {
+        this.__blankNodeMap = {};
+    },
+
+    /**
+             *  Adds a new namespace to this graph.
+             *
+             *  @arguments
+             *  - aNamespace: the namespace to be added
+             */
     addNamespace: function(aNamespace /* Siesta.Framework.Namespace */) {
         this.namespaces[aNamespace.name] = aNamespace.uri;
         this.invNamespaces[aNamespace.uri] = aNamespace.name;
     },
 
     /**
-     *  Adds one triple to the index
-     *
-     *  @arguments
-     *  - aTriple: the triple to be added.
-     */
-    addTriple: function(aTriple /* Siesta.Framework.Triple */) {
+             *  Computes the union between graphs respecting blank node
+             *  identifiers in both graphs.
+             *
+             *  @arguments
+             *  - aGraph: the graph to compute the union with.
+             */
+    mergeGraph: function(aGraph /* Siesta.Framework.Graph */) {
+        for(ns in aGraph.namespaces) {
+            this.addNamespace(ns);
+        }
 
+        var triplesToMerge = aGraph.triplesArray();
+        for(var _i=0; _i<triplesToMerge.length; _i++) {
+            this.mergeTriple(triplesToMerge[_i]);
+        }
+    },
+
+    /**
+             *  Computes the union between graphs without respecting blank node
+             *  identifiers in the graph to add.
+             *
+             *  @arguments
+             *  - aGraph: the graph to compute the union with.
+             */
+    addGraph: function(aGraph /* Siesta.Framework.Graph */) {
+        this.__blankNodeMap = {};
+        for(ns in aGraph.namespaces) {
+            this.addNamespace(ns);
+        }
+
+        var triplesToAdd = aGraph.triplesArray();
+        for(var _i=0; _i<triplesToAdd.length; _i++) {
+            this.addTriple(triplesToAdd[_i]);
+        }
+    },
+
+    /**
+             *  Computes the difference between graphs.
+             *
+             *  @arguments
+             *  - aGraph: the graph to compute the difference with.
+             */
+    removeGraph: function(aGraph /* Siesta.Framework.Graph */) {
+        var triplesToRemove = aGraph.triplesArray();
+        for(var _i=0; _i<triplesToRemove.length; _i++) {
+            this.removeTriple(triplesToRemove[_i]);
+        }
+    },
+
+    /**
+             *  Adds one triple to the index.
+             *  If one blank node identifier is found, it will be overwritten with a new one.
+             *
+             *  @arguments
+             *  - aTriple: the triple to be added.
+             */
+    addTriple: function(aTriple /* Siesta.Framework.Triple */) {
+        this.respectBlankNodeCounter = false;
         if(aTriple.__type != 'triple') {
             throw "Trying to add something different of a Siesta.Framework.Triple to a Siesta.Framework.Graph";
         } else {
@@ -4646,34 +593,96 @@ Siesta.Framework.Graph.prototype = {
     },
 
     /**
-     *  Returns all the triples stored in the graph as an array.
-     */
+             *  Merges one triple into the index.
+             *  If one blank node identifier is found, it will be respected.
+             *
+             *  @arguments
+             *  - aTriple: the triple to be added.
+             */
+    mergeTriple: function(aTriple /* Siesta.Framework.Triple */) {
+        this.respectBlankNodeCounter = true;
+        if(aTriple.__type != 'triple') {
+            throw "Trying to add something different of a Siesta.Framework.Triple to a Siesta.Framework.Graph";
+        } else {
+
+            var wasInserted = this.__addTripleByObject(aTriple,
+                this.__addTripleByPredicate(aTriple,
+                this.__addTripleBySubject(aTriple)));
+            if(wasInserted == true) {
+                this.triplesCache.push(aTriple);
+            }
+        }
+    },
+
+    /**
+             *  Remove one triple from the index.
+             *
+             *  @arguments
+             *  - aTriple: the triple to be removed.
+             */
+    removeTriple: function(aTriple /* Siesta.Framework.Triple */) {
+        this.respectBlankNodeCounter = false;
+        if(aTriple.__type != 'triple') {
+            throw "Trying to add something different of a Siesta.Framework.Triple to a Siesta.Framework.Graph";
+        } else {
+
+            var wasRemoved = this.__removeTripleByObject(aTriple,
+                this.__removeTripleByPredicate(aTriple,
+                this.__removeTripleBySubject(aTriple)));
+            if(wasRemoved == true) {
+                var newTriplesCache = [];
+                for(var _i=0; _i<this.triplesCache.length; _i++) {
+                    var _theTriple = this.triplesCache[_i];
+                    if(_theTriple.subject.value != aTriple.subject.value ||
+                       _theTriple.predicate.value != aTriple.predicate.value ||
+                       _theTriple.object.value != aTriple.object.value) {
+                        newTriplesCache.push(_theTriple);
+                    }
+                }
+                this.triplesCache = newTriplesCache;
+            }
+        }
+    },
+
+    /**
+             *  Returns all the triples stored in the graph as an array.
+             */
     triplesArray: function() {
         return this.triplesCache;
     },
 
     /*
-     *  Private methods
-     */
+             *  Private methods
+             */
 
     /**
-     *  Looks in the subject index of the triple hash.
-     *
-     *  @arguments:
-     *  - aTriple: the triple to insert.
-     *
-     *  @returns:
-     *  - a hash for the triples with the same predicate than the triple to store.
-     */
+             *  Looks in the subject index of the triple hash.
+             *
+             *  @arguments:
+             *  - aTriple: the triple to insert.
+             *
+             *  @returns:
+             *  - a hash for the triples with the same predicate than the triple to store.
+             */
     __addTripleBySubject: function(aTriple /* Siesta.Framework.Triple */) {
         var identifier = null;
-
         switch(aTriple.subject.__type) {
         case 'uri':
             identifier = this.__normalizeUri(aTriple.subject);
             break;
         case 'blanknode':
-            identifier = aTriple.subject.value;
+            if(this.respectBlankNodeCounter) {
+                identifier = aTriple.subject.value;
+            } else {
+                var identifierInGraph = this.__blankNodeMap[aTriple.subject.value]
+                if(identifierInGraph == undefined) {
+                    identifier = ''+this.blankNodeCounter++;
+                    aTriple.subject.value = identifier;
+                    this.__blankNodeMap[aTriple.subject.value] = identifier;
+                } else {
+                    identifier = identifierInGraph;
+                }
+            }
             break;
         case 'literal':
             identifier = this.__normalizeLiteral(aTriple.subject);
@@ -4688,15 +697,15 @@ Siesta.Framework.Graph.prototype = {
     },
 
     /**
-     *  Looks in the predicate index of the triple hash.
-     *
-     *  @arguments:
-     *  - aTriple: the triple to insert.
-     *  - predicates: a hash with the predicates for the triples with the same subject
-     *
-     *  @returns:
-     *  - a hash for the triples with the same predicate than the triple to store.
-     */
+             *  Looks in the predicate index of the triple hash.
+             *
+             *  @arguments:
+             *  - aTriple: the triple to insert.
+             *  - predicates: a hash with the predicates for the triples with the same subject
+             *
+             *  @returns:
+             *  - a hash for the triples with the same predicate than the triple to store.
+             */
     __addTripleByPredicate: function(aTriple /* Siesta.Framework.Triple */,predicates) {
         var identifier = null;
 
@@ -4705,7 +714,18 @@ Siesta.Framework.Graph.prototype = {
             identifier = this.__normalizeUri(aTriple.predicate);
             break;
         case 'blanknode':
-            identifier = aTriple.predicate.value;
+            if(this.respectBlankNodeCounter) {
+                identifier = aTriple.subject.value;
+            } else {
+                var identifierInGraph = this.__blankNodeMap[aTriple.predicate.value]
+                if(identifierInGraph == undefined) {
+                    identifier = ''+this.blankNodeCounter++;
+                    aTriple.predicate.value = identifier;
+                    this.__blankNodeMap[aTriple.predicate.value] = identifier;
+                } else {
+                    identifier = identifierInGraph;
+                }
+            }
             break;
         case 'literal':
             identifier = this.__normalizeLiteral(aTriple.predicate);
@@ -4720,13 +740,13 @@ Siesta.Framework.Graph.prototype = {
     },
 
     /**
-     *  Looks in the object index of the triple hash.
-     *
-     *  @argument aTriple: the triple to insert.
-     *  @argument objects: a hash with the objects for the triples with the same subject
-     *
-     *  @returns true if the triple is inserted, false if it was already inserted
-     */
+             *  Looks in the object index of the triple hash.
+             *
+             *  @argument aTriple: the triple to insert.
+             *  @argument objects: a hash with the objects for the triples with the same subject
+             *
+             *  @returns true if the triple is inserted, false if it was already inserted
+             */
     __addTripleByObject: function(aTriple /* Siesta.Framework.Triple */,objects) {
         var identifier = null;
 
@@ -4735,7 +755,18 @@ Siesta.Framework.Graph.prototype = {
             identifier = this.__normalizeUri(aTriple.object);
             break;
         case 'blanknode':
-            identifier = aTriple.object.value;
+            if(this.respectBlankNodeCounter) {
+                identifier = aTriple.subject.value;
+            } else {
+                var identifierInGraph = this.__blankNodeMap[aTriple.object.value]
+                if(identifierInGraph == undefined) {
+                    identifier = ''+this.blankNodeCounter++;
+                    aTriple.object.value = identifier;
+                    this.__blankNodeMap[aTriple.object.value] = identifier;
+                } else {
+                    identifier = identifierInGraph;
+                }
+            }
             break;
         case 'literal':
             identifier = this.__normalizeLiteral(aTriple.object);
@@ -4752,13 +783,161 @@ Siesta.Framework.Graph.prototype = {
     },
 
     /**
-     *  Generates a String key for this URI expanding the possible namespace
-     *  of the URI if it is registered in the namespaces of the graph
-     *
-     *  @arguments aUri: a Siesta.Framework.Uri to be normalized.
-     *
-     *  @returns a String normalized for this URI.
-     */
+             *  Looks in the subject index of the triple hash.
+             *
+             *  @arguments:
+             *  - aTriple: the triple to insert.
+             *
+             *  @returns:
+             *  - a hash for the triples with the same predicate than the triple to store.
+             */
+    __removeTripleBySubject: function(aTriple /* Siesta.Framework.Triple */) {
+        var identifier = null;
+
+        switch(aTriple.subject.__type) {
+        case 'uri':
+            identifier = this.__normalizeUri(aTriple.subject);
+            break;
+        case 'blanknode':
+            identifier = aTriple.subject.value;
+            break;
+        case 'literal':
+            identifier = this.__normalizeLiteral(aTriple.subject);
+            break;
+        }
+
+        if(this.triples[identifier] == null) {
+            return [identifier, {}];
+        } else {
+            return [identifier, this.triples[identifier]]
+        }
+
+    },
+
+    /**
+             *  Looks in the predicate index of the triple hash.
+             *
+             *  @arguments:
+             *  - aTriple: the triple to insert.
+             *  - an array of
+             *     - the identifier of the subject
+             *     - predicates: a hash with the predicates for the triples with the same subject
+             *
+             *  @returns:
+             *  - a hash for the triples with the same predicate than the triple to store.
+             */
+    __removeTripleByPredicate: function(aTriple /* Siesta.Framework.Triple */,tmp) {
+        var identifier = null;
+
+        switch(aTriple.predicate.__type) {
+        case 'uri':
+            identifier = this.__normalizeUri(aTriple.predicate);
+            break;
+        case 'blanknode':
+            identifier = aTriple.subject.value;
+            break;
+        case 'literal':
+            identifier = this.__normalizeLiteral(aTriple.predicate);
+            break;
+        }
+
+        var subjectIdentifier = tmp[0];
+        var predicates = tmp[1];
+        if(predicates[identifier] == null) {
+            return [subjectIdentifier, identifier, {}];
+        }
+        return [subjectIdentifier, identifier, predicates[identifier]];
+
+    },
+
+    /**
+             *  Looks in the object index of the triple hash.
+             *
+             *  @argument aTriple: the triple to insert.
+             *  @argument tmp: an array wit subject identifier, preidcate identifier and a hash with the objects for the triples with the same subject
+             *
+             *  @returns true if the triple is inserted, false if it was already inserted
+             */
+    __removeTripleByObject: function(aTriple /* Siesta.Framework.Triple */,tmp) {
+        var identifier = null;
+
+        switch(aTriple.object.__type) {
+        case 'uri':
+            identifier = this.__normalizeUri(aTriple.object);
+            break;
+        case 'blanknode':
+            if(this.respectBlankNodeCounter) {
+                identifier = aTriple.subject.value;
+            } else {
+                var identifierInGraph = this.__blankNodeMap[aTriple.object.value]
+                if(identifierInGraph == undefined) {
+                    identifier = ''+this.blankNodeCounter++;
+                    aTriple.object.value = identifier;
+                    this.__blankNodeMap[aTriple.object.value] = identifier;
+                } else {
+                    identifier = identifierInGraph;
+                }
+            }
+            break;
+        case 'literal':
+            identifier = this.__normalizeLiteral(aTriple.object);
+            break;
+        }
+
+        var subjectId = tmp[0];
+        var predicateId = tmp[1];
+        var objects = tmp[2];
+
+        if(objects[identifier] != null) {
+            var theTriple = objects[identifier];
+            var newObjects = {};
+            var newObjsCounter = 0;
+            for(var _id in objects) {
+                if(_id != identifier) {
+                    newObjsCounter++;
+                    newObjects[_id] = objects[_id];
+                }
+            }
+            if(newObjsCounter != 0) {
+                this.triples[subjectId][predicateId] = newObjects;
+            } else {
+                var newPreds = {};
+                var newPredsCounter = 0;
+                for(var _id in this.triples[subjectId]) {
+
+                    if(_id != predicateId) {
+                        newPredsCounter++;
+                        newPreds[_id] = this.triples[subjectId][_id];
+                    }
+                }
+                if(newPredsCounter != 0) {
+                    this.triples[subjectId] = newPreds;
+                } else {
+                    var newSubjs = {};
+                    for(var _id in this.triples) {
+                        if(_id != subjectId)
+                        {
+                            newSubjs[_id] = this.triples[_id];
+                        }
+                    }
+                    this.triples = newSubjs;
+                }
+            }
+            return true;
+        } else {
+            return false;
+        }
+
+    },
+
+    /**
+             *  Generates a String key for this URI expanding the possible namespace
+             *  of the URI if it is registered in the namespaces of the graph
+             *
+             *  @arguments aUri: a Siesta.Framework.Uri to be normalized.
+             *
+             *  @returns a String normalized for this URI.
+             */
     __normalizeUri: function(aUri /* Siesta.Framework.Uri */) {
         if(aUri.namespace == null) {
             return aUri.value;
@@ -4772,13 +951,13 @@ Siesta.Framework.Graph.prototype = {
     },
 
     /**
-     *  Generates a String key for this literal expanding the possible type
-     *  URI if its namespace is registered in the namespaces of the graph
-     *
-     *  @argument aLiteral: a Siesta.Framework.Literal to be normalized.
-     *
-     *  @returns a String normalized for this literal.
-     */
+             *  Generates a String key for this literal expanding the possible type
+             *  URI if its namespace is registered in the namespaces of the graph
+             *
+             *  @argument aLiteral: a Siesta.Framework.Literal to be normalized.
+             *
+             *  @returns a String normalized for this literal.
+             */
     __normalizeLiteral: function(aLiteral /* Siesta.Framework.Literal */) {
         var str = '"'+aLiteral.value+'"';
         if(aLiteral.type != null) {
@@ -4792,70 +971,87 @@ Siesta.Framework.Graph.prototype = {
     }
 
 
-};
-
+});
 /*                                              Utils                                                         */
 
 Siesta.registerNamespace("Siesta","Utils");
 
-Siesta.Utils.Sequentializer = Class.create();
-/**
-  @class Siesta.Utils.Network.SequentialRemoteRequester
+Siesta.Utils.htmlParser = function(doc) {
 
-  Helper class for easing the creation of sequential asynchronous calls.
+
+    try //Internet Explorer
+    {
+        xmlDoc=new ActiveXObject("Microsoft.XMLDOM");
+        xmlDoc.async="false";
+        xmlDoc.loadXML(doc);
+        return xmlDoc;
+    }
+    catch(e)
+    {
+        parser=new DOMParser();
+        xmlDoc=parser.parseFromString(doc,"text/xml");
+        return xmlDoc;
+    }
+}
+
+Siesta.Utils.Sequentializer = function() { this.initialize() };
+/**
+   @class Siesta.Utils.Network.SequentialRemoteRequester
+
+   Helper class for easing the creation of sequential asynchronous calls.
 */
-Siesta.Utils.Sequentializer.prototype = {
+Siesta.Framework.classBuilder(Siesta.Utils.Sequentializer, {
     /**
-     * @constructor
-     *
-     * Builds a new requester.
-     */
+         * @constructor
+         *
+         * Builds a new requester.
+         */
     initialize: function() {
         this._requestsQueue = [];
         this._finishedCallback = null;
     },
 
     /**
-     * Adds a remote request to the queue of requests.
-     *
-     * @argument remoteRequest, function containing the invocation
-     */
+             * Adds a remote request to the queue of requests.
+             *
+             * @argument remoteRequest, function containing the invocation
+             */
     addRemoteRequest: function(remoteRequest) {
         this._requestsQueue.push(remoteRequest);
     },
 
     /**
-     * Adds a remote request to the queue of requests and passes the argument to it.
-     * The callback function must accept one parameter.
-     *
-     * @argument remoteRequest, function containing the invocation.
-     * @argument env, the environment to pass to the function.
-     */
+             * Adds a remote request to the queue of requests and passes the argument to it.
+             * The callback function must accept one parameter.
+             *
+             * @argument remoteRequest, function containing the invocation.
+             * @argument env, the environment to pass to the function.
+             */
     addRemoteRequestWithEnv: function(remoteRequest,env) {
         this._requestsQueue.push(function(){ remoteRequest(env) });
     },
 
     /**
-     * Sets the function that will be optionally invoked
-     * when all the requests have been processed.
-     *
-     * @argument callback, the function to be invoked.
-     */
+             * Sets the function that will be optionally invoked
+             * when all the requests have been processed.
+             *
+             * @argument callback, the function to be invoked.
+             */
     finishedCallback: function(callback) {
         this._finishedCallback = callback;
     },
 
     /**
-     * This funcition must be invoked in the callbacks of the remote requests
-     * callbacks to notify the request has finished.
-     */
+             * This funcition must be invoked in the callbacks of the remote requests
+             * callbacks to notify the request has finished.
+             */
     notifyRequestFinished: function() {
         this._nextRequest();
     },
 
     /**
-     * Starts the processing of the requests.
-     */
+             * Starts the processing of the requests.
+             */
     start: function() {
         this._nextRequest();
     },
@@ -4867,12 +1063,11 @@ Siesta.Utils.Sequentializer.prototype = {
             (this._requestsQueue.pop())();
         }
     }
-};
-
+});
 /*                                              Model Layer                                                   */
 
 /**
-  Capitalize function
+   Capitalize function
 */
 String.prototype.capitalize = function(){ //v1.0
     return this.replace(/\w+/g, function(a){
@@ -4881,6 +1076,28 @@ String.prototype.capitalize = function(){ //v1.0
 };
 
 Siesta.registerNamespace("Siesta","Model");
+
+Siesta.registerNamespace("Siesta","Model","Namespaces");
+Siesta.Model.Namespaces.map = {};
+Siesta.Model.Namespaces.register = function(prefix,value){
+    Siesta.Model.Namespaces.map[prefix] = value;
+};
+Siesta.Model.Namespaces.unregister = function(prefix){
+    delete Siesta.Model.Namespaces.map[prefix];
+};
+Siesta.Model.Namespaces.resolve = function(mapping){
+    if(typeof mapping == 'object') {
+        for(var _prefix in mapping) {
+            if(Siesta.Model.Namespaces.map[_prefix] != undefined) {
+                return Siesta.Model.Namespaces.map[_prefix] + mapping[_prefix];
+            }
+        }
+        throw "Unable to find registered namespace for " + mapping;
+    } else {
+        throw "Cannot resolve namespace for a "+(typeof mapping)+" an object {prefix: sufix} must be provided";
+    }
+};
+
 Siesta.registerNamespace("Siesta","Model","Repositories");
 Siesta.Model.Repositories.services = new Siesta.Framework.Graph();
 Siesta.Model.Repositories.schemas = new Siesta.Framework.Graph();
@@ -4891,9 +1108,9 @@ Siesta.registerNamespace("Siesta","Services");
 
 
 /**
- Callback function for registering of services if AJAX used
+   Callback function for registering of services if AJAX used
 
- @argumet serviceDescription: the text with the description of the service in any format.
+   @argumet serviceDescription: the text with the description of the service in any format.
 */
 Siesta.Services.onRegisteredServiceAjax = function(serviceDescription) {
 
@@ -4907,6 +1124,8 @@ Siesta.Services.chooseFormaterFor = function(document) {
         formater = Siesta.Formats.Xml;
     } else if(format == "turtle") {
         formater = Siesta.Formats.Turtle;
+    } else if(format == 'rdfa') {
+        formater = Siesta.Formats.Rdfa;
     }
 
     return formater;
@@ -4915,45 +1134,59 @@ Siesta.Services.chooseFormaterFor = function(document) {
 Siesta.Services.TRIPLET_CHANGE_EVENT = "TRIPLET_CHANGE_EVENT";
 
 /**
-  Parses a new doc and add the parsed triplets to the provided repository.
+   Parses a new doc and add the parsed triplets to the provided repository.
 
-  @argument doc, to be parsed in a valid format: N3, XML, JSON...
-  @argument repository, the repository where the triplets will be added.
+   @argument doc, to be parsed in a valid format: N3, XML, JSON...
+   @argument repository, the repository where the triplets will be added.
 
-  @returns throw a Siesta.Services.TRIPLET_CHANGE_EVENT with an object message including the repository \
-where the triplets have been added an the graph from the document.
- */
-Siesta.Services.parseAndAddToRepository = function(doc,repository) {
+   @returns throw a Siesta.Services.TRIPLET_CHANGE_EVENT with an object message including the repository \
+   where the triplets have been added an the graph from the document.
+*/
+Siesta.Services.parseAndAddToRepository = function(doc,repository,callback) {
     var  formater = Siesta.Services.chooseFormaterFor(doc);
 
-    var parsedGraph = formater.parseDoc("",doc);
-    for(_i=0; _i< parsedGraph.triplesArray().length; _i++) {
-        repository.addTriple(parsedGraph.triplesArray()[_i]);
+    if(formater.isParserAsynchronous() == false) {
+        var parsedGraph = formater.parseDoc("",doc);
+        for(_i=0; _i< parsedGraph.triplesArray().length; _i++) {
+            repository.addTriple(parsedGraph.triplesArray()[_i]);
+        }
+
+        var resp = {
+            repository: repository,
+            parsedGraph: parsedGraph
+        };
+
+        Siesta.Events.publish(Siesta.Services.TRIPLET_CHANGE_EVENT,resp);
+        if(callback != undefined) {
+            callback(resp);
+        }
+    } else {
+        formater.parseDoc("",doc, function(resBaseUri, resDoc, parsedGraph) {
+            for(_i=0; _i< parsedGraph.triplesArray().length; _i++) {
+                repository.addTriple(parsedGraph.triplesArray()[_i]);
+            }
+
+            var resp = {
+                repository: repository,
+                parsedGraph: parsedGraph
+            };
+
+            Siesta.Events.publish(Siesta.Services.TRIPLET_CHANGE_EVENT,resp);
+            if(callback != undefined) {
+                callback(resp);
+            }
+        });
     }
-
-    var resp = {
-        repository: repository,
-        parsedGraph: parsedGraph
-    };
-
-    Siesta.Events.notifyEvent(this,Siesta.Services.TRIPLET_CHANGE_EVENT,resp);
 };
 
 /**
- Callback function for registering of services if JSONP used
+   Callback function for registering of services if JSONP used
 
- @argumet serviceDescription: the text with the description of the service in any format.
+   @argumet serviceDescription: the text with the description of the service in any format.
 */
 Siesta.Services.onRegisteredServiceJsonp = function(serviceDescription) {
     try {
-        var format = Siesta.Framework.Common.determineFormat(serviceDescription);
-        var formater = null;
-
-        if(format == "xml") {
-            formater = Siesta.Formats.Xml;
-        } else if(format == "turtle") {
-            formater = Siesta.Formats.Turtle;
-        }
+        var formater = Siesta.Services.chooseFormaterFor(serviceDescription);
 
         var parsedGraph = formater.parseDoc("",serviceDescription);
         for(_i=0; _i< parsedGraph.triplesArray().length; _i++) {
@@ -4961,21 +1194,21 @@ Siesta.Services.onRegisteredServiceJsonp = function(serviceDescription) {
         }
 
         for(_f=0; _f<Siesta.Services.serviceRegistrationCallbacks.length; _f++) {
-            serviceRegistrationCallbacks[_f].call(Siesta.Constants.SUCCESS,parsedGraph);
+            Siesta.Services.serviceRegistrationCallbacks[_f].call(Siesta.Constants.SUCCESS,parsedGraph);
         }
     } catch(e) {
         for(_f=0; _f<Siesta.Services.serviceRegistrationCallbacks.length; _f++) {
-            serviceRegistrationCallbacks[_f].call(Siesta.Constants.FAILURE,e);
+            Siesta.Services.serviceRegistrationCallbacks[_f].call(Siesta.Constants.FAILURE,e);
         }
     }
 };
 
 /**
-  Starts the registrations of a service.
-  The user must provide the URL of the service and the network transport mechanism to retrieve
-  the service: "ajax" or "jsonp" are valid transport mechanisms.
-  If "jsonp" is chosen as the transport mechanism, and additional parameter is accepted with
-  the value for the callback function parameter, if none is provided 'callback' will be used.
+   Starts the registrations of a service.
+   The user must provide the URL of the service and the network transport mechanism to retrieve
+   the service: "ajax" or "jsonp" are valid transport mechanisms.
+   If "jsonp" is chosen as the transport mechanism, and additional parameter is accepted with
+   the value for the callback function parameter, if none is provided 'callback' will be used.
 
 
    @argument serviceUrl: URL of the service
@@ -4995,10 +1228,10 @@ Siesta.Services.registerService = function(serviceUrl, networkTransport /*, call
 
 Siesta.Services.serviceRegistrationCallbacks = [];
 /**
-  Registers a function that will be notified with success or failure after
-  a service registration trial.
+   Registers a function that will be notified with success or failure after
+   a service registration trial.
 
-  @argument callback: the function to be notified, it must receive two arguments, a status and a value.
+   @argument callback: the function to be notified, it must receive two arguments, a status and a value.
 */
 Siesta.Services.addServiceRegistrationCallback = function(callback) {
     Siesta.Services.serviceRegistrationCallbacks.push(callback);
@@ -5006,47 +1239,54 @@ Siesta.Services.addServiceRegistrationCallback = function(callback) {
 
 Siesta.registerNamespace("Siesta","Framework","Common");
 /**
-  Try to determine the format of the test passed as a parameter.
+   Try to determine the format of the test passed as a parameter.
 
-  @argument documentText: the text to be checked.
+   @argument documentText: the text to be checked.
 
-  @returns "turtle" or "xml"
+   @returns "turtle" or "xml"
 
-  @throws Error if no format can be determined.
+   @throws Error if no format can be determined.
 */
 Siesta.Framework.Common.determineFormat = function(documentText) {
     if(documentText.indexOf("<rdf:RDF") != -1 ||
        documentText.indexOf("<?xml") != -1 ) {
         return "xml";
+    } else if(documentText.indexOf("<html") != -1 ||
+              documentText.indexOf("<body") != -1 ||
+              documentText.indexOf("<head") != -1 ||
+              documentText.indexOf("<div") != -1 ||
+              documentText.indexOf("<span") != -1 ||
+              documentText.indexOf("<a") != -1 ){
+        return "rdfa";
     } else if(documentText.indexOf("@prefix") != -1 ||
               documentText.indexOf(".") != -1) {
         return "turtle";
-    } else {
+    } else  {
         throw new Error("Unknown format");
     }
 };
 
-Siesta.Services.RestfulOperationInputParameter = Class.create();
+Siesta.Services.RestfulOperationInputParameter = function(parameterUri) { this.initialize(parameterUri) };
 /**
-  @class Siesta.Services.RestfulOperationInputParameter
+   @class Siesta.Services.RestfulOperationInputParameter
 
-  An input parameter for a hRESTS operation of a hRESTS service.
+   An input parameter for a hRESTS operation of a hRESTS service.
 */
-Siesta.Services.RestfulOperationInputParameter.prototype = {
+Siesta.Framework.classBuilder(Siesta.Services.RestfulOperationInputParameter, {
     /**
-     * @constructor
-     *
-     * Initiates a new RestfulOperationInputParameter object with the
-     * the data associated to the URI passed as an
-     * argument in the constructor.
-     *
-     * Triplets are looked up in the Siesta.Model.Repositories.services repository,
-     * they must have been retrieved first via a callo to Siesta.Services.registerService.
-     *
-     * @see Siesta.Services.registerService
-     *
-     * @argument parameterUri: input message URI (blank node identifier), a Siesta.Framework.Uri object, a Siesta.Framework.BlankNode or a String
-     */
+         * @constructor
+         *
+         * Initiates a new RestfulOperationInputParameter object with the
+         * the data associated to the URI passed as an
+         * argument in the constructor.
+         *
+         * Triplets are looked up in the Siesta.Model.Repositories.services repository,
+         * they must have been retrieved first via a callo to Siesta.Services.registerService.
+         *
+         * @see Siesta.Services.registerService
+         *
+         * @argument parameterUri: input message URI (blank node identifier), a Siesta.Framework.Uri object, a Siesta.Framework.BlankNode or a String
+         */
     initialize: function(parameterUri) {
         this.uri = parameterUri;
         this.uriInQuery = this.uri;
@@ -5095,29 +1335,28 @@ Siesta.Services.RestfulOperationInputParameter.prototype = {
             return this._parameterName;
         }
     }
-};
-
-Siesta.Services.RestfulOperationInputMessage = Class.create();
+});
+Siesta.Services.RestfulOperationInputMessage = function(messageUri) { this.initialize(messageUri) };
 /**
-  @class Siesta.Services.RestfulOperationInputMessage
+   @class Siesta.Services.RestfulOperationInputMessage
 
-  An input message for a hRESTS operation of a hRESTS service.
+   An input message for a hRESTS operation of a hRESTS service.
 */
-Siesta.Services.RestfulOperationInputMessage.prototype = {
+Siesta.Framework.classBuilder(Siesta.Services.RestfulOperationInputMessage, {
     /**
-     * @constructor
-     *
-     * Initiates a new RestfulOperationInputMessage object with the
-     * the data associated to the URI passed as an
-     * argument in the constructor.
-     *
-     * Triplets are looked up in the Siesta.Model.Repositories.services repository,
-     * they must have been retrieved first via a callo to Siesta.Services.registerService.
-     *
-     * @see Siesta.Services.registerService
-     *
-     * @argument messageUri: input message URI (blank node identifier), a Siesta.Framework.Uri object, a Siesta.Framework.BlankNode or a String
-     */
+         * @constructor
+         *
+         * Initiates a new RestfulOperationInputMessage object with the
+         * the data associated to the URI passed as an
+         * argument in the constructor.
+         *
+         * Triplets are looked up in the Siesta.Model.Repositories.services repository,
+         * they must have been retrieved first via a callo to Siesta.Services.registerService.
+         *
+         * @see Siesta.Services.registerService
+         *
+         * @argument messageUri: input message URI (blank node identifier), a Siesta.Framework.Uri object, a Siesta.Framework.BlankNode or a String
+         */
     initialize: function(messageUri) {
         this.uri = messageUri;
         this.uriInQuery = this.uri;
@@ -5150,19 +1389,19 @@ Siesta.Services.RestfulOperationInputMessage.prototype = {
             if(result.length != 1) {
                 throw new Error("Error retrieving the modelReference for the input message "+this.uri);
             } else {
-/*
-                var found = false;
-                for(_i=0; _i<result.length; _i++) {
-                    if(result[_i].id.toString() == this.uriInQuery) {
-                        found = true;
-                        this._modelReference = result[0].model.value;
-                        break;
-                    }
-                }
-                if(!found) {
-                    throw new Error("Error retrieving the modelReference for the input message "+this.uri);
-                }
-*/
+                /*
+                      var found = false;
+                      for(_i=0; _i<result.length; _i++) {
+                      if(result[_i].id.toString() == this.uriInQuery) {
+                      found = true;
+                      this._modelReference = result[0].model.value;
+                      break;
+                      }
+                      }
+                      if(!found) {
+                      throw new Error("Error retrieving the modelReference for the input message "+this.uri);
+                      }
+                    */
                 this._modelReference = result[0].model.value
             }
             return this._modelReference;
@@ -5198,10 +1437,10 @@ Siesta.Services.RestfulOperationInputMessage.prototype = {
     },
 
     /**
-       Retrieves all the remote references of this message.
+               Retrieves all the remote references of this message.
 
-       @returns The method sends the event: EVENT_MESSAGE_LOADED
-    */
+               @returns The method sends the event: EVENT_MESSAGE_LOADED
+            */
     connect: function(mechanism) {
         this._transportMechanism = mechanism;
         if(this.connected == false) {
@@ -5246,40 +1485,39 @@ Siesta.Services.RestfulOperationInputMessage.prototype = {
                         var that = this;
                         Siesta.Network.jsonpRequestForFunction(this.loweringSchemaMapping(),callback,function(res){
                             that.loweringSchemaMappingContent = res;
-                            Siesta.Events.notifyEvent(that,that.EVENT_MESSAGE_LOADED,that);
+                            Siesta.Events.publish(that.EVENT_MESSAGE_LOADED,that);
                         });
                     } else {
 
                     }
-                } catch(e) {  Siesta.Events.notifyEvent(this,this.EVENT_MESSAGE_LOADED,this); }
+                } catch(e) {  Siesta.Events.publish(this.EVENT_MESSAGE_LOADED,this); }
             }
         } else {
-            Siesta.Events.notifyEvent(this,this.EVENT_MESSAGE_LOADED,this);
+            Siesta.Events.publish(this.EVENT_MESSAGE_LOADED,this);
         }
     }
-};
-
-Siesta.Services.RestfulOperationOutputMessage = Class.create();
+});
+Siesta.Services.RestfulOperationOutputMessage = function(messageUri) { this.initialize(messageUri) };
 /**
-  @class Siesta.Services.RestfulOperationOutputMessage
+   @class Siesta.Services.RestfulOperationOutputMessage
 
-  An input message for a hRESTS operation of a hRESTS service.
+   An input message for a hRESTS operation of a hRESTS service.
 */
-Siesta.Services.RestfulOperationOutputMessage.prototype = {
+Siesta.Framework.classBuilder(Siesta.Services.RestfulOperationOutputMessage, {
     /**
-     * @constructor
-     *
-     * Initiates a new RestfulOperationOutputMessage object with the
-     * the data associated to the URI passed as an
-     * argument in the constructor.
-     *
-     * Triplets are looked up in the Siesta.Model.Repositories.services repository,
-     * they must have been retrieved first via a callo to Siesta.Services.registerService.
-     *
-     * @see Siesta.Services.registerService
-     *
-     * @argument messageUri: input message URI (blank node identifier), a Siesta.Framework.Uri object, a Siesta.Framework.BlankNode or a String
-     */
+         * @constructor
+         *
+         * Initiates a new RestfulOperationOutputMessage object with the
+         * the data associated to the URI passed as an
+         * argument in the constructor.
+         *
+         * Triplets are looked up in the Siesta.Model.Repositories.services repository,
+         * they must have been retrieved first via a callo to Siesta.Services.registerService.
+         *
+         * @see Siesta.Services.registerService
+         *
+         * @argument messageUri: input message URI (blank node identifier), a Siesta.Framework.Uri object, a Siesta.Framework.BlankNode or a String
+         */
     initialize: function(messageUri) {
         this.uri = messageUri;
         this.uriInQuery = this.uri;
@@ -5310,19 +1548,19 @@ Siesta.Services.RestfulOperationOutputMessage.prototype = {
             if(result.length != 1) {
                 throw new Error("Error retrieving the modelReference for the input message "+this.uri);
             } else {
-/*
-                var found = false;
-                for(_i=0; _i<result.length; _i++) {
-                    if(result[_i].id.toString() == this.uriInQuery) {
-                        found = true;
-                        this._modelReference = result[0].model.value;
-                        break;
-                    }
-                }
-                if(!found) {
-                    throw new Error("Error retrieving the modelReference for the input message "+this.uri);
-                }
-*/
+                /*
+                      var found = false;
+                      for(_i=0; _i<result.length; _i++) {
+                      if(result[_i].id.toString() == this.uriInQuery) {
+                      found = true;
+                      this._modelReference = result[0].model.value;
+                      break;
+                      }
+                      }
+                      if(!found) {
+                      throw new Error("Error retrieving the modelReference for the input message "+this.uri);
+                      }
+                    */
                 this._modelReference = result[0].model.value
             }
             return this._modelReference;
@@ -5330,10 +1568,10 @@ Siesta.Services.RestfulOperationOutputMessage.prototype = {
     },
 
     /**
-      Retrieves the liftinSchemaMapping for this message.
+               Retrieves the liftinSchemaMapping for this message.
 
-      @returns the URL of the schema mapping
-    */
+               @returns the URL of the schema mapping
+            */
     liftingSchemaMapping: function() {
         if(this._liftingSchemaMapping != null) {
             if(this._liftingSchemaMapping == 0) {
@@ -5348,7 +1586,7 @@ Siesta.Services.RestfulOperationOutputMessage.prototype = {
             var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
 
             if(result.length != 1) {
-                 this._liftingSchemaMapping = 0; // this is to avoid continously quering the repository in case of no liftingSchema
+                this._liftingSchemaMapping = 0; // this is to avoid continously quering the repository in case of no liftingSchema
             } else {
                 this._liftingSchemaMapping = result[0].schema.value
             }
@@ -5373,39 +1611,44 @@ Siesta.Services.RestfulOperationOutputMessage.prototype = {
                         var that = this;
                         Siesta.Network.jsonpRequestForFunction(this.liftingSchemaMapping(),callback,function(res){
                             that.liftingSchemaMappingContent = res;
-                            Siesta.Events.notifyEvent(that,that.EVENT_CONNECTED,that);
+                            Siesta.Events.publish(that.EVENT_CONNECTED,that);
                         });
                     } else {
                     }
-                } catch(e) {  Siesta.Events.notifyEvent(this,this.EVENT_CONNECTED,this); }
+                } catch(e) {  Siesta.Events.publish(this.EVENT_CONNECTED,this); }
             }
         } else {
-            Siesta.Events.notifyEvent(this,this.EVENT_CONNECTED,this);
+            Siesta.Events.publish(this.EVENT_CONNECTED,this);
         }
     }
-};
+});
+Siesta.Services.RestfulOperation = function(operationUri) { this.initialize(operationUri) };
 
-Siesta.Services.RestfulOperation = Class.create();
+Siesta.Services.RestfulOperation.GET = 'GET',
+Siesta.Services.RestfulOperation.POST = 'POST',
+Siesta.Services.RestfulOperation.PUT = 'PUT',
+Siesta.Services.RestfulOperation.DELETE = 'DELETE',
+
 /**
-  @class Siesta.Services.RestfulOperation
+   @class Siesta.Services.RestfulOperation
 
-  A hRESTS operation of a hRESTS service.
+   A hRESTS operation of a hRESTS service.
 */
-Siesta.Services.RestfulOperation.prototype = {
+Siesta.Framework.classBuilder(Siesta.Services.RestfulOperation, {
     /**
-     * @constructor
-     *
-     * Initiates a new RestfulOperation object with the
-     * the data associated to the URI passed as an
-     * argument in the constructor.
-     *
-     * Triplets are looked up in the Siesta.Model.Repositories.services repository,
-     * they must have been retrieved first via a callo to Siesta.Services.registerService.
-     *
-     * @see Siesta.Services.registerService
-     *
-     * @argument operationUri: operation location URI, a Siesta.Framework.Uri object or a String
-     */
+             * @constructor
+             *
+             * Initiates a new RestfulOperation object with the
+             * the data associated to the URI passed as an
+             * argument in the constructor.
+             *
+             * Triplets are looked up in the Siesta.Model.Repositories.services repository,
+             * they must have been retrieved first via a callo to Siesta.Services.registerService.
+             *
+             * @see Siesta.Services.registerService
+             *
+             * @argument operationUri: operation location URI, a Siesta.Framework.Uri object or a String
+             */
     initialize: function(operationUri) {
         this.uri = operationUri;
         if(operationUri.__type == 'uri') {
@@ -5442,7 +1685,7 @@ Siesta.Services.RestfulOperation.prototype = {
 
     method: function() {
         if(this._method != null) {
-            return this._method;
+            return this._method.toUpperCase();
         } else {
             var query = "SELECT ?method WHERE { <"+this.uri+"> " + "<http://www.wsmo.org/ns/hrests#hasMethod> " + "?method } ";
 
@@ -5452,7 +1695,7 @@ Siesta.Services.RestfulOperation.prototype = {
                 throw new Error("Error retrieving the method associated to the operation "+this.uri);
             } else {
                 this._method = result[0].method.value;
-                return this._method;
+                return this._method.toUpperCase();
             }
         }
     },
@@ -5479,11 +1722,11 @@ Siesta.Services.RestfulOperation.prototype = {
     _parsingAddressPatternRegExIn: /[^\{\}]+/,
 
     /**
-      Parses the address of the operation retrieving the list of prameters
-      from the address.
+               Parses the address of the operation retrieving the list of prameters
+               from the address.
 
-      @returns the list of parsed parameters
-    */
+               @returns the list of parsed parameters
+            */
     addressAttributes: function() {
         var theAddress = this.address();
         if(this._addressAttributes == null) {
@@ -5503,11 +1746,11 @@ Siesta.Services.RestfulOperation.prototype = {
     },
 
     /**
-      Returns an array of RestfulOperationInputMessages object with all the
-      input messages associated to this operation.
+               Returns an array of RestfulOperationInputMessages object with all the
+               input messages associated to this operation.
 
-      @returns An array of RestulOperationInputMessages objects
-    */
+               @returns An array of RestulOperationInputMessages objects
+            */
     inputMessages: function() {
         if(this._inputMessages != null) {
             return this._inputMessages;
@@ -5529,11 +1772,11 @@ Siesta.Services.RestfulOperation.prototype = {
 
 
     /**
-      Returns the RestfulOperationOutputMessage object associated
-      to this operation.
+               Returns the RestfulOperationOutputMessage object associated
+               to this operation.
 
-      @returns A RestulOperationOutputMessage objects or null if no output message is associated.
-    */
+               @returns A RestulOperationOutputMessage objects or null if no output message is associated.
+            */
     outputMessage: function() {
         if(this._outputMessage != null) {
             return this._outputMessage;
@@ -5553,11 +1796,11 @@ Siesta.Services.RestfulOperation.prototype = {
 
 
     /**
-      Returns an array of RestfulOperationInputParameter object with all the
-      input messages associated to this operation.
+               Returns an array of RestfulOperationInputParameter object with all the
+               input messages associated to this operation.
 
-      @returns An array of RestulOperationInputMessages objects
-    */
+               @returns An array of RestulOperationInputMessages objects
+            */
     inputParameters: function() {
         if(this._inputParameters != null) {
             return this._inputParameters;
@@ -5582,12 +1825,18 @@ Siesta.Services.RestfulOperation.prototype = {
         if(that.connected == false) {
             var sequentializer = new Siesta.Utils.Sequentializer();
 
+            this.method();
+            this.address();
+            this.label();
+
             for(var _i=0; _i<that.inputMessages().length; _i++) {
                 sequentializer.addRemoteRequestWithEnv(function(message){
-                    Siesta.Events.addListener(message,message.EVENT_MESSAGE_LOADED,that,function(event,msg) {
-                        Siesta.Events.removeListener(message,message.EVENT_MESSAGE_LOADED,that);
-                        sequentializer.notifyRequestFinished();
-                    });
+                    var subscription = Siesta.Events.subscribe(message.EVENT_MESSAGE_LOADED,function(event,msg,myData) {
+                        if(myData == message) {
+                            Siesta.Events.unsubscribe(subscription);
+                            sequentializer.notifyRequestFinished();
+                        }
+                    }, that,message);
                     message.connect(mechanism);
                 },that.inputMessages()[_i]);
             }
@@ -5595,10 +1844,12 @@ Siesta.Services.RestfulOperation.prototype = {
             var outputMessage = this.outputMessage();
             if(outputMessage != null) {
                 sequentializer.addRemoteRequest(function(){
-                    Siesta.Events.addListener(outputMessage,outputMessage.EVENT_CONNECTED,that,function(event,msg) {
-                        Siesta.Events.removeListener(outputMessage,outputMessage.EVENT_CONNECTED,that);
-                        sequentializer.notifyRequestFinished();
-                    });
+                    var subscription = Siesta.Events.subscribe(outputMessage.EVENT_CONNECTED,function(event,msg,myData) {
+                        if(outputMessage == myData) {
+                            Siesta.Events.unsubscribe(subscription);
+                            sequentializer.notifyRequestFinished();
+                        }
+                    },that,outputMessage);
                     outputMessage.connect(mechanism);
                 });
             }
@@ -5606,7 +1857,7 @@ Siesta.Services.RestfulOperation.prototype = {
             sequentializer.finishedCallback(function() {
 
                 that.connected = true;
-                Siesta.Events.notifyEvent(that,that.EVENT_CONNECTED,that);
+                Siesta.Events.publish(that.EVENT_CONNECTED,that);
             });
 
             sequentializer.start();
@@ -5633,8 +1884,12 @@ Siesta.Services.RestfulOperation.prototype = {
         for(var _i=0; _i<this.addressAttributes().length; _i++) {
             var theAttr = this.addressAttributes()[_i];
             var theAttrInAddress = "{"+ theAttr +"}";
-
-            theAddress = theAddress.replace(theAttrInAddress,encodeURIComponent(loweredParametersMap[theAttr].value));
+            try{
+                theAddress = theAddress.replace(theAttrInAddress,encodeURIComponent(loweredParametersMap[theAttr].value));
+            } catch(e) {
+                debugger;
+                throw "ERROR lowering object: "+e;
+            }
         }
 
         if(mechanism == "jsonp") {
@@ -5645,8 +1900,30 @@ Siesta.Services.RestfulOperation.prototype = {
                 theAddress = theAddress + "?_method=" + this.method().toLowerCase();
             }
             Siesta.Network.jsonpRequestForFunction(theAddress,"callback",function(resp) {
-                Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.data);
-                Siesta.Events.notifyEvent(that,that.EVENT_CONSUMED,that);
+
+                var notifyWhenParsed = function(resp) {
+                    Siesta.Events.publish(that.EVENT_CONSUMED,resp.parsedGraph);
+                }
+
+                if(that._repositoryMethod == Siesta.Services.RestfulOperation.GET ||
+                   that._repositoryMethod == Siesta.Services.RestfulOperation.POST ||
+                   that.method() == 'GET' ||
+                   that.method() == 'POST') {
+                    Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.data,notifyWhenParsed);
+
+                } else if(that._repositoryMethod == Siesta.Services.RestfulOperation.DELETE ||
+                          that.method() == 'DELETE') {
+
+                    Siesta.Model.Repositories.data.removeGraph(graph);
+                    notifyWhenParsed({parsedGraph: graph});
+
+                } else if(that._repositoryMethod == Siesta.Services.RestfulOperation.PUT ||
+                          that.method() == 'PUT') {
+
+                    Siesta.Model.Repositories.data.removeGraph(graph);
+                    Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.data,notifyWhenParsed);
+
+                }
             });
         } else {
         }
@@ -5656,30 +1933,61 @@ Siesta.Services.RestfulOperation.prototype = {
     EVENT_CONNECTED: "EVENT_OPERATION_CONNECTED",
 
     EVENT_CONSUMED: "CONSUMED_OPERATON_EVENT"
-};
+});
+Siesta.Services.RestfulService = function(serviceUri,networkMechanism) { this.initialize(serviceUri,networkMechanism) };
 
-Siesta.Services.RestfulService = Class.create();
 /**
-  @class Siesta.Services.RestfulService
-
-  A Semantic Restful hRESTS service.
+   A cache for the requested services.
 */
-Siesta.Services.RestfulService.prototype = {
+Siesta.Services.RestfulService.servicesCache = {};
+
+/**
+   Class methods
+*/
+Siesta.Services.RestfulService.findForSchema = function(schemaUri) {
+    var query = "SELECT ?reference WHERE { ?reference " + "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type> " + "<http://www.wsmo.org/ns/wsmo-lite#Service> . ";
+    query = query + "?reference <http://www.w3.org/ns/sawsdl#modelReference> <"+schemaUri+"> }";
+
+    var result = Siesta.Sparql.query(Siesta.Model.Repositories.services,query);
+
+    if(result.length == 0) {
+        throw new Error("Error retrieving Service for modelReference:<"+schemaUri+"> uri.");
+    } else {
+        var service = Siesta.Services.RestfulService.find(result[0].reference);
+        return service;
+    }
+}
+
+Siesta.Services.RestfulService.find = function(serviceUri) {
+    if(Siesta.Services.RestfulService.servicesCache[serviceUri] != undefined) {
+        return Siesta.Services.RestfulService.servicesCache[serviceUri];
+    } else {
+        throw "Service <"+ serviceUri +"> not found in services cache, may be it is not connected";
+    }
+}
+
+/**
+       @class Siesta.Services.RestfulService
+
+       A Semantic Restful hRESTS service.
+    */
+Siesta.Framework.classBuilder(Siesta.Services.RestfulService, {
     /**
-     * @constructor
-     *
-     * Initiates a new RestfulService object with the
-     * the data associated to the URI passed as an
-     * argument in the constructor.
-     *
-     * Triplets are looked up in the Siesta.Model.Repositories.services repository,
-     * they must have been retrieved first via a callo to Siesta.Services.registerService.
-     *
-     * @see Siesta.Services.registerService
-     *
-     * @argument serviceuri: Service location URI, a Siesta.Framework.Uri object or a String
-     */
-    initialize: function(serviceUri ) {
+                 * @constructor
+                 *
+                 * Initiates a new RestfulService object with the
+                 * the data associated to the URI passed as an
+                 * argument in the constructor.
+                 *
+                 * Triplets are looked up in the Siesta.Model.Repositories.services repository,
+                 * they must have been retrieved first via a callo to Siesta.Services.registerService.
+                 *
+                 * @see Siesta.Services.registerService
+                 *
+                 * @argument serviceuri: Service location URI, a Siesta.Framework.Uri object or a String
+                 * @argument networkMechanism: what kind of network transport will be used to access this service
+                 */
+    initialize: function(serviceUri,networkMechanism) {
         this.uri = serviceUri;
         if(serviceUri.__type == 'uri') {
             this.uri = uri.toString();
@@ -5691,6 +1999,11 @@ Siesta.Services.RestfulService.prototype = {
         this._modelReference = null;
         this.connected = false;
         this._model = null;
+        this._mechanism = networkMechanism;
+    },
+
+    networkMechanism: function() {
+        return this._mechanism;
     },
 
     modelReference: function() {
@@ -5774,11 +2087,17 @@ Siesta.Services.RestfulService.prototype = {
     },
 
     /**
-      Retrieves all the external resources for this service: model, lowering and lifting operations, etc.
+                       Retrieves all the external resources for this service: model, lowering and lifting operations, etc.
 
-      @returns nothing
-    */
+                       @returns nothing
+                    */
     connect: function(mechanism) {
+        if(this._mechanism == undefined) {
+            this._mechanism = mechanism;
+        }
+        if(arguments.length == 0) {
+            mechanism = this._mechanism;
+        }
         if(this.connected == false) {
 
             var that = this;
@@ -5808,29 +2127,32 @@ Siesta.Services.RestfulService.prototype = {
             for(var _i=0; _i<this.operations().length; _i++){
 
                 /*
-                var f = (function (theOperation) { return function () {
-                    Siesta.Events.addListener(theOperation,theOperation.EVENT_CONNECTED,that,function(event,op) {
+                              var f = (function (theOperation) { return function () {
+                              Siesta.Events.addListener(theOperation,theOperation.EVENT_CONNECTED,that,function(event,op) {
 
-                        Siesta.Events.removeListener(theOperation,theOperation.EVENT_CONNECTED,that);
-                        sequentializer.notifyRequestFinished();
-                    });
-                    theOperation.connect(mechanism);
-                }})(this.operations()[_i]);
-                sequentializer.addRemoteRequest(f);
-                */
+                              Siesta.Events.removeListener(theOperation,theOperation.EVENT_CONNECTED,that);
+                              sequentializer.notifyRequestFinished();
+                              });
+                              theOperation.connect(mechanism);
+                              }})(this.operations()[_i]);
+                              sequentializer.addRemoteRequest(f);
+                            */
                 sequentializer.addRemoteRequestWithEnv(function(theOperation) {
 
-                    Siesta.Events.addListener(theOperation,theOperation.EVENT_CONNECTED,that,function(event,op) {
-                        Siesta.Events.removeListener(theOperation,theOperation.EVENT_CONNECTED,that);
-                        sequentializer.notifyRequestFinished();
-                    });
+                    var subscription = Siesta.Events.subscribe(theOperation.EVENT_CONNECTED,function(event,op,myData) {
+                        if(theOperation == myData) {
+                            Siesta.Events.unsubscribe(subscription);
+                            sequentializer.notifyRequestFinished();
+                        }
+                    },that,theOperation);
                     theOperation.connect(mechanism);
                 }, this.operations()[_i]);
             }
 
             sequentializer.finishedCallback(function() {
+                Siesta.Services.RestfulService.servicesCache[this.serviceUri] = that;
                 that.connected = true;
-                Siesta.Events.notifyEvent(that,that.EVENT_SERVICE_LOADED,that);
+                Siesta.Events.publish(that.EVENT_SERVICE_LOADED,that);
             });
 
             sequentializer.start();
@@ -5841,35 +2163,42 @@ Siesta.Services.RestfulService.prototype = {
         Siesta.Services.parseAndAddToRepository(resp,Siesta.Model.Repositories.schemas);
         this.model();
 
-        Siesta.Events.notifyEvent(this,this.EVENT_SERVICE_LOADED,this);
+        Siesta.Events.publish(this.EVENT_SERVICE_LOADED,this);
     },
 
     EVENT_SERVICE_LOADED: "EVENT_SERVICE_LOADED"
-};
-
-Siesta.Model.Schema = Class.create();
+});
+Siesta.Model.Schema = function(schemaUri) { this.initialize(schemaUri) };
 /**
-  @class Siesta.Model.Schema
+   @class Siesta.Model.Schema
 
-  A RDF model schema.
+   A RDF model schema.
 */
-Siesta.Model.Schema.prototype = {
+Siesta.Framework.classBuilder(Siesta.Model.Schema, {
     /**
-     * @constructor
-     *
-     * Initiates a new model schema object with the
-     * the data associated to the URI passed as an
-     * argument in the constructor.
-     *
-     * Triplets are looked up in the Siesta.Model.Repositories.schemas repository,
-     * they must have been retrieved before initating the schema object.
-     *
-     * @argument serviceuri: Schema URI: a Siesta.Framework.Uri object or a String
-     */
-    initialize: function(schemaUri ) {
+         * @constructor
+         *
+         * Initiates a new model schema object with the
+         * the data associated to the URI passed as an
+         * argument in the constructor.
+         *
+         * Triplets are looked up in the Siesta.Model.Repositories.schemas repository,
+         * they must have been retrieved before initating the schema object.
+         *
+         * @argument serviceuri: Schema URI: a Siesta.Framework.Uri object or a String
+         */
+    initialize: function(schemaUri) {
         this.uri = schemaUri;
-        if(schemaUri.__type == 'uri') {
-            this.uri = uri.toString();
+        if(typeof this.uri == 'object') {
+            if(schemaUri.__type == 'uri') {
+                this.uri = uri.toString();
+            } else {
+                this.uri = Siesta.Model.Namespaces.resolve(this.uri);
+            }
+        }
+
+        if(this.uri == undefined) {
+            throw "Cannot initialize Siesta.Model.Schema without schemaUri";
         }
 
         this._type = null;
@@ -5877,10 +2206,10 @@ Siesta.Model.Schema.prototype = {
     },
 
     /**
-      Retrieves the type of this model schema.
+               Retrieves the type of this model schema.
 
-      @returns The URI of the type associated to this schema model
-    */
+               @returns The URI of the type associated to this schema model
+            */
     type: function() {
         if(this._type != null) {
             return this._type;
@@ -5899,10 +2228,10 @@ Siesta.Model.Schema.prototype = {
     },
 
     /**
-      Retrieves all the properties associated to this schema URI by a rdfs:domain predicate.
+               Retrieves all the properties associated to this schema URI by a rdfs:domain predicate.
 
-      @returns A hash of URIs -> range for the properties of the model schema.
-    */
+               @returns A hash of URIs -> range for the properties of the model schema.
+            */
     properties: function() {
         if(this._properties != null) {
             return this._properties;
@@ -5921,33 +2250,751 @@ Siesta.Model.Schema.prototype = {
             }
             return this._properties;
         }
-    },
+    }
+});
+Siesta.Model.Class = function(parameters) { this.initialize(parameters) };
+
+Siesta.Model.Class.registry = {};
+
+Siesta.Model.Class.findForSchema = function(modelUri) {
+    return Siesta.Model.Class.registry[modelUri];
 };
 
-Siesta.Model.Instance = Class.create();
-/**
-  @class Siesta.Model.Instance
+Siesta.Model.Class.registerForSchema = function(modelUri,classObject) {
+    return Siesta.Model.Class.registry[modelUri] = classObject;
+};
 
-  A RDF instance of some model.
+/**
+   @class Siesta.Model.Class
+
+   A RDF model Class.
 */
-Siesta.Model.Instance.prototype = {
+Siesta.Framework.classBuilder(Siesta.Model.Class, {
+
+    initialize: function(parameters) {
+        this.uri = parameters.schemaUri;
+        if(typeof this.uri == 'object') {
+            if(this.uri.__type == 'uri') {
+                this.uri = uri.toString();
+            } else {
+                this.uri = Siesta.Model.Namespaces.resolve(this.uri);
+            }
+        }
+
+        if(this.uri == undefined) {
+            throw "Cannot initialize Siesta.Model.Schema without schemaUri";
+        }
+
+        this.schema = new Siesta.Model.Schema(this.uri);
+
+        if(parameters.serviceUri != undefined) {
+            this.indexServices = parameters.serviceUri;
+            this.getServices = parameters.serviceUri;
+            this.postServices = parameters.serviceUri;
+            this.deleteServices = parameters.serviceUri;
+            this.putServices = parameters.serviceUri;
+        }
+
+        this.indexServices = parameters.indexServiceUri || this.indexServices;
+        this.getServices = parameters.getServiceUris || this.getServices;
+        this.postServices = parameters.postServicesUris || this.postServices;
+        this.putServices = parameters.putServicesUris || this.putServices;
+        this.deleteServices = parameters.deleteServicesUris || this.deleteServices;
+
+        if(this.indexServices == undefined &&
+           this.getServices == undefined &&
+           this.postServices == undefined &&
+           this.putServices == undefined &&
+           this.deleteServices == undefined) {
+            try {
+                var service = Siesta.Services.RestfulService.findForSchema(this.uri);
+
+                this.indexServices = service.uri;
+                this.getServices = service.uri;
+                this.postServices = service.uri;
+                this.deleteServices = service.uri;
+                this.putServices = service.uri;
+
+            } catch(e) {
+            }
+        }
+
+        if(this.indexServices != undefined) {
+            this.indexServices = Siesta.Services.RestfulService.find(this.indexServices);
+        }
+        if(this.getServices != undefined) {
+            this.getServices = Siesta.Services.RestfulService.find(this.getServices);
+        }
+        if(this.postServices != undefined) {
+            this.postServices = Siesta.Services.RestfulService.find(this.postServices);
+        }
+        if(this.deleteServices != undefined) {
+            this.deleteServices = Siesta.Services.RestfulService.find(this.deleteServices);
+        }
+        if(this.putServices != undefined) {
+            this.putServices = Siesta.Services.RestfulService.find(this.putServices);
+        }
+
+        this.indexOperationUri = parameters.indexOperationUri;
+        this.getOperationUri = parameters.getOperationUri;
+        this.putOperationUri = parameters.putOperationUri;
+        this.postOperationUri = parameters.postOperationUri;
+        this.deleteOperationUri = parameters.deleteOperationUri;
+
+        if(this.indexServices != undefined) {
+            var indexServicesGET = 0;
+            var candidateIndex = null;
+            for(var _i=0;_i< this.indexServices.operations().length;_i++) {
+                if(this.indexServices.operations()[_i].method() == Siesta.Services.RestfulOperation.GET) {
+                    indexServicesGET++;
+                    candidateIndex = this.indexServices.operations()[_i];
+                }
+            }
+            if(indexServicesGET > 1) {
+                if(this.indexOperationUri == undefined) {
+                    throw 'several posible GET operations for index';
+                }
+            } else {
+                if(this.indexOperationUri == undefined) {
+                    this.indexOperationUri = candidateIndex.method().uri;
+                }
+            }
+        }
+
+        if(this.getServices != undefined) {
+            var getServicesGET = 0;
+            var candidateGet = null;
+            for(var _i=0;_i< this.getServices.operations().length;_i++) {
+                if(this.getServices.operations()[_i].method() == Siesta.Services.RestfulOperation.GET) {
+                    getServicesGET++;
+                    candidateGet = this.getServices.operations()[_i];
+                }
+            }
+            if(getServicesGET > 1) {
+                if(this.getOperationUri == undefined) {
+                    throw 'several posible GET operations for find';
+                }
+            } else {
+                if(this.getOperationUri == undefined) {
+                    this.getOperationUri = candidateGet.method().uri;
+                }
+            }
+        }
+
+        this._propertyMapping = null;
+
+        Siesta.Model.Class.registerForSchema(this.uri,this);
+        if(parameters.nestedThrough != null && this.property(parameters.nestedThrough)!=null){
+            this.nestedThrough = this.property(parameters.nestedThrough);
+        } else {
+            this.nestedThrough = parameters.nestedThrough;
+        }
+
+    },
+
+    definePropertiesAliases: function(mapping) {
+        this._propertyMapping = {};
+        var propertiesNames = [];
+        for(var _i=0; _i<this.schema.properties().length; _i++) {
+            propertiesNames.push(this.schema.properties()[_i]['uri']);
+        }
+
+        for(_name in mapping) {
+            var thisProperty = mapping[_name];
+            if(typeof thisProperty == 'object') {
+                thisProperty = Siesta.Model.Namespaces.resolve(thisProperty);
+            }
+            var found = false;
+            for(var _i=0; _i<propertiesNames.length; _i++) {
+                if(propertiesNames[_i] == thisProperty) {
+                    found = true;
+                    break;
+                }
+            }
+            if(found == true) {
+                this._propertyMapping[_name]  = thisProperty
+            } else {
+                throw "Cannot define property class name for unknown property " + thisProperty ;
+            }
+        }
+    },
+
+    properties: function() {
+        return this.schema.properties();
+    },
+
+    property: function(nameOrUri) {
+        if(this._propertyMapping != null && this._propertyMapping[nameOrUri] != undefined) {
+            return this._propertyMapping[nameOrUri];
+        } else {
+            for(var _i=0; _i<this.schema.properties().length; _i++) {
+                if(this.schema.properties()[_i]['uri'] == nameOrUri) {
+                    return this.schema.properties()[_i]['uri'];
+                }
+            }
+            return null;
+        }
+    },
+
+    propertyRange: function(nameOrUri) {
+        var uri = this.property(nameOrUri);
+        for(var _i=0; _i<this.schema.properties().length; _i++) {
+            if(this.schema.properties()[_i]['uri'] == uri) {
+                return this.schema.properties()[_i]['range'];
+            }
+        }
+        return null;
+    },
+
+    isDatatypeProperty: function(nameOrUri) {
+        var range = this.propertyRange(nameOrUri);
+        if(range!=null) {
+            if(Siesta.XSD.DATATYPES_INV[range]!=undefined) {
+                return true;
+            } else {
+                return false;
+            }
+        } else {
+            return null;
+        }
+    },
+
+    isObjectProperty: function() {
+        return !this.isDatatypeProperty();
+    },
+
+    propertiesAliases: function() {
+        var toReturn = [];
+        for(var p in this._propertyMapping) {
+            toReturn.push(p);
+        }
+        return toReturn;
+    },
+
+    isPropertyAlias: function(propertyName) {
+        if(this._propertyMapping[propertyName] == undefined) {
+            return false;
+        } else {
+            return true;
+        }
+    },
+
+
+    /*
+             * Operations
+             */
+
     /**
-     * @constructor
-     *
-     * Initiates a new instance model with the URI andvalues
-     * provided in the constructor.
-     *
-     * @argument schema: Siesta.Model.Schema for the instance.
-     * @argument uri: instance URI, it can be null.
-     * @argument properties: values for the properties of the instance
-     */
-    initialize: function(schema, uri, properties ) {
-        this._schema = schema;
-        this.uri = uri;
-        this._properties = properties;
+               Returns a new instance of the class without saving it into the server
+            */
+    build: function(params) {
+        return new Siesta.Model.Instance({
+            type: this,
+            properties: params
+        });
+    },
+
+    /**
+               Invokes the POST method of the associated service for the given instance
+            */
+    post: function(instance,callback) {
+        if(this.postServices == undefined) {
+            throw "Cannot save instance for ModelClass without POST service";
+        } else {
+            var service = this.postServices;
+            var op = null;
+            var operations = service.operations();
+            for(var _i=0; _i<operations.length; _i++) {
+                if(this.postOperationUri == undefined) { // no URI look for the HTTP method
+                    if(operations[_i].method() == Siesta.Services.RestfulOperation.POST) {
+                        op = operations[_i];
+                        break;
+                    }
+                } else{ // URI, we don't care about the HTTP method
+                    if(operations[_i].uri == this.postOperationUri) {
+                        op = operations[_i];
+                        op._repositoryMethod = Siesta.Services.RestfulOperation.POST;
+                        break;
+                    }
+                }
+            }
+
+            var that = this;
+            var subscription = Siesta.Events.subscribe(op.EVENT_CONSUMED,function(event,graph,myData) {
+                Siesta.Events.unsubscribe(subscription);
+                if(myData == instance) {
+                    if(callback != undefined) {
+                        callback(graph);
+                    }
+                }
+            },that,instance);
+            var g = instance.toGraph();
+            op.consume(service.networkMechanism(),g);
+        }
+    },
+
+    /**
+               Invokes the PUT method of the associated service for the given instance
+            */
+    put: function(instance,callback) {
+        if(this.putServices == undefined) {
+            throw "Cannot save instance for ModelClass without PUT service";
+        } else {
+            var service = this.putServices;
+            var op = null;
+            var operations = service.operations();
+            for(var _i=0; _i<operations.length; _i++) {
+                if(this.putOperationUri == undefined) { // no URI look for the HTTP method
+                    if(operations[_i].method() == Siesta.Services.RestfulOperation.PUT) {
+                        op = operations[_i];
+                        break;
+                    }
+                } else{ // URI, we don't care about the HTTP method
+                    if(operations[_i].uri == this.putOperationUri) {
+                        op = operations[_i];
+                        op._repositoryMethod = Siesta.Services.RestfulOperation.PUT;
+                        break;
+                    }
+                }
+            }
+
+            var that = this;
+            var subscription = Siesta.Events.subscribe(op.EVENT_CONSUMED,function(event,graph,myData) {
+                Siesta.Events.unsubscribe(subscription);
+                if(myData == instance) {
+                    if(callback != undefined) {
+                        callback(graph);
+                    }
+                }
+            },that,instance);
+            var g = instance.toGraph();
+            op.consume(service.networkMechanism(),g);
+        }
+    },
+
+    _findUrisInGraph:function(graph){
+        var uris = [];
+        for(var _id in graph.triples) {
+            for(var _pred in graph.triples[_id]) {
+                if(_pred == 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type') {
+                    for(_obj in graph.triples[_id][_pred]){
+                        if(_obj == this.uri) {
+                            uris.push(_id);
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        return uris;
+    },
+
+    _updateInstance:function(graph,instance) {
+        for(var _id in graph.triples) {
+            if(_id == instance.uri) {
+                for(var _pred in graph.triples[_id]) {
+                    if(instance.type.property(_pred) != null) {
+                        try{
+                            for(_obj in graph.triples[_id][_pred]){
+                                if(graph.triples[_id][_pred][_obj].object.__type=='literal')
+                                    instance.set(_pred,graph.triples[_id][_pred][_obj].object);
+                                else {
+                                    instance.set(_pred,_obj);
+                                }
+                                break;
+                            }
+                        } catch(e) {
+
+                        }
+                    }
+                }
+            }
+        }
+    },
+
+    /**
+               Does a remote request to the server with the GET operation
+               of the service matching the property mapping passed as a
+               parameter.
+
+               @argument: mapping, a JS object containing pairs of key-value or a Model.Instance
+               object that will be used to retrieve the parameters for the query.
+               @argument: callback, a function that will be invoked with the objects
+               returned from the serer in an array as argument.
+            */
+    find: function(mapping,callback) { //
+        if(this.getServices == undefined) {
+            throw "Cannot find instance for ModelClass without GET service";
+        } else {
+            var instance = mapping;
+            if(mapping.__type == undefined) {
+                instance = this.build(mapping);
+            }
+
+            var service = this.getServices;
+            var op = null;
+            var operations = service.operations();
+            for(var _i=0; _i<operations.length; _i++) {
+                if(this.getOperationUri == undefined) {
+                    if(operations[_i].method() == Siesta.Services.RestfulOperation.GET) {
+                        op = operations[_i];
+                        break;
+                    }
+                } else {
+                    if(operations[_i].uri == this.getOperationUri) {
+                        op = operations[_i];
+                        op._repositoryMethod = Siesta.Services.RestfulOperation.GET;
+                        break;
+                    }
+                }
+            }
+            var that = this;
+            var subscription = Siesta.Events.subscribe(op.EVENT_CONSUMED,function(event,graph,myData) {
+                Siesta.Events.unsubscribe(subscription);
+                if(myData == instance) {
+                    instance.uri = graph.triplesArray()[0].subject.value;
+                    instance._graph = null;
+                    instance.type._updateInstance(graph,instance);
+                    instance.stored = true;
+                    if(callback != undefined) {
+                        callback(instance);
+                    }
+                }
+            },that,instance);
+            var g = instance.toGraph();
+            op.consume(service.networkMechanism(),g);
+        }
+    },
+
+    findAll: function(mapping,callback) {
+        if(this.indexServices == undefined) {
+            throw "Cannot index instances for ModelClass without INDEX service";
+        } else {
+            var instance = mapping;
+            if(mapping.__type == undefined) {
+                instance = this.build(mapping);
+            }
+
+            var service = this.indexServices;
+            var op = null;
+            var operations = service.operations();
+            for(var _i=0; _i<operations.length; _i++) {
+                if(this.indexOperationUri == undefined) {
+                    if(operations[_i].method() == Siesta.Services.RestfulOperation.GET) {
+                        op = operations[_i];
+                        break;
+                    }
+                } else {
+                    if(operations[_i].uri == this.indexOperationUri) {
+                        op = operations[_i];
+                        op._repositoryMethod = Siesta.Services.RestfulOperation.GET;
+                        break;
+                    }
+                }
+            }
+            var that = this;
+            var subscription = Siesta.Events.subscribe(op.EVENT_CONSUMED,function(event,graph,myData) {
+                Siesta.Events.unsubscribe(subscription);
+                if(myData == instance) {
+                    if(callback != undefined) {
+                        callback(graph);
+                    }
+                }
+            },that,instance);
+            var g = instance.toGraph();
+            op.consume(service.networkMechanism(),g);
+        }
+    },
+
+    deleteOperation: function(instance,callback) {
+        if(this.deleteServices == undefined) {
+            throw "Cannot destroy instance for ModelClass without DELETE service";
+        } else {
+            var service = this.deleteServices;
+            var op = null;
+            var operations = service.operations();
+            for(var _i=0; _i<operations.length; _i++) {
+                if(this.deleteOperationUri == undefined) { // if no URI look for HTTP method
+                    if(operations[_i].method() == Siesta.Services.RestfulOperation.DELETE) {
+                        op = operations[_i];
+                        break;
+                    }
+                } else { // we have URI we don't care about the HTTP method
+                    if(operations[_i].uri == this.deleteOperationUri) {
+                        op = operations[_i];
+                        op._repositoryMethod = Siesta.Services.RestfulOperation.DELETE;
+                        break;
+                    }
+                }
+            }
+            var that = this;
+            var subscription = Siesta.Events.subscribe(op.EVENT_CONSUMED,function(event,graph,myData) {
+                Siesta.Events.unsubscribe(subscription);
+                if(myData == instance) {
+                    if(callback != undefined) {
+                        callback(graph);
+                    }
+                }
+            },that,instance);
+            var g = instance.toGraph();
+            op.consume(service.networkMechanism(),g);
+        }
+    }
+});
+Siesta.Model.Instance = function(params) { this.initialize(params) };
+
+/**
+   @class Siesta.Model.Instance
+
+   A RDF instance of some model.
+*/
+Siesta.Framework.classBuilder(Siesta.Model.Instance, {
+    /**
+         * @constructor
+         *
+         * Initiates a new instance model with the URI andvalues
+         * provided in the constructor.
+         *
+         * @argument schema: Siesta.Model.Schema for the instance.
+         * @argument uri: instance URI, it can be null.
+         * @argument properties: values for the properties of the instance
+         */
+    initialize: function(params) {
+
+        this.type = params.type;
+        if(this.type == undefined) {
+            throw "Cannot create instance with undefined type";
+        }
+
+        this.uri = params.uri;
+        this._properties = {};
+
         this._graph = null;
-        for(var p in properties) {
-            this[p] = properties[p];
+
+        if(this.uri == undefined) {
+            this.stored = false;
+        } else {
+            this.stored = true;
+        }
+
+        this.originalObjects = {};
+
+        this.dirty = false;
+
+        for(var p in params.properties) {
+            if(this.type.isDatatypeProperty(p)) {
+                this.set(p,params.properties[p]);
+            } else {
+                var toStore = params.properties[p];
+                if(toStore.length) {
+                    for(var _i=0; _i<toStore.length; _i++) {
+                        var _toStore = toStore[_i];
+                        if(_toStore.stored == true) {
+                            if(this.type.nestedThrough != p) {
+                                throw "Cannot create instance with already initiated object " + _toStore.uri  + " in a relation";
+                            }
+                        }
+                    }
+                } else {
+                    if(toStore.stored == true) {
+                        if(this.type.nestedThrough != p) {
+			    throw "Cannot create instance with already initiated object " + _toStore.uri  + " in a relation";
+                        }
+                    }
+                }
+                if(this.type.nestedThrough != p) {
+                    this.collectionsToSave[this.type.property(p)] = toStore;
+                }
+                this._properties[this.type.property(p)] = params.properties[p];
+            }
+        }
+    },
+
+    set: function(property,value) {
+        var range =  this.type.propertyRange(property);
+        if(this.type.property(property) != null) {
+            if(value.__type == null) { // cannot be instance nor literal
+                if(Siesta.XSD.DATATYPES_INV[range]!=undefined) {
+                    this.dirty = true;
+                    this._properties[this.type.property(property)] = new Siesta.Framework.Literal({value: value});
+                } else {
+                    this._properties[this.type.property(property)] = value;
+                }
+            } else { // instance or literal
+                if(Siesta.XSD.DATATYPES_INV[range]!=undefined) {
+                    this.dirty = true;
+                    this._properties[this.type.property(property)] = value;
+                } else {
+                    this._properties[this.type.property(property)] = [value];
+                }
+            }
+        } else {
+            throw "Unknown property "+property+" for instance of class "+this.type.uri;
+        }
+    },
+
+    get: function(property) {
+        if(this.type.property(property) != null) {
+            var prop =  this._properties[this.type.property(property)];
+            return prop.value;
+        } else {
+            throw "Unknown property "+property+" for instance of class "+this.type.uri;
+        }
+    },
+
+    relationFindAll: function(property,callback) {
+        if(this.type.property(property) != null) {
+            var range =  this.type.propertyRange(property);
+            var relationClass = Siesta.Model.Class.findForSchema(range);
+
+            var argument = {};
+            argument[relationClass.nestedThrough] =  this;
+
+            var that = this;
+            relationClass.findAll(argument,function(instances) {
+                var genInstances = [];
+
+                for(var _s in instances.triples) {
+                    var _tmp = relationClass.build({});
+                    _tmp.uri = _s;
+                    _tmp._graph = null;
+                    _tmp.type._updateInstance(instances,_tmp);
+                    _tmp.stored = true;
+                    _tmp.dirty= false;
+                    _tmp._properties[relationClass.nestedThrough] = that;
+                    genInstances.push(_tmp);
+                }
+                var _origGenInstances = [];
+                for(var _i=0; _i<genInstances.length; _i++) {
+                    _origGenInstances.push(genInstances[_i])
+                }
+                that.originalObjects[that.type.property(property)] = _origGenInstances;
+                that.set(property,genInstances);
+                callback(that);
+            });
+        } else {
+            throw "Unknown relation "+property+" for instance of class "+this.type.uri;
+        }
+    },
+
+    relationFind: function(property,callback) {
+        if(this.type.property(property) != null) {
+            var range =  this.type.propertyRange(property);
+            var relationClass = Siesta.Model.Class.findForSchema(range);
+
+            var argument = {};
+            argument[relationClass.nestedThrough] =  this;
+
+            var that = this;
+            relationClass.findAll(argument,function(instances) {
+
+                for(var _s in instances.triples) {
+                    var _tmp = relationClass.build({});
+                    _tmp.uri = _s;
+                    _tmp._graph = null;
+                    _tmp.type._updateInstance(instances,_tmp);
+                    _tmp.stored = true;
+                    _tmp.dirty = false;
+                    _tmp._properties[relationClass.nestedThrough] = that;
+                    that.set(property,_tmp);
+                    that.originalObjects[that.type.property(property)] = _tmp;
+                    break;
+                }
+                callback(that);
+            });
+        } else {
+            throw "Unknown relation "+property+" for instance of class "+this.type.uri;
+        }
+    },
+
+    relationGet: function(property) {
+        if(this.type.property(property) != null) {
+            var prop =  this._properties[this.type.property(property)];
+            return prop;
+        } else {
+            debugger;
+            throw "Unknown property "+property+" for instance of class "+this.type.uri;
+        }
+    },
+
+    relationSet: function(property,value) {
+        if(this.type.property(property) != null) {
+            this._properties[this.type.property(property)] = value;
+        } else {
+            throw "Unknown relation "+property+" for instance of class "+this.type.uri;
+        }
+    },
+
+    relationAdd: function(property,value) {
+        if(this.type.property(property) != null) {
+            var old_value = this._properties[this.type.property(property)];
+            if(old_value == undefined) {
+                throw "The collection has not been retrieved with a relationFindAll message";
+            }
+            if(old_value.length) {
+                this._properties[this.type.property(property)].push(value);
+            } else {
+                throw "I cannot add instances to an scalar relation"
+            }
+        } else {
+            throw "Unknown relation "+property+" for instance of class "+this.type.uri;
+        }
+    },
+
+    relationRemove: function(property,value) {
+        if(this.type.property(property) != null) {
+            for(var _p in this._properties) {
+                var newValue = [];
+                var oldValue = this._properties[this.type.property(property)];
+                if(oldValue == undefined) {
+                    throw "The collection has not been retrieved with a relationFindAll message";
+                }
+                if(oldValue.length) {
+                    var _found = false;
+                    for(var _i; _i<oldValue.length; _i++) {
+                        var val = oldValue[_i];
+                        if(val.equalTo(value) && !_found) {
+                            _found = true;
+                        } else {
+                            newValue.push(val);
+                        }
+                    }
+                    this._properties[this.type.property(property)] = newValue;
+                } else {
+                    throw "I cannot remove instances from an scalar relation"
+                }
+
+            }
+        } else {
+            throw "Unknown relation "+property+" for instance of class "+this.type.uri;
+        }
+    },
+
+    equalTo: function(instance) {
+        if(instance.uri) {
+            return this.uri == instance.uri;
+        } else if(instance._properties) {
+            for(var _p in instance._properties) {
+                var _v = instance._properties[_p];
+                var _tv = this._properties[_p];
+                if(_v.equalTo && _tv.equalTo) {
+                    if(_v.equalTo(_tv) == false) {
+                        return false;
+                    }
+                } else if(_v.length && _tv.length) {
+                    if(_v.length != _tv.length) {
+                        return false;
+                    }
+                } else {
+                    if(_v != _tv) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        } else {
+            return this == instance;
         }
     },
 
@@ -5958,90 +3005,299 @@ Siesta.Model.Instance.prototype = {
                 this.uri = "_:0";
             }
             var subject = new Siesta.Framework.Uri(this.uri);
-            for(var _i=0; _i<this._schema.properties().length; _i++) {
-                var prop = this._schema.properties()[_i];
-                var found = null;
-                var foundUri = null;
-                for(var p in this._properties) {
-                    var pindex = prop.uri.indexOf(p);
-                    if(pindex != -1 && (pindex + p.length) == prop.uri.length) {
-                        found = p;
-                        foundUri = prop.uri;
-                        break;
+            for(var p in this._properties) {
+                var propertyValue = this._properties[p];
+                if(propertyValue.__type != null && propertyValue.__type == 'instance') {
+                    this._graph.addTriple(new Siesta.Framework.Triple(new Siesta.Framework.Uri(this.uri),
+                                                                      new Siesta.Framework.Uri(p),
+                                                                      new Siesta.Framework.Uri(propertyValue.uri)));
+                } else if(propertyValue.__type == null && propertyValue.length) {
+                    for(var _i=0; _i< propertyValue.length; _i++) {
+                        this._graph.addTriple(new Siesta.Framework.Triple(new Siesta.Framework.Uri(this.uri),
+                                                                          new Siesta.Framework.Uri(p),
+                                                                          new Siesta.Framework.Uri(propertyValue[_i].uri)));
                     }
+                } else {
+                    this._graph.addTriple(new Siesta.Framework.Triple(new Siesta.Framework.Uri(this.uri),
+                                                                      new Siesta.Framework.Uri(p),
+                                                                      propertyValue));
+                }
+            }
+
+            var nestedTriples = this._nestingTriples();
+            if(nestedTriples.length > 0) {
+                for(var _i=0; _i<nestedTriples.length; _i++) {
+                    this._graph.addTriple(nestedTriples[_i]);
                 }
 
-                if(found != null) {
-                    this._graph.addTriple(new Siesta.Framework.Triple(new Siesta.Framework.Uri(this.uri),
-                                                                      new Siesta.Framework.Uri(foundUri),
-                                                                      new Siesta.Framework.Literal({value: this._properties[found]})));
-                }
+            } else {
+                this._graph.addTriple(new Siesta.Framework.Triple(new Siesta.Framework.Uri(this.uri),
+                                                                  new Siesta.Framework.Uri(Siesta.Constants.RDF_TYPE),
+                                                                  new Siesta.Framework.Uri(this.type.uri)));
             }
         }
         return this._graph;
-    }
-};
+    },
 
+    /*
+     * Operations
+     */
+
+    /**
+       Saves or updates this instance using the provided backend service.
+
+       @argument callback, a callback function that will be invoked when the save
+       operation had finished passing as a parameter the saved instance.
+      */
+    save: function(callback) {
+        var that = this;
+        if(this.stored == false) { // no saved, we use POST to create and save
+            that.type.post(that,function(graph) {
+                that.uri = graph.triplesArray()[0].subject.value;
+                that._graph = null;
+                that.type._updateInstance(graph,that);
+                that.stored = true;
+                callback(that);
+            });
+        } else { // already saved, we use PUT to update
+            that.type.put(that,function(graph) {
+                that._graph = null;
+                that.type._updateInstance(graph,that);
+                that.stored = true;
+                callback(that);
+            });
+        }
+    },
+
+    _updateCollections: function(callback) {
+        var that = this;
+
+        var toModify = [];
+
+
+        for(var _p in that._properties) {
+            if(that.type.isObjectProperty(_p)) {
+                var propValue = that.get(_p);
+                var origPropValue = that.originalObjects[_p];
+
+                if(propValue.length) {
+                    for(var _i=0; _i<propValue.length; _i++) {
+                        var thePropValue = propValue[_i];
+                        var theOrigPropValue = that._findInstanceInArray(thePropValue,origPropValue);
+                        if(theOrigPropValue == undefined) {
+                            toModify.push({object: thePropValue, action: 'create'});
+                        } else {
+                            if(theOrigPropValue.uri == thePropValue.uri) {
+                                if(thePropValue.dirty) {
+                                    toModify.push({object: thePropValue, action: 'update'});
+                                }
+                            } else {
+                                toModify.push({object: thePropValue, action: 'create'});
+                            }
+                        }
+                    }
+                    for(var _i=0; _i<origPropValue.length; _i++) {
+                        var thePropValue = origPropValue[_i];
+                        var retrieved = that._findInstanceInArray(thePropValue,propValue);
+                        if(retrieved == undefined) {
+                            toModify.push({object: thePropValue, action: 'delete'});
+                        } else {
+                            if(retrieved.uri != thePropValue.uri) {
+                                toModify.push({object: thePropValue, action: 'delete'});
+                            }
+                        }
+                    }
+                } else {
+                    _classifyByStatus(origPropValue,propValue,toModify);
+                }
+
+            }
+        }
+
+        if(toModify.length > 0) {
+            var sequentializer = new Siesta.Utils.Sequentializer();
+            var maximum = toModify.length - 1
+            for(var _i=0; _i<toModify.length; _i++) {
+                var toModifyInstance = toModify[_i];
+                toModifyInstance['pos'] = _i
+                sequentializer.addRemoteRequestWithEnv(function(instanceObj){
+                    if(instanceObj.action == 'create' || instanceObj.action == 'update') {
+                        instanceObj.object.save(function(savedObj) {
+                            sequentializer.notifyRequestFinished();
+                        });
+                    } else { // destroy
+                        instanceObj.object.destroy(function(destryedObj) {
+                            sequentializer.notifyRequestFinished();
+                        });
+
+                    }
+                },toModifyInstance);
+            }
+
+            sequentializer.finishedCallback(function() {
+                callback(that);
+            });
+
+            sequentializer.start();
+
+        }
+
+    },
+
+    _findInstanceInArray: function(instance,instances)  {
+        for(var _i=0; _i<instances.length; _i++) {
+            if(instance.equalTo(instances[_i])) {
+                return instances[_i];
+            }
+        }
+        return undefined;
+    },
+
+    _classifyByStatus: function(origPropValue,propValue,toModify) {
+        if(origPropValue == undefined) {
+            if(propValue != undefined) {
+                toModify.push({object: propValue, action: 'create'});
+            }
+        } else if(origPropValue.equalTo(propValue)) {
+            if(propValue.dirty) {
+                toModify.push({object: propValue, action: 'update'});
+            }
+        } else {
+            toModify.push({object: origPropValue, action: 'delete'});
+            if(propValue != undefined) {
+                toModify.push({object: propValue, action: 'create'});
+            }
+        }
+    },
+
+    /**
+      Destroys this instance using the provided backend service.
+
+      @argument callback, a callback function that will be invoked when the destroy
+      operation had finished passing as a parameter the destroyed instance.
+     */
+    destroy: function(callback) {
+        var that = this;
+        this.type.deleteOperation(this,function(graph) {
+            that.uri = undefined;
+            this.stored = false;
+            callback(that);
+        });
+    },
+
+    _nestingTriples: function() {
+        var triples = [];
+        if(this.type.nestedThrough == undefined) {
+            return triples;
+        }
+        var nestedIn = this.relationGet(this.type.nestedThrough);
+        if(nestedIn != undefined) {
+            triples.push(new Siesta.Framework.Triple(new Siesta.Framework.Uri(this.uri),
+                                                     new Siesta.Framework.Uri(this.type.nestedThrough),
+                                                     new Siesta.Framework.Uri(nestedIn.uri)));
+            triples.push(new Siesta.Framework.Triple(new Siesta.Framework.Uri(this.uri),
+                                                     new Siesta.Framework.Uri(Siesta.Constants.RDF_TYPE),
+                                                     new Siesta.Framework.Uri(this.type.uri)));
+            if(nestedIn.get(Siesta.Constants.SIESTA_ID) != undefined) {
+                triples.push(new Siesta.Framework.Triple(new Siesta.Framework.Uri(nestedIn.uri),
+                                                         new Siesta.Framework.Uri(Siesta.Constants.SIESTA_ID),
+                                                         new Siesta.Framework.Uri(nestedIn.get(Siesta.Constants.SIESTA_ID))));
+            }
+            var nestedTriples = nestedIn._nestingTriples();
+            for(var _i=0; _i<nestedTriples.length; _i++) {
+                triples.push(nestedTriples[_i]);
+            }
+        }
+        return triples;
+    },
+
+    __type: "instance"
+});
 /**
-  Events manager
+   Events manager
 */
 Siesta.Events = {
     eventsDictionary: {},
 
-    addListener: function(sender,notification,receiver,method) {
-        if(this.eventsDictionary[sender] == undefined) {
-            this.eventsDictionary[sender] = {};
-        }
+    subscriptionsMap: {},
 
-        if(this.eventsDictionary[sender][notification] == undefined) {
-            this.eventsDictionary[sender][notification] = [];
-        }
+    _subscriptionsCounter: 0,
 
-        this.eventsDictionary[sender][notification].push([receiver,method]);
+    /**
+     * Creates a subscription on the specified topic name.
+     *
+     * @param {String} name
+     *     The name of the topic to which you want to subscribe.
+     * @param {Function|String} refOrName
+     *     A function object reference or the name of a function
+     *     that is invoked whenever an event is published on the topic.
+     * @param {Object} [scope]
+     *     An Object in which to execute refOrName when handling the event.
+     *     If null, window object is used. The scope parameter will be the
+     *     "this" object when the callback is invoked.
+     * @param {*} [subscriberData]
+     *     Client application provides this data, which is handed
+     *     back to the client application in the subscriberData
+     *     parameter of the callback function.
+     * @returns
+     *     A String Object (a "subscription") that is unique for this particular subscription.
+     * @type {String}
+     */
+    subscribe: function(name, refOrName, scope, subscriberData) {
+        if(this.eventsDictionary[name] == undefined) {
+            this.eventsDictionary[name] = {};
+        }
+        var subscriptionId = '_'+this._subscriptionsCounter++;
+        this.eventsDictionary[name][subscriptionId] = { refOrName: refOrName,
+                                                        scope: scope || this,
+                                                        subscriberData: subscriberData || {} };
+        this.subscriptionsMap[subscriptionId] = name;
+        return subscriptionId;
     },
 
-    removeListener: function(sender,notification,receiver) {
-        if(this.eventsDictionary[sender] != undefined) {
-            if(this.eventsDictionary[sender][notification] != undefined) {
-                var found = null;
-                for(_i=0; _i < this.eventsDictionary[sender][notification].length; _i++) {
-                    if(this.eventsDictionary[sender][notification][_i][0] == receiver) {
-                        found = _i;
-                        break;
+    /**
+     * Removes a subscription to an event.
+     *
+     * @param {String} subscription
+     *     The return value from a previous call to OpenAjax.hub.subscribe().
+     */
+    unsubscribe: function(subscription) {
+        var event = this.subscriptionsMap[subscription];
+        if(event != undefined) {
+            if(this.eventsDictionary[event] != undefined) {
+                delete this.eventsDictionary[event][subscription];
+                var hasMore = false;
+                for(var _p in this.eventsDictionary[event]) {
+                    if(this.eventsDictionary[event][_p] != undefined) {
+                        hasMore = true;
                     }
                 }
-                if(found != null) {
-                    this.eventsDictionary[sender][notification].splice(_i,1);
+                if(hasMore == false) {
+                    delete this.eventsDictionary[event];
                 }
-
-                if(this.eventsDictionary[sender][notification].length == 0) {
-                }
+                delete this.subscriptionsMap[subscription];
             }
         }
     },
 
-    notifyEvent: function(sender,notification,data) {
-        if(this.eventsDictionary[sender] != undefined) {
-            if(this.eventsDictionary[sender][notification] != undefined) {
-                var found = null;
-                for(_i=0; _i < this.eventsDictionary[sender][notification].length; _i++) {
-                    var obj = this.eventsDictionary[sender][notification][_i][0];
-                    this.eventsDictionary[sender][notification][_i][1].call(obj,notification,data);
-                }
-            }
-        }
-    },
+    /**
+     * Publishes (broadcasts) an event.
+     *
+     * @param {String} name
+     *     The name of the topic that is being published.
+     * @param {*} [publisherData]
+     *     (Optional) An arbitrary Object holding extra information that
+     *     will be passed as an argument to the handler function.
+     * @type {Object}
+     */
+    publish: function(name, publisherData) {
+        if(this.eventsDictionary[name] != undefined) {
+            for(var subscriptionId in this.eventsDictionary[name]) {
+                var subscription = this.eventsDictionary[name][subscriptionId];
+                var theUserData = subscription.subscriberData;
 
-    notifyEventAndDelete: function(sender,nofitication,data) {
-        if(this.eventsDictionary[sender] != undefined) {
-            if(this.eventsDictionary[sender][notification] != undefined) {
-                var found = null;
-                for(_i=0; _i < this.eventsDictionary[sender][notification].length; _i++) {
-                    var obj = this.eventsDictionary[sender][notification][_i][0];
-                    this.eventsDictionary[sender][notification][_i][1].call(obj,notification,data);
-                }
+                subscription.refOrName.apply(subscription.scope,[name,publisherData,theUserData]);
             }
-            delete this.eventsDictionary[sender][notification];
         }
     }
 };
@@ -6057,10 +3313,10 @@ Siesta.defineConfiguration = function(theConfiguration) {
 }
 
 Siesta.loadConfiguration = function(basePath) {
-   /**
-     Returns the current URL till the last '/' (not included) in th URL:
-     - http://test.com/scripts/my_script.js -> http://test.com/scripts
-   */
+    /**
+           Returns the current URL till the last '/' (not included) in th URL:
+           - http://test.com/scripts/my_script.js -> http://test.com/scripts
+        */
     Siesta.basePath = function() {
         return basePath;
     };
@@ -6069,11 +3325,11 @@ Siesta.loadConfiguration = function(basePath) {
 };
 
 Siesta.loadFrameworks = function() {
-    debugger;
     Siesta.remainingFrameworks = {};
     Siesta.remainingFrameworks["sparql"] = true;
     Siesta.remainingFrameworks["formats/turtle"] = true;
     Siesta.remainingFrameworks["formats/xml"] = true;
+    Siesta.remainingFrameworks["formats/rdfa"] = true;
     Siesta.remainingFrameworks["network"] = true;
 
     if(!Siesta.isPackaged) {
@@ -6085,10 +3341,11 @@ Siesta.loadFrameworks = function() {
         }
 
 
-        Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.sparql+"/sparql/query.js");
-        Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.formats.turtle+"/formats/turtle.js"); //turtle
-        Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.formats.xml+"/formats/xml.js"); //xml
-        Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.network+"/network.js"); //xml
+        Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.sparql.toLowerCase()+"/sparql/query.js");
+        Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.formats.turtle.toLowerCase()+"/formats/turtle.js"); //turtle
+        Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.formats.xml.toLowerCase()+"/formats/xml.js"); //xml
+        Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.formats.rdfa.toLowerCase()+"/formats/rdfa.js"); //rdfa
+        Siesta.loadFromBase("libs/drivers/"+Siesta.Configuration.network.toLowerCase()+"/network.js"); //xml
     }
 };
 
@@ -6099,17 +3356,17 @@ Siesta.onFrameworkInitiated = function(f) {
 };
 
 Siesta.defineConfiguration({
-    drivers: ["hercules","oat","prototype"],
+    drivers: ["hercules","oat","jquery","w3c"],
     sparql: "Hercules",
     formats: {
         turtle: "Hercules",
-        xml: "OAT"
+        xml: "OAT",
+        rdfa: "W3c"
     },
-    network: "Prototype"
+    network: "jQuery"
 });
 
 Siesta.registerFramework = function(key) {
-    debugger;
     Siesta.remainingFrameworks[key] = false;
 
     var notReady = false;
@@ -6117,6 +3374,7 @@ Siesta.registerFramework = function(key) {
     notReady = notReady || Siesta.remainingFrameworks["sparql"];
     notReady = notReady || Siesta.remainingFrameworks["formats/turtle"];
     notReady = notReady || Siesta.remainingFrameworks["formats/xml"];
+    notReady = notReady || Siesta.remainingFrameworks["formats/rdfa"];
     notReady = notReady || Siesta.remainingFrameworks["network"];
 
     if(key == "sparql") {
@@ -6125,6 +3383,8 @@ Siesta.registerFramework = function(key) {
         Siesta.Formats.Turtle = eval("Siesta.Drivers."+Siesta.Configuration.formats.turtle+".Formats.Turtle");
     } else if(key == "formats/xml") {
         Siesta.Formats.Xml = eval("Siesta.Drivers."+Siesta.Configuration.formats.xml+".Formats.Xml");
+    } else if(key == "formats/rdfa") {
+        Siesta.Formats.Rdfa = eval("Siesta.Drivers."+Siesta.Configuration.formats.rdfa+".Formats.Rdfa");
     } else if(key == "network") {
         Siesta.Network = eval("Siesta.Drivers."+Siesta.Configuration.network+".Network");
     }
@@ -6279,7 +3539,7 @@ Arielworks.Util.argToArray = function(from) {
 
 
 
-var Class = {
+var ParserClass = {
     create: function() {
         return function() {
             if (this.___constructor) {
@@ -6289,7 +3549,7 @@ var Class = {
     },
 
     extend: function(superClass) {
-        var subClass = Class.create();
+        var subClass =ParserClass.create();
         var _constructor = subClass.prototype.constructor;
         subClass.prototype =  new superClass();
         subClass.prototype.constructor = _constructor;
@@ -6800,7 +4060,7 @@ Arielworks.Hercules.Rdf.BlankNodeInGraph.prototype.___constructor = function(gra
     this.___super(id);
     this.___mixin(0, graph, resourceId);
 };
-Arielworks.Parser.RecursiveDescentParser.Parser = Class.create();
+Arielworks.Parser.RecursiveDescentParser.Parser =ParserClass.create();
 
 Arielworks.Parser.RecursiveDescentParser.Parser.prototype.___constructor = function() {
     this.ruleSet;
@@ -6966,7 +4226,7 @@ Arielworks.Parser.RecursiveDescentParser.Parser.o = function() {
 
 
 
-Arielworks.Parser.RecursiveDescentParser.Context = Class.create();
+Arielworks.Parser.RecursiveDescentParser.Context =ParserClass.create();
 
 Arielworks.Parser.RecursiveDescentParser.Context.prototype.___constructor = function(parser, input, actions) {
     this.parser = parser;
@@ -7007,7 +4267,7 @@ Arielworks.Parser.RecursiveDescentParser.Context.prototype.hasRemaing = function
 
 
 
-Arielworks.Parser.RecursiveDescentParser.Expression = Class.create();
+Arielworks.Parser.RecursiveDescentParser.Expression =ParserClass.create();
 
 Arielworks.Parser.RecursiveDescentParser.Expression.prototype.___constructor = function(element, name, callee) {
     this.setElement(element);
@@ -7052,7 +4312,7 @@ Arielworks.Parser.RecursiveDescentParser.Expression.prototype.lookahead = functi
 
 
 
-Arielworks.Parser.RecursiveDescentParser.SequentialExpression = Class.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
+Arielworks.Parser.RecursiveDescentParser.SequentialExpression =ParserClass.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
 
 Arielworks.Parser.RecursiveDescentParser.SequentialExpression.prototype.___constructor = function() {
     Arielworks.Parser.RecursiveDescentParser.SequentialExpression.___super.prototype.___constructor.apply(this, arguments);
@@ -7073,7 +4333,7 @@ Arielworks.Parser.RecursiveDescentParser.SequentialExpression.prototype.__doLook
 
 
 
-Arielworks.Parser.RecursiveDescentParser.OrExpression = Class.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
+Arielworks.Parser.RecursiveDescentParser.OrExpression =ParserClass.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
 
 Arielworks.Parser.RecursiveDescentParser.OrExpression.prototype.___constructor = function() {
     Arielworks.Parser.RecursiveDescentParser.OrExpression.___super.prototype.___constructor.apply(this, arguments);
@@ -7093,7 +4353,8 @@ Arielworks.Parser.RecursiveDescentParser.OrExpression.prototype.__doDescend = fu
     if (found) {
         return r;
     } else {
-        throw new Error("Or");
+        debugger;
+        throw "Or";
     }
 };
 
@@ -7109,7 +4370,7 @@ Arielworks.Parser.RecursiveDescentParser.OrExpression.prototype.__doLookahead = 
 
 
 
-Arielworks.Parser.RecursiveDescentParser.OneOrNothingExpression = Class.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
+Arielworks.Parser.RecursiveDescentParser.OneOrNothingExpression =ParserClass.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
 
 Arielworks.Parser.RecursiveDescentParser.OneOrNothingExpression.prototype.___constructor = function() {
     Arielworks.Parser.RecursiveDescentParser.OneOrNothingExpression.___super.prototype.___constructor.apply(this, arguments);
@@ -7130,7 +4391,7 @@ Arielworks.Parser.RecursiveDescentParser.OneOrNothingExpression.prototype.__doLo
 
 
 
-Arielworks.Parser.RecursiveDescentParser.ZeroOrMoreExpression = Class.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
+Arielworks.Parser.RecursiveDescentParser.ZeroOrMoreExpression =ParserClass.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
 
 Arielworks.Parser.RecursiveDescentParser.ZeroOrMoreExpression.prototype.___constructor = function() {
     Arielworks.Parser.RecursiveDescentParser.ZeroOrMoreExpression.___super.prototype.___constructor.apply(this, arguments);
@@ -7151,7 +4412,7 @@ Arielworks.Parser.RecursiveDescentParser.ZeroOrMoreExpression.prototype.__doLook
 
 
 
-Arielworks.Parser.RecursiveDescentParser.OneOrMoreExpression = Class.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
+Arielworks.Parser.RecursiveDescentParser.OneOrMoreExpression =ParserClass.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
 
 Arielworks.Parser.RecursiveDescentParser.OneOrMoreExpression.prototype.___constructor = function() {
     Arielworks.Parser.RecursiveDescentParser.OneOrMoreExpression.___super.prototype.___constructor.apply(this, arguments);
@@ -7178,7 +4439,7 @@ Arielworks.Parser.RecursiveDescentParser.OneOrMoreExpression.prototype.__doLooka
 
 
 
-Arielworks.Parser.RecursiveDescentParser.TerminalString = Class.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
+Arielworks.Parser.RecursiveDescentParser.TerminalString =ParserClass.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
 
 Arielworks.Parser.RecursiveDescentParser.TerminalString.prototype.___constructor = function() {
     Arielworks.Parser.RecursiveDescentParser.TerminalString.___super.prototype.___constructor.apply(this, arguments);
@@ -7201,7 +4462,7 @@ Arielworks.Parser.RecursiveDescentParser.TerminalString.prototype.__doLookahead 
 
 
 
-Arielworks.Parser.RecursiveDescentParser.TerminalRegExp = Class.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
+Arielworks.Parser.RecursiveDescentParser.TerminalRegExp =ParserClass.extend(Arielworks.Parser.RecursiveDescentParser.Expression);
 
 Arielworks.Parser.RecursiveDescentParser.TerminalRegExp.prototype.___constructor = function() {
     Arielworks.Parser.RecursiveDescentParser.TerminalRegExp.___super.prototype.___constructor.apply(this, arguments);
@@ -7221,7 +4482,7 @@ Arielworks.Parser.RecursiveDescentParser.TerminalRegExp.prototype.__doLookahead 
     return context.matchRegExp(this.element);
 };
 
-Arielworks.Hercules.Serialized.Turtle.Parser = Class.create();
+Arielworks.Hercules.Serialized.Turtle.Parser =ParserClass.create();
 Arielworks.Hercules.Serialized.Turtle.Parser.XSD_NAMESPACE = "http://www.w3.org/2001/XMLSchema#";
 Arielworks.Hercules.Serialized.Turtle.Parser.XSD_INTEGER = Arielworks.Hercules.Serialized.Turtle.Parser.XSD_NAMESPACE + "integer";
 Arielworks.Hercules.Serialized.Turtle.Parser.XSD_DECIMAL = Arielworks.Hercules.Serialized.Turtle.Parser.XSD_NAMESPACE + "decimal";
@@ -7291,7 +4552,7 @@ Arielworks.Hercules.Serialized.Turtle.serializeTerm = function(term) {
         "LCHARACTER" : /^(?:\\u[\u0030-\u0039\u0041-\u0046][\u0030-\u0039\u0041-\u0046][\u0030-\u0039\u0041-\u0046][\u0030-\u0039\u0041-\u0046]|\\U[\u0030-\u0039\u0041-\u0046][\u0030-\u0039\u0041-\u0046][\u0030-\u0039\u0041-\u0046][\u0030-\u0039\u0041-\u0046][\u0030-\u0039\u0041-\u0046][\u0030-\u0039\u0041-\u0046][\u0030-\u0039\u0041-\u0046][\u0030-\u0039\u0041-\u0046]|\\\\|[\u0020-\u005B\u005D-\uFFFF\t\n\r\u0009\u000A\u000D]|\\")/
     };
 }
-Arielworks.Hercules.Serialized.Turtle.Turtle_1_0 = Class.create();
+Arielworks.Hercules.Serialized.Turtle.Turtle_1_0 =ParserClass.create();
 
 Arielworks.Hercules.Serialized.Turtle.Turtle_1_0.ECHARACTER_ESCAPE_REGX = /\\([\\tnruU])([\u0030-\u0039\u0041-\u0046]{8}|[\u0030-\u0039\u0041-\u0046]{4})?/g;
 Arielworks.Hercules.Serialized.Turtle.Turtle_1_0.UCHARACTER_ESCAPE_REGX = /\\([\\tnruU>])([\u0030-\u0039\u0041-\u0046]{8}|[\u0030-\u0039\u0041-\u0046]{4})?/g
@@ -7523,7 +4784,7 @@ Arielworks.Hercules.Serialized.Turtle.Turtle_1_0.prototype.STRING = function(r) 
 Arielworks.Hercules.Serialized.Turtle.Turtle_1_0.prototype.LONG_STRING = function(r) {
     return r[1].replace(this.constructor.SCHARACTER_ESCAPE_REGX, this.__unescapeEcharacterCallback);
 };
-Arielworks.Hercules.Sparql.ResultSet = Class.create();
+Arielworks.Hercules.Sparql.ResultSet =ParserClass.create();
 
 Arielworks.Hercules.Sparql.ResultSet.prototype.___constructor = function(variableList) {
     this.variableList = variableList || [];
@@ -7562,7 +4823,7 @@ Arielworks.Hercules.Sparql.BlankNode.prototype.toTableName = function() {
     return "[" + this.value + "]";
 };
 
-Arielworks.Hercules.Sparql.VariableBindingTable = Class.create();
+Arielworks.Hercules.Sparql.VariableBindingTable =ParserClass.create();
 
 /**
  * TODO: Temporary class
@@ -7591,14 +4852,14 @@ Arielworks.Hercules.Sparql.VariableBindingTable.prototype.bindAndClone = functio
 
 
 
-Arielworks.Hercules.Sparql.MatchingResult = Class.create();
+Arielworks.Hercules.Sparql.MatchingResult =ParserClass.create();
 
 Arielworks.Hercules.Sparql.MatchingResult.prototype.___constructor = function(pattern) {
     this.pattern = pattern;
 };
 
 
-Arielworks.Hercules.Sparql.TripleMatchingResult = Class.extend(Arielworks.Hercules.Sparql.MatchingResult);
+Arielworks.Hercules.Sparql.TripleMatchingResult =ParserClass.extend(Arielworks.Hercules.Sparql.MatchingResult);
 
 Arielworks.Hercules.Sparql.TripleMatchingResult.prototype.___constructor = function(pattern) {
     Arielworks.Hercules.Sparql.TripleMatchingResult.___super.prototype.___constructor.apply(this, arguments);
@@ -7687,7 +4948,7 @@ Arielworks.Hercules.Sparql.TripleMatchingResult.prototype.bindVariableAllOpation
 };
 
 
-Arielworks.Hercules.Sparql.GraphMatchingResult = Class.extend(Arielworks.Hercules.Sparql.MatchingResult);
+Arielworks.Hercules.Sparql.GraphMatchingResult =ParserClass.extend(Arielworks.Hercules.Sparql.MatchingResult);
 
 Arielworks.Hercules.Sparql.GraphMatchingResult.prototype.___constructor = function(pattern) {
     Arielworks.Hercules.Sparql.GraphMatchingResult.___super.prototype.___constructor.apply(this, arguments);
@@ -7715,7 +4976,7 @@ Arielworks.Hercules.Sparql.GraphMatchingResult.prototype.bindVariableAllOpations
 };
 
 
-Arielworks.Hercules.Sparql.UnionMatchingResult = Class.extend(Arielworks.Hercules.Sparql.MatchingResult);
+Arielworks.Hercules.Sparql.UnionMatchingResult =ParserClass.extend(Arielworks.Hercules.Sparql.MatchingResult);
 Arielworks.Hercules.Sparql.UnionMatchingResult.prototype.___constructor = function(pattern) {
     Arielworks.Hercules.Sparql.GraphMatchingResult.___super.prototype.___constructor.apply(this, arguments);
     this.resultList = [];
@@ -7741,11 +5002,11 @@ Arielworks.Hercules.Sparql.UnionMatchingResult.prototype.bindVariableAllOpations
 
 
 
-Arielworks.Hercules.Sparql.Pattern = Class.create();
+Arielworks.Hercules.Sparql.Pattern =ParserClass.create();
 Arielworks.Hercules.Sparql.Pattern.prototype.___constructor = function() {
 };
 
-Arielworks.Hercules.Sparql.TriplePattern = Class.extend(Arielworks.Hercules.Sparql.Pattern);
+Arielworks.Hercules.Sparql.TriplePattern =ParserClass.extend(Arielworks.Hercules.Sparql.Pattern);
 Arielworks.Hercules.Sparql.TriplePattern.prototype.___constructor = function(subject, predicate, object) {
     this.subject = subject;
     this.predicate = predicate;
@@ -7781,7 +5042,7 @@ Arielworks.Hercules.Sparql.TriplePattern.prototype.match = function(targetGraph)
 
 
 
-Arielworks.Hercules.Sparql.GraphPattern = Class.extend(Arielworks.Hercules.Sparql.Pattern);
+Arielworks.Hercules.Sparql.GraphPattern =ParserClass.extend(Arielworks.Hercules.Sparql.Pattern);
 
 Arielworks.Hercules.Sparql.GraphPattern.prototype.___constructor = function() {
     this.patternList = [];
@@ -7800,7 +5061,7 @@ Arielworks.Hercules.Sparql.GraphPattern.prototype.match = function(targetGraph) 
 };
 
 
-Arielworks.Hercules.Sparql.UnionPattern = Class.extend(Arielworks.Hercules.Sparql.Pattern);
+Arielworks.Hercules.Sparql.UnionPattern =ParserClass.extend(Arielworks.Hercules.Sparql.Pattern);
 Arielworks.Hercules.Sparql.UnionPattern.prototype.___constructor = function() {
     this.patternList = [];
 };
@@ -7819,7 +5080,7 @@ Arielworks.Hercules.Sparql.UnionPattern.prototype.match = function(targetGraph) 
 
 
 
-Arielworks.Hercules.Sparql.Engine = Class.create();
+Arielworks.Hercules.Sparql.Engine =ParserClass.create();
 
 Arielworks.Hercules.Sparql.Engine.prototype.___constructor = function(graph) {
     this.graph = graph;
@@ -7844,7 +5105,7 @@ Arielworks.Hercules.Sparql.Engine.prototype.getTriplePattern = function(subject,
 };
 
 
-Arielworks.Hercules.Sparql.Query = Class.create();
+Arielworks.Hercules.Sparql.Query =ParserClass.create();
 
 Arielworks.Hercules.Sparql.Query.prototype.___constructor = function(engine) {
     this.engine = engine;
@@ -7883,7 +5144,7 @@ Arielworks.Hercules.Sparql.Query.prototype.getVariable = function(name) {
 
 
 
-Arielworks.Hercules.Sparql.SelectQuery = Class.extend(Arielworks.Hercules.Sparql.Query);
+Arielworks.Hercules.Sparql.SelectQuery =ParserClass.extend(Arielworks.Hercules.Sparql.Query);
 
 Arielworks.Hercules.Sparql.SelectQuery.prototype.___constructor = function() {
     Arielworks.Hercules.Sparql.SparqlQuery.___super.prototype.___constructor.apply(this, arguments);
@@ -8064,7 +5325,7 @@ with(Arielworks.Parser.RecursiveDescentParser.Parser) {
         "PN_LOCAL": /^[A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD_0-9](?:[A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD_0-9\u00B7\u0300-\u036F\u203F-\u2040.-]*[A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD_0-9\u00B7\u0300-\u036F\u203F-\u2040-])?/
     };
 }
-Arielworks.Hercules.Sparql.SparqlAction_1_0 = Class.create();
+Arielworks.Hercules.Sparql.SparqlAction_1_0 =ParserClass.create();
 
 Arielworks.Hercules.Sparql.SparqlAction_1_0.prototype.___constructor = function(engine) {
     this.engine = engine;
@@ -8661,6 +5922,647 @@ OAT.Xml = {
 	escape:OAT.Dom.toSafeXML,
 	unescape:OAT.Dom.fromSafeXML*/
 }
+GRDDL_initializers = {};
+
+RDFA = new Object();
+
+if (typeof(__RDFA_BASE) == 'undefined')
+   __RDFA_BASE = 'http://www.w3.org/2001/sw/BestPractices/HTML/rdfa-bookmarklet/';
+
+var __RDFA_VERSION_SUBDIR = '2006-10-08/';
+
+
+
+XH = new Object();
+
+XH.getNodeAttributeValue = function(element, attr) {
+    if (!element)
+        return null;
+
+    if (element.getAttribute) {
+        if (element.getAttribute(attr))
+            return(element.getAttribute(attr));
+    }
+
+    if (!element.attributes)
+        return null;
+
+	if (!element.attributes[attr])
+		return null;
+
+	return element.attributes[attr].value;
+};
+
+XH.setNodeAttributeValue = function(element, attr, value) {
+    if (!element)
+        return;
+
+    if (element.setAttribute) {
+        element.setAttribute(attr,value);
+        return;
+    }
+
+    if (!element.attributes)
+        element.attributes = new Object();
+
+    element.attributes[attr] = new Object();
+    element.attributes[attr].value = value;
+};
+
+XH.get_special_subject = function(element) {
+	if (XH.getNodeAttributeValue(element,'about'))
+		return XH.getNodeAttributeValue(element,'about');
+
+    if (element.name == 'head')
+        return ""
+
+	if (XH.getNodeAttributeValue(element,'id'))
+		return "#" + XH.getNodeAttributeValue(element,'id');
+
+  if (typeof(XH.bnode_counter) == 'undefined')
+    XH.bnode_counter = 0;
+
+  XH.bnode_counter++;
+  return '[_:' + element.nodeName + XH.bnode_counter + ']';
+};
+
+
+XH.SPECIAL_RELS_ARR = ['next','prev','home'];
+
+XH.SPECIAL_RELS = new Object();
+for (var i=0; i<XH.SPECIAL_RELS_ARR.length; i++) {
+  XH.SPECIAL_RELS[XH.SPECIAL_RELS_ARR[i]] = true;
+}
+
+XH.RDF_PREFIX = 'rdf';
+XH.RDF_URI = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#';
+
+XH.XHTML_PREFIX = 'xhtml';
+XH.XHTML_URI = 'http://www.w3.org/1999/xhtml';
+
+XH.transform = function(element) {
+    var children = element.childNodes;
+    for (var i=0; i < children.length; i++) {
+	    XH.transform(children[i]);
+    }
+
+    if (typeof(element.className) != 'undefined' && element.className != '') {
+      var classes = element.className.split(' ');
+
+      for (var i=0; i<classes.length; i++) {
+        var link_el = document.createElement('link');
+        link_el.rel= 'rdf:type';
+        link_el.href= '[' + classes[i] + ']'
+        element.appendChild(link_el);
+      }
+    }
+
+    if (typeof(element.rel) != 'undefined' && element.rel != '') {
+      var rels = element.rel.split(' ');
+
+      var new_rels=[];
+      for (var i=0; i<rels.length; i++) {
+        var the_rel = rels[i];
+        if (XH.SPECIAL_RELS[the_rel]) {
+          the_rel = XH.XHTML_PREFIX + ':' + the_rel;
+        }
+        new_rels[new_rels.length] = the_rel;
+      }
+
+      element.setAttribute('rel',new_rels.join(" "));
+    }
+
+    return;
+
+    if (element.nodeName == 'UL' || element.nodeName == 'OL') {
+      var link_el = document.createElement('link');
+      XH.setNodeAttributeValue(link_el, 'rel', 'rdf:type');
+      XH.setNodeAttributeValue(link_el, 'href', 'rdf:Bag');
+      element.appendChild(link_el);
+
+      var li_els = element.getElementsByTagName('li');
+      for (var i=0; i<li_els.length; i++) {
+        var new_rel = "rdf:_" + (i+1);
+        var existing_rel = XH.getNodeAttributeValue(li_els[i],'rel');
+        if (existing_rel) {
+          new_rel = existing_rel + ' ' + new_rel;
+        }
+        XH.setNodeAttributeValue(li_els[i],'rel',new_rel);
+      }
+    }
+};
+
+XH.initForDoc = function(doc) {
+    XH.transform(doc.body)
+    XH.transform(doc.getElementsByTagName('head')[0])
+    doc.body.setAttribute('xmlns:' + XH.RDF_PREFIX, XH.RDF_URI);
+    doc.body.setAttribute('xmlns:' + XH.XHTML_PREFIX, XH.XHTML_URI);
+    doc.getElementsByTagName('head')[0].setAttribute('xmlns:' + XH.RDF_PREFIX, XH.RDF_URI);
+    doc.getElementsByTagName('head')[0].setAttribute('xmlns:' + XH.XHTML_PREFIX, XH.XHTML_URI);
+    RDFA.GRDDL.DONE_LOADING(__RDFA_BASE + __RDFA_VERSION_SUBDIR + 'xhtml1-hgrddl.js');
+}
+
+GRDDL_initializers[__RDFA_BASE + __RDFA_VERSION_SUBDIR + 'xhtml1-hgrddl.js'] = XH.initForDoc;
+
+/**
+ *	RDF/A in Javascript
+ *	Ben Adida - ben@mit.edu
+ *  Nathan Yergler - nathan@creativecommons.org
+ *
+ *	licensed under GPL v2
+ */
+
+
+
+RDFA.triples = new Array();
+RDFA.bnode_counter = 0;
+
+if (!RDFA.CALLBACK_NEW_TRIPLE_WITH_URI_OBJECT)
+    RDFA.CALLBACK_NEW_TRIPLE_WITH_URI_OBJECT = function(foo,bar) {};
+
+if (!RDFA.CALLBACK_NEW_TRIPLE_WITH_LITERAL_OBJECT)
+    RDFA.CALLBACK_NEW_TRIPLE_WITH_LITERAL_OBJECT = function(foo,bar) {};
+
+if (!RDFA.CALLBACK_NEW_TRIPLE_WITH_SUBJECT)
+    RDFA.CALLBACK_NEW_TRIPLE_WITH_SUBJECT = function(foo,bar) {};
+
+Array.prototype.add = function(name,value) {
+    this.push(value);
+    this[name] = value;
+
+    if (!this.names) {
+        this.names = new Array();
+    }
+
+    this.names.push(name);
+};
+
+Array.prototype.copy = function() {
+    var the_copy = new Array();
+
+    if (this.names) {
+        for (var i=0; i < this.names.length; i++) {
+            the_copy.add(this.names[i],this[this.names[i]]);
+        }
+    }
+
+    return the_copy;
+};
+
+
+RDFA.Namespace = function(prefix, uri) {
+    this.prefix = prefix;
+    this.uri = uri;
+};
+
+RDFA.Namespace.prototype.equals = function(other) {
+    return (this.uri == other.uri);
+};
+
+RDFA.CURIE = function(ns,suffix) {
+    this.ns = ns;
+    this.suffix = suffix;
+};
+
+RDFA.CURIE.VALID_END_CHARS = new Array('/','#');
+
+RDFA.CURIE.prototype.pretty = function() {
+    return (this.ns? this.ns.prefix:'?') + ':' + this.suffix;
+};
+
+RDFA.CURIE.prototype.uri = function() {
+  if (!this.ns) return '';
+
+  if (this.ns.uri[this.ns.uri.length - 1] in RDFA.CURIE.VALID_END_CHARS) {
+   	return this.ns.uri + this.suffix;
+  } else {
+   	return this.ns.uri + "#" + this.suffix;
+  }
+};
+
+RDFA.CURIE.prototype.equals = function(other) {
+    return (this.ns.equals(other.ns) && (this.suffix == other.suffix));
+};
+
+RDFA.CURIE.parse = function(str, namespaces) {
+    var position = str.indexOf(':');
+
+    var prefix = str.substring(0,position);
+    var suffix = str.substring(position+1);
+
+    var curie = new RDFA.CURIE(namespaces[prefix],suffix);
+    return curie;
+};
+
+RDFA.CURIE.prettyCURIEorURI = function(str) {
+    if (str[0] == '[')
+        return str.substring(1,str.length - 1);
+    else
+        return '<' + str + '>';
+}
+
+RDFA.CURIE.prettyCURIEorURIinHTML = function(str) {
+    if (str[0] == '[')
+        return str.substring(1,str.length - 1);
+    else
+        return '&lt;' + str + '&gt;';
+}
+
+RDFA.Triple = function() {
+    this.subject = '';
+    this.predicate = '';
+    this.object = '';
+    this.object_literal_p = null;
+};
+
+RDFA.Triple.prototype.setLiteral= function(is_literal) {
+    this.object_literal_p = is_literal;
+};
+
+RDFA.Triple.prototype.pretty = function() {
+
+    var pretty_string = RDFA.CURIE.prettyCURIEorURI(this.subject) + ' ';
+
+    pretty_string += this.predicate.pretty() + ' ';
+
+    if (this.object_literal_p) {
+        pretty_string+= '"'+ this.object + '"';
+    } else {
+        pretty_string+= RDFA.CURIE.prettyCURIEorURI(this.object);
+    }
+
+    return pretty_string;
+};
+
+RDFA.Triple.prototype.prettyhtml = function() {
+    var pretty_subject = this.subject;
+
+    var pretty_string= RDFA.CURIE.prettyCURIEorURIinHTML(this.subject) + ' <a href="' + this.predicate.uri() + '">' + this.predicate.pretty() + '</a> ';
+
+    if (this.object_literal_p) {
+        pretty_string+= '"'+ this.object + '"';
+    } else {
+        pretty_string+= RDFA.CURIE.prettyCURIEorURIinHTML(this.object);
+    }
+
+    return pretty_string;
+};
+
+
+RDFA.getNodeAttributeValue = function(element, attr) {
+    if (!element)
+        return null;
+
+    if (element.getAttribute) {
+        if (element.getAttribute(attr))
+            return(element.getAttribute(attr));
+    }
+
+    if (!element.attributes)
+        return null;
+
+	if (!element.attributes[attr])
+		return null;
+
+	return element.attributes[attr].value;
+};
+
+RDFA.setNodeAttributeValue = function(element, attr, value) {
+    if (!element)
+        return;
+
+    if (element.setAttribute) {
+        element.setAttribute(attr,value);
+        return;
+    }
+
+    if (!element.attributes)
+        element.attributes = new Object();
+
+    element.attributes[attr] = new Object();
+    element.attributes[attr].value = value;
+};
+
+
+RDFA.GRDDL = new Object();
+
+RDFA.GRDDL.CALLBACKS = new Array();
+
+RDFA.GRDDL.DONE_LOADING = function(url) {
+    RDFA.GRDDL.CALLBACKS[url]();
+};
+
+RDFA.GRDDL.load = function(url, callback,parsed_document)
+{
+
+    RDFA.GRDDL.CALLBACKS[url] = callback;
+
+    GRDDL_initializers[url](parsed_document);
+
+};
+
+
+RDFA.GRDDL._profiles = new Array();
+
+RDFA.GRDDL.addProfile = function(js_url) {
+    RDFA.GRDDL._profiles[RDFA.GRDDL._profiles.length] = js_url;
+};
+
+RDFA.GRDDL.runProfiles = function(callback,parsedDoc) {
+    if (RDFA.GRDDL._profiles.length == 0) {
+      callback();
+      return;
+    }
+
+    var next_profile = RDFA.GRDDL._profiles.shift();
+
+    if (!next_profile) {
+        callback();
+        return;
+    }
+
+    RDFA.GRDDL.load(next_profile, function() {
+        RDFA.GRDDL.runProfiles(callback,parsedDoc);
+    },parsedDoc);
+}
+
+
+
+RDFA.add_triple = function (subject, predicate, object, literal_p) {
+    var triple = new RDFA.Triple();
+    triple.subject = subject;
+    triple.predicate = predicate;
+    triple.object = object;
+    triple.setLiteral(literal_p);
+
+    if (!RDFA.triples[triple.subject]) {
+        RDFA.triples.add(triple.subject, new Array());
+    }
+
+    var predicate_uri = triple.predicate.uri();
+
+    if (!RDFA.triples[triple.subject][predicate_uri]) {
+        RDFA.triples[triple.subject][predicate_uri] = new Array();
+    }
+
+    var the_array = RDFA.triples[triple.subject][predicate_uri];
+    the_array.push(triple);
+
+	return triple;
+};
+
+RDFA.get_special_subject = function(element) {
+	if (RDFA.getNodeAttributeValue(element,'about'))
+		return RDFA.getNodeAttributeValue(element,'about');
+
+    if (element.name == 'head')
+        return ""
+
+	if (RDFA.getNodeAttributeValue(element,'id'))
+		return "#" + RDFA.getNodeAttributeValue(element,'id');
+
+	if (!element.special_subject) {
+		element.special_subject = '[_:' + element.nodeName + RDFA.bnode_counter + ']';
+		RDFA.bnode_counter++;
+	}
+
+	return element.special_subject
+};
+
+RDFA.add_namespaces = function(element, namespaces) {
+    var copied_yet = 0;
+
+    var attributes = element.attributes;
+
+    if (!attributes)
+        return namespaces;
+
+    for (var i=0; i<attributes.length; i++) {
+        if (attributes[i].name.substring(0,5) == "xmlns") {
+            if (!copied_yet) {
+                namespaces = namespaces.copy();
+                copied_yet = 1;
+            }
+
+            if (attributes[i].name.length == 5) {
+                namespaces.add('',new RDFA.Namespace('',attributes[i].value));
+            }
+
+            if (attributes[i].name[5] != ':')
+                continue;
+
+            var prefix = attributes[i].name.substring(6);
+            var uri = attributes[i].value;
+
+            namespaces.add(prefix, new RDFA.Namespace(prefix,uri));
+        }
+    }
+
+    return namespaces;
+};
+
+RDFA.traverse = function (element, inherited_about, explicit_about, namespaces) {
+
+    namespaces = RDFA.add_namespaces(element,namespaces);
+
+    var current_about = inherited_about;
+    var children_about = null;
+    var element_to_callback = element;
+
+    var new_explicit_about = null;
+    if (RDFA.getNodeAttributeValue(element,'about')) {
+        new_explicit_about = RDFA.getNodeAttributeValue(element,'about');
+        current_about = new_explicit_about;
+    }
+
+    var el_object = null;
+    if (RDFA.getNodeAttributeValue(element,'href'))
+      el_object = RDFA.getNodeAttributeValue(element,'href');
+    if (RDFA.getNodeAttributeValue(element,'src'))
+      el_object = RDFA.getNodeAttributeValue(element,'src');
+
+    if (element.nodeName == 'link' || element.nodeName == 'meta') {
+      current_about = RDFA.get_special_subject(element.parentNode);
+      element_to_callback = element.parentNode;
+    }
+
+    if (RDFA.getNodeAttributeValue(element,'rel')) {
+      if (!el_object) {
+        el_object = RDFA.get_special_subject(element);
+        children_about = el_object;
+      }
+
+      var triple = RDFA.add_triple(current_about, RDFA.CURIE.parse(RDFA.getNodeAttributeValue(element,'rel'),namespaces), el_object, 0);
+      RDFA.CALLBACK_NEW_TRIPLE_WITH_URI_OBJECT(element_to_callback, triple);
+    }
+
+    if (RDFA.getNodeAttributeValue(element,'rev')) {
+      if (!el_object) {
+        el_object = RDFA.get_special_subject(element);
+        children_about = el_object;
+      }
+
+      var triple = RDFA.add_triple(el_object, RDFA.CURIE.parse(RDFA.getNodeAttributeValue(element,'rev'),namespaces), current_about, 0);
+      RDFA.CALLBACK_NEW_TRIPLE_WITH_URI_OBJECT(element_to_callback, triple);
+    }
+
+    if (RDFA.getNodeAttributeValue(element,'property')) {
+        var content = RDFA.getNodeAttributeValue(element,'content');
+
+        if (!content)
+            content = element.textContent;
+
+        var triple = RDFA.add_triple(current_about, RDFA.CURIE.parse(RDFA.getNodeAttributeValue(element,'property'),namespaces), content, 1);
+        RDFA.CALLBACK_NEW_TRIPLE_WITH_LITERAL_OBJECT(element_to_callback, triple);
+    }
+
+    if (children_about) {
+      new_explicit_about = children_about;
+      current_about = children_about;
+    }
+
+    var children = element.childNodes;
+    for (var i=0; i < children.length; i++) {
+	    RDFA.traverse(children[i], current_about, new_explicit_about, namespaces);
+    }
+};
+
+RDFA.getTriples = function(subject, predicate) {
+    if (!RDFA.triples[subject])
+        return null;
+
+    return RDFA.triples[subject][predicate.uri()];
+};
+
+RDFA.parse = function(parse_document,parse_base) {
+    parse_document = parse_document || document;
+
+    var current_base = parse_base;
+    var default_ns = new RDFA.Namespace('',current_base);
+    var namespaces = new Array();
+
+    namespaces.add('',default_ns);
+
+    RDFA.GRDDL.addProfile(__RDFA_BASE + __RDFA_VERSION_SUBDIR + 'xhtml1-hgrddl.js');
+
+
+
+
+    RDFA.GRDDL.runProfiles(function() {
+        RDFA.traverse(parse_document, '', null, namespaces);
+
+        RDFA.CALLBACK_DONE_PARSING();
+    },parse_document);
+};
+
+RDFA.log = function(str) {
+    alert(str);
+};
+
+RDFA.reset = function() {
+   RDFA.triples = new Array();
+}
+
+
+/**
+ * The RDFa Javascript template.
+ *
+ * Ben Adida - ben@mit.edu
+ * 2006-03-21
+ * 2006-05-22 moved to W3C
+ *
+ * licensed under GPL v2
+ */
+
+RDFA.url = __RDFA_BASE + __RDFA_VERSION_SUBDIR + 'rdfa.js';
+
+RDFA.N3_GRAPH = new Siesta.Framework.Graph();
+
+N3_ADD = function(el,triple) {
+    var subj = RDFA.__parseReference(triple.subject);
+    var pred = RDFA.__parseReference(triple.predicate);
+    var obj = null;
+    if(triple.object_literal_p == null) {
+        obj = new Siesta.Framework.Uri(triple.object)
+    } else {
+        /*
+        var obj_lit = triple.object_literal_p
+        if (obj_lit.indexOf('^^') != -1) {
+
+        } else {
+
+        }
+        */
+        obj = new Siesta.Framework.Literal({value: triple.object});
+    }
+    var triple = new Siesta.Framework.Triple(subj,pred,obj);
+    RDFA.N3_GRAPH.addTriple(triple);
+}
+
+RDFA.CALLBACK_NEW_TRIPLE_WITH_LITERAL_OBJECT = function(el, triple) {
+	N3_ADD(el,triple);
+}
+
+RDFA.CALLBACK_NEW_TRIPLE_WITH_URI_OBJECT = function(el, triple) {
+	N3_ADD(el,triple);
+}
+
+RDFA.CALLBACK_NEW_TRIPLE_WITH_SUBJECT = function(el, triple) {
+	N3_ADD(el,triple);
+}
+
+
+
+
+
+
+
+
+
+
+/*
+*/
+
+
+/**
+ *  Parses a Hercules reference into a Siesta reference
+ *
+ *  @arguments:
+ *  - reference: some kind of Hercules reference
+ *
+ *  @returns:
+ *  - the equivalente Siesta.Framework reference
+ */
+RDFA.__parseReference = function(reference) {
+    if(typeof reference == 'string') {
+        if(reference.indexOf('_:') == -1) {
+            return new Siesta.Framework.Uri(reference);
+        } else {
+            var bnodeId = reference.split(':')[1].split(']')[0]
+            return new Siesta.Framework.BlankNode(bnodeId);
+        }
+    } else {
+        return new Siesta.Framework.Uri(reference.uri());
+    }
+    /*
+    } else if(reference instanceof Arielworks.Hercules.Rdf.TypedLiteral.prototype.constructor) {
+
+        return new Siesta.Framework.Literal({value: reference.value,
+                                             type: new Siesta.Framework.Uri(reference.datatypeIri)});
+
+    } else if(reference instanceof Arielworks.Hercules.Rdf.PlainLiteral.prototype.constructor) {
+
+        return new Siesta.Framework.Literal({value: reference.value,
+                                             language:  reference.languageTag});
+
+    } else if(reference instanceof Arielworks.Hercules.Rdf.BlankNode.prototype.constructor) {
+        return new Siesta.Framework.BlankNode(reference.value);
+
+    } else {
+        throw "Parsing Hercules unknown reference";
+    }
+*/
+};
 Siesta.registerNamespace("Siesta","Drivers","Hercules","Sparql");
 
 /**
@@ -8744,7 +6646,7 @@ Siesta.Drivers.Hercules.__parseSiestaReference = function(/* Arielworks.Hercules
         }
         return graph.getBlankNode(blankId);
     } else {
-        throw new Exception("Uknown type for Siesta resource");
+        throw "Uknown type for Siesta resource: " + reference.__type ;
     }
 };
 
@@ -8752,6 +6654,12 @@ Siesta.Drivers.Hercules.__parseSiestaReference = function(/* Arielworks.Hercules
 Siesta.registerFramework("sparql");
 Siesta.registerNamespace("Siesta","Drivers","Hercules","Formats","Turtle");
 
+/**
+ * informs the client that if this parser is synchronous or asynchronous
+ */
+Siesta.Drivers.Hercules.Formats.Turtle.isParserAsynchronous = function() {
+    return false;
+}
 
 /**
  *  Parses a Turtle enconded RDF document and returns a
@@ -8824,6 +6732,13 @@ Siesta.Drivers.Hercules.__parseReference = function(reference) {
 Siesta.registerFramework("formats/turtle");
 Siesta.registerNamespace("Siesta","Drivers","OAT","Formats","Xml");
 
+/**
+ * informs the client that if this parser is synchronous or asynchronous
+ */
+Siesta.Drivers.OAT.Formats.Xml.isParserAsynchronous = function() {
+    return false;
+}
+
 Siesta.Drivers.OAT.Formats.Xml.parseDoc = function(baseUri, doc /* RDF/XML document string */) {
 
     var xmlDoc = OAT.Xml.createXmlDoc(doc);
@@ -8873,9 +6788,41 @@ Siesta.Drivers.OAT.__parseReference = function(baseUri,reference) {
 };
 
 Siesta.registerFramework("formats/xml");
-Siesta.registerNamespace("Siesta","Drivers","Prototype","Network");
+Siesta.registerNamespace("Siesta","Drivers","W3c","Formats","Rdfa");
 
-Siesta.Drivers.Prototype.Network.jsonpRequest = function(request,callbackParameterName,callbackName) {
+/**
+ * informs the client that if this parser is synchronous or asynchronous
+ */
+Siesta.Drivers.W3c.Formats.Rdfa.isParserAsynchronous = function() {
+    return true;
+}
+
+/**
+ *  Parses a HTML enconded RDFa document and returns a
+ *  Siesta.Framework.Graph of Siesta.Framework.Triple objects
+ *  with the RDF triples encoded in the Turtle document
+ *
+ *  @arguments
+ *  - baseUri: the URI of the document to be parsed.
+ *  - doc: a String containing the Turtle document.
+ *
+ *  @returns
+ *  - Siesta.Framework.Graph
+ */
+Siesta.Drivers.W3c.Formats.Rdfa.parseDoc = function(baseUri, doc /* html with encoded RDFa document string */, callback) {
+    RDFA.CALLBACK_DONE_PARSING = function() {
+        RDFA.N3_GRAPH.baseUri = baseUri;
+
+        callback(baseUri,doc,RDFA.N3_GRAPH);
+    }
+
+    RDFA.parse(Siesta.Utils.htmlParser(doc),baseUri);
+};
+
+Siesta.registerFramework("formats/rdfa");
+Siesta.registerNamespace("Siesta","Drivers","jQuery","Network");
+
+Siesta.Drivers.jQuery.Network.jsonpRequest = function(request,callbackParameterName,callbackName) {
     if(request.indexOf("?")!=-1) {
         request = request+"&"+callbackParameterName+"="+callbackName;
     } else {
@@ -8890,7 +6837,7 @@ Siesta.Drivers.Prototype.Network.jsonpRequest = function(request,callbackParamet
     head.appendChild(node);
 };
 
-Siesta.Drivers.Prototype.Network.jsonpRequestForFunction = function(request,callbackParameterName,callbackFunction) {
+Siesta.Drivers.jQuery.Network.jsonpRequestForFunction = function(request,callbackParameterName,callbackFunction) {
 
     var tmpIdentifier = "siesta_func_jsonp_callback_"+(new Date()).getTime();
 
@@ -8910,7 +6857,7 @@ Siesta.Drivers.Prototype.Network.jsonpRequestForFunction = function(request,call
     head.appendChild(node);
 };
 
-Siesta.Drivers.Prototype.Network.jsonpRequestForMethod = function(request,callbackParameterName,callbackObject,callbackFunction) {
+Siesta.Drivers.jQuery.Network.jsonpRequestForMethod = function(request,callbackParameterName,callbackObject,callbackFunction) {
 
     var tmpIdentifier = "siesta_func_jsonp_callback_"+(new Date()).getTime();
 
@@ -8931,33 +6878,34 @@ Siesta.Drivers.Prototype.Network.jsonpRequestForMethod = function(request,callba
 };
 
 
-Siesta.Drivers.Prototype.Network.ajaxRequestForFunction = function(request,httpMethod,headers,callbackFunction) {
-    new Ajax.Request(request,
-                     { method:httpMethod,
-                       requestHeaders: headers,
-                       evalJS: false,
-                       evalJSON: false,
-                       onSuccess: function(transport) {
-                           callbackFunction(transport.responseText);
-                       },
-                       onFailure: function(transport) {
-                           callbackFunction(Siesta.Constants.FAILURE);
-                       } });
+Siesta.Drivers.jQuery.Network.ajaxRequestForFunction = function(request,httpMethod,headers,callbackFunction) {
+    jQuery.ajax({
+        url: request,
+        type: method,
+        dataType: "text",
+        success: function(data){
+            callbackFunction(data);
+        },
+        error: function(transport) {
+            callbackFunction(Siesta.Constants.FAILURE);
+        } });
+
+
 
 };
 
-Siesta.Drivers.Prototype.Network.ajaxRequestForMethod = function(request,method,headers,callbackObject,callbackFunction) {
-    new Ajax.Request(request,
-                     { method:httpMethod,
-                       requestHeaders: headers,
-                       evalJS: false,
-                       evalJSON: false,
-                       onSuccess: function(transport) {
-                           callbackFunction.call(callbackObject,transport.responseText);
-                       },
-                       onFailure: function(transport) {
-                           callbackFunction.call(callbackObject,Siesta.Constants.FAILURE);
-                       } });
+Siesta.Drivers.jQuery.Network.ajaxRequestForMethod = function(request,method,headers,callbackObject,callbackFunction) {
+    jQuery.ajax({
+        url: request,
+        type: method,
+        dataType: "text",
+        success: function(data){
+            callbackFunction.call(callbackObject,data);
+        },
+        error: function(transport) {
+            callbackFunction(Siesta.Constants.FAILURE);
+        } });
+
 
 };
 
