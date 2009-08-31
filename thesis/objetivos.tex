@@ -1,16 +1,157 @@
-\chapter{Introducción}
-\section{Objetivos}
-El presente trabajo se enmarca en el campo de la recuperación de
-información, concretamente en el ámbito Web......... aunque será en
-las décadas de los 70 y 80 cuando se realicen trabajos
-\cite{belkin1987retrieval} más serios. .....
+\chapter{Introduction}
+
+World Wide Web Consortium (W3C) director's Tim Berners Lee, introduced the term Semantic Web in a seminal article in 2001\cite{berners-lee_semantic_2001} to designate his long term vision of what
+the web should become. This vision involved the creation of a meta data layer on top of the existent web data describing the
+meaning, the semantics, of these data. These semantic meta data would be necessary to enable automatic reasoning by software
+web agents, that will retrieve and combine these data, inferring new facts when required, in order to fulfill the needs of the users
+they work for. In the words of Berners Lee "The Semantic Web will bring structure to the meaningful content of Web
+pages, creating an environment where software agents roaming from page to page can readily carry out sophisticated tasks
+for users".\\
+
+In the eight years that have passed since its original conception, a big effort to materialize this disruptive vision of
+the web has been carried out. Organizations like the W3C, academic institutions and to a lesser degree, commercial
+companies, have built foundational technologies that could enable the kind of applications envisioned by Berners Lee. 
+Despite all these efforts, the Semantic Web remains today an ambitious idea yet to become true. The adoption of semantic
+technologies by main stream web sites is small, semantic web applications are scarce and not well known, and even the
+tools required for building semantic applications are not in a mature stage of development. This lack of success
+combined with the initial high expectations set about what the Semantic Web could achieve has led to many people to consider
+the Semantic Web just another buzzword that will never have an actual realization.\\
+
+This state of things has originated the opinion that if the Semantic Web is to become a reality, it would be required a more
+pragmatic solution to the problem of bridging the gap between today's web and the future Semantic Web. Before disruptive
+semantic applications involving automatic reasoning can be a
+reality, it is necessary that web applications start supporting semantic technologies situated at the base of the
+semantic web technologies stack.  This will only be possible if the
+entry barrier for the adoption of semantic technology is low and its benefits for the users or developers of a web
+application real and immediate. Semantic technologies like annotated RDF (RDFa) that describes an easy mechanism for
+inserting semantic meta data into HTML documents, that have met almost instant support by search engines, are steps into this direction. \\
+
+This work tries to be a small contribution to this effort, describing a way for web developers and architects to design
+and build their applications in terms of semantic web services that follows the core design principles of the HTTP
+protocol. This will allow them to build, in a highly productive way, open systems with standard semantic meta data as
+their main building blocks.
+
+\section{The Semantic Web initiative and its promises}
+
+The semantic web initiative was from its very conception a description of the web as a set of data resources that could be processed
+in an automatic way by software applications. Under this conception, the main mechanism used by
+software agents when processing data in the semantic web would be logical inference. The goal of enabling automatic
+reasoning by software agents in the web has defined the main steps and technologies being developed under the semantic web
+initiative. The outcome of this initiative has specified a set of layers on top of the HTTP protocol and the HTML mark up language, the core web
+technologies, that make up a system for symbolic reasoning in the web. These layers include a formal syntax for facts provided
+by XML, RDF and RDFS, an ontology description layer provided by OWL with roots in the description logics field and
+current work in rules languages that can be used in conjunction with OWL like SWRL.\\
+
+Using all these technologies it could be possible to develop web agents capables of achieving tasks that could only be
+acomplished through the inference of new facts from data previously retrieved from the web. Classical examples of those tasks
+are automatic biding and purchasing of goods, arrangement of appointments or the recommendation and filtering
+of contents based on its semantic description.\\
+
+Under this concdeption of the Semantic Web, additional layers are required for the building of semantic web applications and
+agents. These layers involve dealing with the problem of uncertainty \cite{uncertaintyweb}. The proof and trust layers in the semantic web stack should provide mechanisms to enable
+safe inference of new facts to web agents. Current research in this field include adopting theorical developments in
+probability theory, fuzzy logic and belief functions.\\
+
+At the top of semantic web initiative road map is the user interface and applications layer. This layer should provide
+the mechanisms for a user to make actual use of the semantic web capabilities provided by the underlying semantic
+technologies and standards.
+
+\section{Current issues preventing the adoption of semantic technologies}
+
+The Semantic Web initiative, as many attempts of drive radical technological change, is suffering from a bootstrap
+problem. Current semantic technologies require widespread adoption to provide real benefits for their users, but users do not adopt
+those technologies because they cannot be easily applied to present day web problems. \\
+
+As we have mentioned, Semantic Web's development ultimate goal has been the achievement of automatic reasoning by software
+agents in the web.  This vision of the web is in many ways radically different from today's web and so are the challenges
+semantic web technologies like OWL and SPARQL try to solve. The problem most of these technologies face is that
+while semantic web technological stack remains unfinished, adoption of these technologies has to come from nowadays
+application developers. An important barrier preventing the adoption of semantic technologies by today's web developers is the relatively
+complexity of these technologies. Technologies like OWL or rule systems require for their use the understanding of a
+complex theoretical background that contrasts sharply with the simplicity of  main stream web technologies. \\
+
+Another serious problem discouraging semantic web technologies adoption is the focus semantic technologies on symbolic
+reasoning. Semantic standards provide the means to store facts in web documents that can be used in automatic inference,
+but today's web is already fulfilled with unstructured data that cannot be easily annotated with semantic meta data. If these data are to
+be used as a subject of knowledge for the Semantic Web they need to be processed in an automatic way, using statistical
+techniques to produce annotated meta data with a certain degree of certainty. Another important concern is how to trust
+facts exposed by semantic web data repositories. It is required that Semantic Web
+technologies can cope with the concepts of uncertainty and probability, enabling the data mining of semantic data. \\
+
+There is also a misunderstanding of use cases for semantic technologies. In absence of semantic web applications with
+big user bases, there are no examples of how semantic technologies can be used to deliver more useful solutions. It is
+necessary to find ways of applying semantic technologies to current issues in web development so they can serve as
+example of semantic technology applicability capable of boosting further adoption.
 
 
-\section{Contenido}
+\section{Lowercase Semantic Web}
 
-El presente trabajo se ha dividido en 6 capítulos que se exponen a
-continuación.
+As a reaction to the current situation of the semantic web, there has been a recent raise of interest in the use of
+semantic web technologies to achieve improvements in problems found in current web application's design and
+implementation. This kind of developments have been sometimes referred to as "lowercase semantic web''. This field was pioneered
+by projects like the microformats project \url{http://microformats.org}, that tries to provide an easy way for
+inserting semantics into HTML documents. They distinguished themselves by a stronger focus in delivering actual
+improvements for web users, applying semantic technologies in pragmatic ways in today's web applications.\\
 
-En este primer capítulo además de describir de forma global el
-trabajo, se determina su contexto: {\it la recuperación de
-información Web}....
+Search engines for instance, have started to parse semantic formats in web pages, as well as microformats, trying to obtain more accurate search
+results for their users. Application developers are using microformats as a lightweight and easy to understand
+alternatives to ontology languages like OWL, focusing in data exchange rather than automatic inference. \\
+
+This pragmatic approach to the Semantic Web constitutes a bottom-up attempt of materializing the Semantic Web, building on
+top of present day technologies, and trying to solve current problems, like the open exchange of data, with semantic standards.
+
+\section{Opportunities for the semantic web}
+
+Despite all these impediments, the current state of the web offers many chances to boost the adoption of semantic web
+technologies. Current tendencies in the way of building web applications suppose an increase in the importance of data in the web.  Web
+design is evolving at a fast pace from n-tier architectures where data persistence and business logic  were executed in the server and then rendered as HTML documents in the web browser, to a
+model where business logic and rich user interfaces are executed in the browser and only persistence of data is provided
+by the server. We are moving from a web of application servers and browsers to a web of web services and rich clients.
+The following are some examples of this change in the way of developing web applications:
+
+\begin{itemize}
+\item The interest in Javascript execution engines by browser developers like Mozilla,
+Apple or Google. 
+\item The raise of rich Javascript frameworks based on the model view controller architecture like Sproutcore or
+  Capuccino
+\item The release of rich internet application development platforms like Adobe Flex, Java FX or Microsoft Silverligth.
+\item The interest in key value stores as an alternative to relational data bases
+\end{itemize}
+
+
+Services must be carefully designed to expose data in an efficient way. Furthermore, today's web applications are built on top of data
+from multiple providers, services like Google Maps or Twitter, are mashed up with other data to provide innovative
+functionalities to the users. Besides, web agents are not anymore restricted to web browsers, a new generation of mobile
+devices connected to the internet are consuming web data in mobile devices conforming what has been described as the
+diffuse web \cite{conf/coordination/Serrano09}.\\
+
+As important as the access to web data from web clients is the need of exchanging data from different providers. To
+offer actual value to web users, interoperability for web data must be achieved, but the current situation shows data
+providers using ad hoc data schemas and web services.\\
+
+Semantic web technologies can be used to provide an easy and flexible solution to the problem of the generation, and
+exchange of open data in the web. Semantic technologies can be also used in conjunction with new data persistence tools to
+provide a powerful alternative to traditional relational data base driven web applications.\\
+
+If easy ways of inserting web technologies in nowadays web development stacks are provided to web developers, it could
+boost the adoption of web technologies and constitute the foundation for more advanced layers of semantic technology. 
+
+
+\section{Goals of this work}
+
+In this document we describe how pragmatic use of web technologies in current web applications can be
+achieved through the use of what we have named RESTful semantic web services.\\
+
+The plan of this document starts with the description of a very simple formal model that can be used to describe semantic web data
+providers and consumers. Then, a specification of this model is built using standard semantic web technologies. This
+specification is transformed later into an actual implementation of a client and server software libraries that can be
+used to build semantic web applications with RESTful semantic web services. Finally, we describe one of
+the applications that can be built with the described software libraries. It can serve as a sample of the kind of
+applications that can be built with the technologies introduced.\\
+
+Our main ambition is to propose feasible technological solutions for current day web development problems, for instance,
+the open exchange of data between web services and rich internet clients. This solution uses semantic web technologies as a mean for solving these problems
+but as a side effect, it conforms a basic layer where the whole semantic web stack of technologies could be delivered later. This technological
+solution must be built on top of a valid theoretical base, useful for the description and design of web architectures, and must
+adhere itself to the simplicity of the REST principles. Focusing on simplicity and productivity, without rejecting the use of standard semantic technologies, we try to provide
+an attractive platform for developers that could help to boost the growth of the Semantic Web.

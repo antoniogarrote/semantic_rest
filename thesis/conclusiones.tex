@@ -1,31 +1,95 @@
 
-\chapter{Conclusiones y trabajo futuro}
+\chapter{Conclusions and Future Work}
 
-\section{Conclusiones}
+\section{Conclusions}
+In this document a pragmatic approach to deliver semantic technologies in present day web applications has been shown.
+It has a simple formal model at its core that can be used to design and reasoning about web architectures. This model is
+built blending the Pi Calculus for mobile process with the basic theory of tuple computing. Process calculi are
+specially well suited for describing models where processes exchange channels of communication to other processes. The web can
+be described as one of those models, where clients and servers exchange links to further servers. We have extended
+these calculus with concepts from triple space computing, a version of the tuple space computing theory where triples
+are accessed instead of arbitrary tuples. Since our main goal is the description of semantic web architectures, triples
+as the one contained into RDF graphs, serve as the basic units for exchanging semantic data between the processes of our
+calculus. Finally we have mapped the basic operations for accessing triples in triple space computing to the HTTP
+interface and encoded these operations into the messages the processes of our version of the Pi Calculus can send and
+receive. The result is a small model that can be used to describe web architectures in a formal way as a set of
+semantic RESTful web services.\\
+
+This theoretical model has been later derived into a specification where standard web technologies like RDF, RDF Schema,
+SPARQL are used to propose a possible implementation of the model. The hRESTS-MicroWSMO specification proposal has been
+used as the base of this specification. Extensions to this incipient standard has been proposed in this work dealing
+with a possible binding of the services described to mechanisms for encoding the exchanged semantic data into a wire
+syntax and for adapting the specification to particular environments, like the use of web browsers with Javascript engines
+as the clients consuming RESTful web services.\\
+
+This implementation is then delivered as a couple of software libraries for the server and client side. The server library allows developers to transform web
+applications built with the Ruby on Rails framework into providers of RESTful semantic web services. The client library
+can be used to provide a persistence layer for rich internet applications built in the Javascript language that are
+backed by RESTful semantic web services. The choice of frameworks and languages has been driven by the desire of showing
+how the proposed semantic technologies can be inserted into already existent applications built with Ruby on Rails or
+any MVC framework in the client side, adding a semantic layer that can help building rich internet applications where
+data can be easily exchanged between clients and servers.\\
+
+These libraries have also been used to build Semantic Bespin, a sample web application that constitutes a true semantic mashup:
+an application where a client with functionality similar to that of desktop applications consume semantic data from
+different RESTful web services to aggregate them and deliver new functionality for its users. This application is a
+sample of what can be achieved with services offering open semantic data that can be easily retrieved and manipulated
+by web clients.\\
+
+The provided libraries do not pretend to be the definitive solution for the problem of stagnation the Semantic Web is
+suffering but can be used right now as a practical solution for building applications ranging from a
+simple Javascript application that needs to
+retrieve data from a server in a easy way, to a complex semantic application where it is required to feed an OWL reasoner.  Its
+implementation is offered as open source and can evolve towards better solutions or just serve as the starting point for
+new proposals of semantic technologies software libraries and tools.
+The formal specification proposed in this work, and thus the software libraries implemented along this specification, are also deeply associated to
+the hRESTS/microWSMO standard proposal. This is a very young proposal that still needs to mature. We have tried
+to improve the specification in those aspects where no progress has been made yet, for instance, the actual binding of
+the service model to concrete technologies for lifting and lowering semantic data.\\
+
+The formal model proposed as the foundation of the work on the other hand, is not related in any aspect to a particular standard
+proposal and can be used as the basis for other conceptions of service oriented architectures. The provided description
+of this model has not completely being formalized but the conjunction of Pi Calculus and triple space computing can be
+used in an easy way to describe formally many different distributed systems where semantic data is exchanged
+between its components.
 
 
-Las conclusiones que se pueden realizar una vez concluida la
-investigación y las aportaciones conseguidas son las siguientes:
-
-\begin{itemize}
-
-\item Objetivo 1.
-
-Con el crecimiento y evolución de Internet en la última década, los
-usuarios no consideran adecuadas las herramientas de ......
+\section{Future work}
 
 
-\item Objetivo 2 y 3
+The work contained in this document can be considered in many aspects a preliminary work that can be further
+expanded. The proposed formal model for describing RESTful semantic web services with concepts extracted from Pi
+Calculus and triple space computing lacks complete formal specification.  These document provides only informal
+semantics for the calculus and does not explore traditional applications of process calculi like bi-simulation.\\
+Further investigation can also be pursued in the set of triple space operations that are used in the
+calculus. Blocking operations and notifications modeled as notifications from the server to the clients were not
+completely taken
+into account since they do not fit into the REST architectural proposal. These operations nevertheless, are interesting
+for describing less restrictive distributed computational environments where distinctions between clients and servers are
+not that strict. In these architectures both roles are combined into the role of a agent or broker acting as client and
+server. This kind of systems can be important in what is known as the ¨diffuse web¨\cite{conf/coordination/Serrano09}, systems built with web
+technologies where a user can, for instance, tune the temperature of her home from her mobile phone. Extensions to the
+proposed theoretical model can be used to describe such systems where semantic data are can be used as the basic information units.\\
 
+The realization of the proposed theoretical model using the hRESTS-MicroWSMO standard proposal will also need to be modified due to
+the initial stage of development of this standard. Different standards for semantic web services have been proposed and
+further standardization of web technologies can provide more convenient ways of binding semantic data to RESTful web
+services.\\
 
-Se ha propuesto, definido e implementado un sistema para evaluar...
+The proposed solution for providing client and server support for RESTful semantic web services tried to be useful for
+developers using present day frameworks like Ruby on Rails. New web frameworks trying to replicate the proposed
+theoretical models in a more direct way can be explored. Functional concurrent oriented programming languages like
+Erlang, and more recently Scala, Clojure and concurrent versions of Haskell can be used to build web frameworks where
+requests are treated as a flow of exchanged semantic data between services, using triple repositories as the persistence layers. This
+kind of systems have the potential to provide scalable architectures for future web development\\
 
-...
-\end{itemize}
+Semantic REST and Siesta frameworks developed as part of this work can also be ported to mobile platforms like iPhone or Android, where application development
+requires continuous exchange of data between users and remote web servers. RESTful semantic web services can provide an
+open and reusable way of providing persistence to data used in mobile applications.\\
 
-De forma resumida, ...
-
-
-\section{Líneas de trabajo futuro}
-
-La aplicación de técnicas de clustering en la recuperación de ....
+Another possible field of research is the use of semantic technologies like RDF triple graphs as the data model for
+modern web applications where the persistence layer has moved away from relational data base management systems to
+alternative persistence mechanisms like distributed key value stores. These persistence mechanisms share with
+description logics and semantic data models like RDF the Open World assumption in contrast with the Closed World semantics of relational systems. The Open
+World semantics allows greater flexibility in the description of data and semantic technologies and concepts could be
+used in order to build a persistence layer on top of distributed key value stores.

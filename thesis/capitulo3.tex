@@ -3,126 +3,124 @@
 \section{Introduction}
 
 In the previous chapter of this document (\ref{capituloFD}) we have introduced a formal theoretical model allowing the description of
-semantic restful web services. In this chapter we wil transform this theoretical model in a technical specification
+semantic RESTful web services. In this chapter we will transform this theoretical model into a technical specification
 allowing the practical implementation of such a formal model.\\
 In this effort great care has been taken into using actual web standards for semantic technologies as well as for the
 description of web services. The use of open standards in the specification of a RESTful semantic web services layer
 allows easy reusing of existent technologies and software libraries already deployed in present day HTTP agents like web
 browsers, ensuring interoperability.\\
-The final output of this chapter will be technical description specifying  how to use different existing web standards to
+The final output of this chapter will be a technical description specifying  how to use different existent web standards to
 leverage semantic RESTful web services.  In this specification  the following parts of the formal model
 must be present:
 \begin{itemize}
-\item It must specify how to expose the triples containing the meta data of the resource exposed as a RESTful
-  semantic web service.
-\item It must specify the necessary meta data for a client being able to access the resource through the HTTP uniform
+\item It must specify how to expose the triples containing the meta data of the resources exposed as RESTful
+  semantic web services.
+\item It must specify necessary meta data for a client being able to access the resource through the HTTP uniform
   interface.
-\item It must provide a mechanism to transform the resource triplets representation into a concrete syntax in order for clients and
+\item It must provide mechanisms to transform resource triplets representations into a concrete syntax in order for clients and
   services to exchange triples through the HTTP uniform interface.
 \end{itemize}
 
 One of the main advantages of the REST architectural point of view in the description of web services is its
 simplicity. As we have mentioned, this focus on simplicity has been perceived as a reaction to the complexity in the
-specification of WS-* style web services. REST principles avoid complexity restricting the expresiveness in the
+specification of WS-* style web services. REST principles avoid complexity restricting the expressiveness in the
 description of web services to the design principles of the HTTP protocol. Unfortunately, the HTTP protocol  does not include any
 standard way to add semantics to the data exchanged through the protocol. In our specification we have tried to add the
-minimum necessary overhead on top of REST so these metadata can be automatically exchanged by web agents while staying true to the
-simplicity and principles of the HTTP protocol. When dealing with semantic metadata, the main point of interest is the automatic processing of these semantic metadata. We believe  the necessity of automatic processing of the semantic information justifies the use of description languages in a RESTful way, for instance, as metaservices describing the semantics of other services.
+minimum necessary overhead on top of REST so these meta data can be automatically exchanged by web agents while staying true to the
+simplicity and principles of the HTTP protocol. When dealing with semantic meta data, the main point of interest is the automatic processing of these semantic meta data. We believe that automatic processing of semantic information justifies the use of description languages in a RESTful way, for instance, as meta services describing the semantics of other services.
 
 \section{State of the Art}
-In the world of WS-* web services there has been a great deal of effort in creating effective ways of describing web
+In the world of WS-* web services there has been a great deal of effort in creating effective ways for describing web
 services as well as the mechanisms of interaction between services and clients. Standards such as the Web Services
 Description Language (WSDL) \cite{w3cwsdl}
 offer languages for writing service descriptions that can be automatically processed by client software in order to
 generate the necessary code to consume the service.\\
-The first version of the WSDL 1.1 specification bindings to the HTTP protocol were inadequate, preventing thus the
-description of RESTful web services using this standard. The situation has change with the version 2.0 of the standard
-\cite{w3cwsdl2} there have been and improvement of the HTTP bindings allowing the description of WS-* web services with
+The first version of the WSDL 1.1 specification bindings to the HTTP protocol were inadequate, preventing the
+effective description of RESTful web services using this standard. The situation has changed with the version 2.0 of the standard
+\cite{w3cwsdl2}. In this version the HTTP bindings have been improved, allowing the description of WS-* web services with
 REST semantics.\\
-Outside the standardization efforts of the W3C there have been other proposals fo HTTP based web services description
+Outside the standardization efforts of the W3C there have been other proposals for HTTP based web services description
 languages like WADL \cite{wadl}. The main focus of the WADL proposal is in the automatic generation of client code for
-accesing the the services resources,  but it has been received with mild
-enthusiasm from the RESTful web services developer community and no great adoption of the technology has followed. \\
-Main criticism against proposals as the Web Application Description Language (WADL) \cite{greg2007} has come from the observation of the
-fact that the complexity in description languages contrast with the alleged simplicity of RESTful web services,
-concernings about the RESTful nature of these mechanisms and a perceived lack of sustantial gains in the adoption of the
-code generation technologies these languages could enable.\\
+accessing services' resources,  but it has been received with mild
+enthusiasm by the RESTful web services developers community and no great adoption of the technology has followed. \\
+Main criticism against proposals as the Web Application Description Language (WADL) \cite{wadl} has come from the observation of the
+fact that complexity in description languages contrast with the alleged simplicity of RESTful web services.
+Concernings about the RESTful nature of these mechanisms, and a perceived lack of substantial gains in the adoption of the
+code generation technologies these languages enable have also been argued.\\
 
-In parallel with the advances in the standardization of description languages for web services and RESTful web services,
+At the same time that advances in the standardization of description languages for web services and RESTful web services evolve,
 the W3C semantic web initiative has been fruitful in the generation of standards for the description of semantic
-metadata on the web.\\
+meta data on the web.\\
 
 The foundation of the semantic technologies from the W3C is the Resource Description Framework (RDF) specification \cite{Hayes:04:RS}. RDF describes a
-data model allowing anyone ot insert into a HTTP accesible resources assertions about any other web resource designated
+data model allowing anyone to insert into a HTTP accessible resources assertions about any other web resource designated
 after its URI. The resources linked through this assertions conforms a graph of resources that RDF serializes as a set
-of triples with subject, predicate and object. This graph can also be serialized, for instance,  as an XML document \cite{rdfxml} and
+of triples containing subject, predicate and object. This graph can also be serialized, for instance,  as an XML document \cite{rdfxml} and
 exposed as a web resource with its own URI. RDF serves as a good foundation for adding simple semantic
-descriptions. More complex and expressive ways of adding metadata  have been proposed later as new specifications built
+descriptions. More complex and expressive ways of adding meta data  have been proposed later as new specifications built
 on top of the RDF data model. These specifications were aimed at the specification of ontologies for web resources
-allowing inference. The
-first of these standard is RDF Schema \cite{Brickley:04:RVD} which provides a set of ontological primitives that can be
-annotated to web resources using the RDF data model. The limited expresiveness of RDF Schema lead to the proposal of the
-Ontolgy Web Language (OWL) \cite{Dean:04:OWO} in its three version OWL Lite, Full and DL. These last specification has
+allowing inference. The first of these standards was RDF Schema \cite{Brickley:04:RVD} which provides a set of ontological primitives that can be
+annotated into web resources using the RDF data model. The limited expressiveness of RDF Schema lead to the proposal of the
+Ontology Web Language (OWL) \cite{Dean:04:OWO} with three different versions OWL Lite, Full and DL. This last specification has
 its roots in the field of description logics and offers a vocabulary for the building of ontologies around web
-resources, with well defined semantics.\\
+resources with well defined semantics.\\
 
 The standardization of these semantic technologies has made possible a whole new kind of software applications in recent
 years and has obtained a considerable success. Its adoption nevertheless has not reached its full extent. In a way that
-resembles the situtaion happened with WS-* specifications, many users have perceived specifications as OWL as too complex for
-use cases not involving inference. Independent proposals for adding semantic metadata into web resources have appeared,
+resembles the situation happened with WS-* specifications, many users have perceived specifications as OWL as too complex for
+use cases not involving inference. Independent proposals for adding semantic meta data into web resources have appeared,
 the one meeting the most success being the Microformats initiative. Microformats are small patterns of HTML describing
-common entties in the web. They try to provide some of the benefits that can be obtained from the use of the standard
+common entities in the web. They try to provide some of the benefits that can be obtained from the use of the standard
 semantic languages avoiding its complexity. The microformats ad-hoc nature nevertheless presents several important drawbacks,
-like the lack of a formal model for the description, or the unability to use name spaces in the descriptions.\\
+like the lack of a formal model for the description, or the inability to use name spaces in the descriptions.\\
 
 In spite of its limitations, the microformats proposal has met a certain degree of success between web application
-developers, helping to bridge the gap between the standar semantic technologies and the web application developers
-community. This success has motivated in the last months that the W3C standarized Annotated RDF (RDFa)  \cite{rdfa} as
-a standard way of inserting RDF graphs into HTML pages. Support for the indexing of microformats and RDFa documents has
+developers, helping to bridge the gap between standard semantic technologies and web application developers
+community. This success has motivated in the last months the W3C standardization of Annotated RDF (RDFa)  \cite{rdfa} as
+a standard way of inserting RDF graphs into HTML pages. Support for the indexation of microformats and RDFa documents has
 been announced by different search engines companies as Google.\\
 
-Web services and semantic web standards have had a confluence in recent work in the technical specification of a
-semantic web services specification language. Between the different proposals submitted for their standarization to the
-W3C we can found the  Web Service Modeling Ontology (WSMO) \cite{wsmo}, Semantic Markup for Web Services (OWL-S) \cite{owls}.\\ 
-WSMO is the most evolved specifcation, related to sub projects as the Web Service Modeling Langauge (WSML) \cite{wsml}
-and the Web Service Modelling Execution Environment \cite{wsmx}. This set of specifications provides a reference model
-(WSMO), a syntax (WSML) and a standard implementation (WSMX) of the necessary technologies for specifying and building
+Web services and semantic web standards have had a confluence in recent work centered in the technical specification of a
+semantic web services specification language. Amid the different proposals submitted for their standardization to the
+W3C we can found the  Web Service Modeling Ontology (WSMO) \cite{wsmo} and the Semantic Mark up for Web Services (OWL-S) \cite{owls}.\\ 
+WSMO is the most evolved specification, related to sub projects as the Web Service Modeling Language (WSML) \cite{wsml}
+and the Web Service Modeling Execution Environment \cite{wsmx}. This set of specifications provides a reference model
+(WSMO), a syntax (WSML) and a standard implementation (WSMX) for the technologies required to specify and build
 semantic web services. In the other hand, OWL-S provides an alternative model for the description of semantic web
-services but relies in the standard mechanisms of OWL for the specification of the elements of the service instead of
+services that relies in the standard mechanisms of OWL for the specification of the elements of the service instead of
 creating a new one as WSMO does with WSML. \\
 
-Both specifications provide rich models for the description of semantic web services. These conceptual models needs to
-be transformed into an exchange syntax and transmitted through a communication channel using a certain communication
-protocol, so the information contained in these model can be exchanged between agents. The problem of solving this
-abstraction gap is known as grounding into service oriented architectures jargon. The main aspects of web services
-grounding can be splitted into data grounding and behavioural grounding \cite{ISBN:3540345191}. Data grounding
-transforms the information retrieved from the service into a serialization format. WSMO and OWL-S uses XML as the
-encoding  of these messages. Behavioural grounding provides the information necessary for a client to know how to invoke
-a service and what kind of messages it should send and receive. WSMO and OWL-S provide their own solution for this
-problem involving an interaction model, an abstract state machine in the cas of WSMO, and some XML encoded information
+Both specifications provide rich models for the description of semantic web services. These conceptual models need to
+be transformed into an exchange syntax and then transmitted through a communication channel using a certain communication
+protocol, in order for the information contained in these model to be exchanged between agents. Mechanisms for bridging this
+abstraction gap are known as grounding mechanisms in the service oriented architectures terminology. Main aspects of web services
+grounding can be splitted into data grounding and behavioral grounding \cite{ISBN:3540345191}. Data grounding
+transforms the information retrieved from services into a serialization format. WSMO and OWL-S both use XML as the
+encoding  for these messages. Behavioral grounding provides the information required for a client to know how to invoke
+a service and what kind of messages it should send and receive. WSMO and OWL-S provide their own solutions for this
+problem, including an interaction model, abstract state machines in the case of WSMO, plus some XML encoded information
 about the kind of messages that can be sent in and out of the service. OWL-S tries to reuse the existent WS-*
-techologies providing a mapping from its conceptual model to these technologies. The same approach has been followed by
+technologies providing a mapping from its conceptual model to these technologies. The same approach has been followed by
 other W3C submission proposals as the Semantic Web Services Description Language (WSDL-S) \cite{wsdls} consisting in
-a lightweight layer of semantic annotations for the components of WSDL.
+a lightweight layer of semantic annotations for the components of WSDL.\\
 
-Up to this point the main poposals for semantic web services have been reviewed. We have noted how they try to join the
+Up to this point, we have reviewed main proposals for semantic web services description. We have noted how they try to join the
 world of WS-* web services and W3C standards for the semantic web. We have also taken into account how these standards
-have sometimes met criticism for their complexity and have been found unsuitable for certain kind of applications,
-spawning lightweight approachs to the same problems as is the case of REST for web services and the microformats
-initiative in the case of the W3C standards. We have also seen how this simpler proposals have been integrated in
-different ways into the standards as is the case of WSDL 2.0 for WS-* web services and RDFa for semantic metadata.\\
+have sometimes met criticism for their complexity and have been found unsuitable for certain kind of applications. As a consequence
+lightweight approaches to the same problems have been proposed, as is the case of REST for web services and the microformats
+initiative in the case of the W3C standards. We have also seen how this simpler proposals have been in different ways incorporated into the standards, as is the case of WSDL 2.0 for WS-* web services and RDFa for semantic meta data.\\
 
 In the world of semantic web services, similar provisions about the complexity of the technologies have started to be
-taken. Most notably WSMO has produced reduced versions of the WSMO standard aiming to reduce its complexity: WSMO Lite
+taken. Most notably WSMO has produced reduced versions of the WSMO standard aiming to minimize its complexity: WSMO Lite
 \cite{wsmolite} and MicroWSMO \cite{microwsmo}.\\
 
 Both working drafts sketch a reduced WSMO model suitable for simpler web services. MicroWSMO is of an special interest
-due to the reason that it tries to adapt the WSMO model to the construction of RESTful semantic web services. As a
-complement of the MicroWSMO minimal model another specification knowns as hRESTS has been drafted proposing a vocabulary
-expressed as a microformat or a RDFa encoded set of WSML statements for the description of MicroWSMO semantic web
+due to the fact that it tries to adapt the WSMO model to the construction of RESTful semantic web services. As a
+complement of the MicroWSMO minimal model another specification known as hRESTS \cite{hrests} has been drafted. It contains a vocabulary
+expressed as a microformat or a RDFa encoded set of WSML statements, for the description of MicroWSMO semantic web
 services. \\
 
-From this point of view MicroWSMO/hRESTS is similar to other mechanisms for extracting metadat from a HTML web resource
+From this point of view MicroWSMO/hRESTS is similar to other mechanisms for extracting meta data from a HTML web resource
 attaching a transformation mechanism, as the W3C recommendation Gleaning Resource Descriptions from Dialects of
 Languages (GRDDL) \cite{Connolly:07:GRD}\\
 
@@ -130,7 +128,7 @@ In this document we will use the MicroWSMO/hRESTS standard proposal, as the basi
 
 \section{hRESTS description mechanism}
 
-The main aim of hRESTS is to offer a simple way of describing RESTful web services semantics. The ease of use of hRESTS originates in the minimality of the service model described, which has only four basic elements:
+The main aim of hRESTS is to offer a simple way for describing RESTful web services semantics. The ease of use of hRESTS is a consequence of the minimality of the service model it describes, which has only four basic elements:
 
 \begin{enumerate}
   \item service: the RESTful web services being described
@@ -139,10 +137,10 @@ The main aim of hRESTS is to offer a simple way of describing RESTful web servic
   \item output message: the information received from the service after an operation is performed
 \end{enumerate}
 
-Each operation is described using the HTTP uniform interface stating the HTTP method and an address consisting of an URL template. This information is asserted as a RDF graph, reusing the vocabulary of the WSMO-Lite semantic web services framework.
+Each operation is described using the HTTP uniform interface, containing the HTTP method and an address consisting of an URL template. This information is asserted as a RDF graph, reusing the vocabulary of the WSMO-Lite semantic web services framework.
 
 \subsection{semantic information in hRESTS}
-Semantic metadata are added to the service description in hREST through the description of input and output messages. These elements of the service model allow the assertion of the model of the resource being retrieved or modified.\\
+Semantic meta data are added to the service description in hREST through the description of input and output messages. These elements of the service model allow the assertion of the model of the resource being retrieved or modified.\\
 Within the model information there are also links to the description of the necessary transformations to translate the information of the data model into the syntax of the message exchanged between client and server. These transformations are known as lowering (from the model to the exchange syntax) and lifting (from the exchange syntax to the model).
 
 \begin{figure}[htb!]
@@ -154,16 +152,16 @@ hRESTS does not specifies a mandatory mechanism for lifting and lowering resourc
 
 \subsection{encoding of hRESTS descriptions}
 A valid hRESTS service description is a RDF graph and thus can be encoded in different formats. All these formats are equivalent for a hRESTS service description, but the proposed encodings for hREST are based in the encoding of the service RDF graph into plain HTML documents. The use of annotated HTML descriptions is the preferred way of describing actual RESTful web services. hRESTS proposes the use of a microformat for inserting the RDF information in these documents. Another proposed mechanism is the use of RDFa \cite{rdfa}, a new W3C standard that makes easy the insertion of RDF graphs inside of XHTML documents.\\
-Both encodings have advantages and disadvantages. The use of microformats is a well stablished way of addig semantic information in the development of web applications, and it has big support from the RESTful services community, although it lacks normative recognition and does not have support for namespaces. RDFa on the other hand, is a standard proposal backed by the W3C and also has support for namespaces, but lacks adoption and browse support.\\
+Both encodings have advantages and disadvantages. The use of microformats is a well established way of adding semantic information in the development of web applications, and it has big support from the RESTful services community, although it lacks normative recognition and does not have support for namespaces. RDFa on the other hand, is a standard proposal backed by the W3C and also has support for namespaces, but lacks adoption and browser support.\\
 Other encodings for hRESTS RDF graphs as YAML and JSON, not covered in the original hRESTS work are explored in this chapter.
 
 \section{hRESTS Grounding}
-In this paper a possible grounding mechanism for semantic RESTful web services will be described. \emph{Grounding} is the part in any web services architecture, acting as link between semantic and syntactic descriptions of web services \cite{ISBN:3540345191}, and in the case of \emph{data grounding} how the syntax of a message containing  a representation for that service can be transformed into its semantic counterpart or the other way round.\\
-Both transformations, from syntactic representation to semantic representation and from semantic representation to syntactic representation, are commonly called \emph{lifting} and \emph{lowering} as in the W3C recommendation: 'Semantic Annotations for WSDL and XML'' (SAWSDL)  \cite{Lausen:07:SAW}. Lifting and lowering operations present a major difficulty in the specification of semantic web services architectural models. Frameworks like WSMO \cite{wsmo} or OWL-S  \cite{owls} have addressed this issue in different ways. Most of these solutions involve a mixture of XML transformation technologies like XSLT, with web services specific recommendations like WSDL \cite{w3cwsdl} or the aforementioned SAWSDL. Other technologies like XPath \cite{xpath} and XQuery \cite{xquery} are also used. There are  W3C standards like GRDDL (Gleaning Resources Descriptions from Dialects of Languages) \cite{Connolly:07:GRD} specifically created to ease the burden of the tranformation between XML syntactic description of a service and its RDF representation in the semantic model. Other non standardised proposals such as XSPARQL \cite{xsparql} has been created seeking to offer more flexible mechanisms for the translation between XML and RDF.\\
-Most of these standards are complex specifications created in the tradition of existing WS-* description mechanisms. They can be used as useful grounding mechanisms for the description of semantic RESTful web services but the particular characteristics of this kind of web services would make desirable a lighter and simpler mechanism for RESTful web services grounding. This paper aims to describe such a mechanism, built over the foundation of existing web grounding technologies.\\
+\emph{Grounding} is the component of any web services architecture, acting as a link between semantic and syntactic descriptions of web services \cite{ISBN:3540345191}, and in the case of \emph{data grounding} how the syntax of a message containing  a representation for that service can be transformed into its semantic counterpart or the other way round.\\
+Both transformations, from syntactic representation to semantic representation and from semantic representation to syntactic representation, are commonly called \emph{lifting} and \emph{lowering} as in the W3C recommendation: 'Semantic Annotations for WSDL and XML'' (SAWSDL)  \cite{Lausen:07:SAW}. Lifting and lowering operations present a major difficulty in the specification of semantic web services architectural models. Frameworks like WSMO \cite{wsmo} or OWL-S  \cite{owls} have addressed this issue in different ways. Most of these solutions involve a mixture of XML transformation technologies like XSLT, with web services specific recommendations like WSDL \cite{w3cwsdl} or the aforementioned SAWSDL. Other technologies like XPath \cite{xpath} and XQuery \cite{xquery} are also used. There are  W3C standards like GRDDL (Gleaning Resources Descriptions from Dialects of Languages) \cite{Connolly:07:GRD} specifically created to ease the burden of the transformation between XML syntactic description of a service and its RDF representation in the semantic model. Other non standardized proposals such as XSPARQL \cite{xsparql} has been created seeking to offer more flexible mechanisms for the translation between XML and RDF.\\
+Most of these standards are complex specifications created in the tradition of existing WS-* description mechanisms. They can be used as useful grounding mechanisms for the description of semantic RESTful web services but the particular characteristics of this kind of web services would make desirable a lighter and simpler mechanism for RESTful web services grounding. We will try to describe such a mechanism, built over the foundation of existent web grounding technologies.\\
 
 \section{Existent semantic web services grounding mechanisms}
-In this section the main existing alternatives for the grounding of semantic web services will be briefly reviewed
+In this section the main existent alternatives for the grounding of semantic web services will be briefly reviewed
 
 \subsection{SAWSDL, WSDL2.0 and HTTP Binding}
 WSDL2.0 describes a possible binding for the WSDL components of operation, input and output messages to HTTP concepts \cite{w3cwsdl2}. The following devices are used:
@@ -172,80 +170,89 @@ WSDL2.0 describes a possible binding for the WSDL components of operation, input
   \item HTTP headers are used as a possible binding for the input and output messages of a WSDL operation
   \item Selection of an encoding mechanism for the input and output messages between application/x-www-form-urlencoded, multipart/form-data and application/xml
 \end{itemize}
-These WSDL concepts and their HTTP bindings can be decorated with SAWSDL annotations. These annotations identify the semantic model involved in the WSDL operation and the transformation mechanisms between the XML representation of the service and the semantic model. SAWDSL does not enforce a certain semantic modelling language. The only requirement made is that concepts from the semantic model should be identified by an IRI. In the same way, any transformation mechanism can be associated to the input and output components of WSDL throught the lifting and lowering constructs of SAWDL. Possible transformation mechanisms are XSLT, XQuery, SPARQL \cite{sparql} or XSPARQL \cite{xsparql}.
+These WSDL concepts and their HTTP bindings can be decorated with SAWSDL annotations. These annotations identify the semantic model involved in the WSDL operation and the transformation mechanisms between the XML representation of the service and the semantic model. SAWDSL does not enforce a certain semantic modeling language. The only requirement made is that concepts from the semantic model should be identified by an IRI. In the same way, any transformation mechanism can be associated to the input and output components of WSDL through the lifting and lowering constructs of SAWDL. Possible transformation mechanisms are XSLT, XQuery, SPARQL \cite{sparql} or XSPARQL \cite{xsparql}.
 In figures 1 to 3, conceptual relations between the different standards used in the grounding mechanism, from HTTP to SAWSDL, are shown.
 
-\begin{figure}[htb!]
-\centering%
+
+\begin{table}{h!}
+\noindent\makebox[\textwidth]{%
+\begin{tabularx}{1.2\textwidth}{XX}
 \includegraphics{wasdl1.png}
+\end{tabularx}}
 \caption{WSDL to HTTP mapping}
-\end{figure}
+\end{table}
 
-\begin{figure}[htb!]
-\centering%
+
+\begin{table}{h!}
+\noindent\makebox[\textwidth]{%
+\begin{tabularx}{1.2\textwidth}{XX}
 \includegraphics{wasdl2.png}
+\end{tabularx}}
 \caption{WSDL to WSDL HTTP binding}
-\end{figure}
+\end{table}
 
-\begin{figure}[htb!]
-\centering%
+
+\begin{table}{h!}
+\noindent\makebox[\textwidth]{%
+\begin{tabularx}{1.2\textwidth}{XX}
 \includegraphics{wasdl3.png}
+\end{tabularx}}
 \caption{SAWSDL annotations}
-\end{figure}
+\end{table}
 
 \subsection{WSMO Lite and OWL-S}
 WSMO Lite \cite{wsmolite} has been conceived as a semantic layer over WSDL but no grounding mechanism is included into WSMO Lite. The ontology for describing semantic web services in WSMO Lite can be transformed into WSDL by means of an annotations mechanism. SAWSDL is proposed as the chosen mechanism but any other semantic annotations language could be used.\\
 In the case of OWL-S, this semantic ontology for web services is situated in a similar conceptual relation to WSDL as WSMO Lite. Nevertheless, in this case, the annotation mechanism is included in the ontology vocabulary. This is accomplished by the insertion of OWL-S WsdlGrounding class instances. These elements define XSLT transformations for the input and output messages of WSDL.
 
 \subsection{Transformation languages}
-As we have seen, every grounding specification ultimately relies on a transformation mechanism describing how an original model must be transformed into a destination model. The original and destination models can be the semantic model of the object or the returned XML description of the data retrieved. There exists different standard models to describe such transformations, like XSLT or XQuery. All these technologies are complementary and can be used together to obtain more expressive tranformation models.
+As we have seen, every grounding specification ultimately relies on a transformation mechanism describing how an original model must be transformed into a destination model. The original and destination models can be the semantic model of the object or the returned XML description of the data retrieved. There exists different standard models to describe such transformations, like XSLT or XQuery. All these technologies are complementary and can be used together to obtain more expressive transformation models.
 
 \begin{itemize}
 \item \bf{XSLT}
 \end{itemize}
 
-XSLT \cite{xslt} describes a set of constructs arranged in a stylesheet to tranform in a functional fashion XML documents into different XML documents. XSLT can be used in a lowering operation to transform a XML document containing a serialization of a RDF graph into a XML document with the syntax accepted by the service. For lifting operations the XML document returned from the service could be transformed by a XSLT stylesheet into XML/RDF.\\
-The support for XSLT is quite mature and every major web browser has support for XSLT tranformations.
+XSLT \cite{xslt} describes a set of constructs arranged in a style sheet to transform in a functional fashion XML documents into different XML documents. XSLT can be used in a lowering operation to transform a XML document containing a serialization of a RDF graph into a XML document with the syntax accepted by the service. For lifting operations the XML document returned from the service could be transformed by a XSLT style sheet into XML/RDF.\\
+The support for XSLT is quite mature and every major web browser has support for XSLT transformations.
 
 \begin{itemize}
 \item \bf{XPath}
 \end{itemize}
 
-XPath is a standard language which allows the user to specify selections of certain parts in a XML document. XPath grants a set of operations and basic functions that can be applied to path expressions to match parts of the XML document. XPath alone cannot be used as a lifting and lowering mechanism, but it is a basic building block for different transformation languages like XSLT. The current support for XPath in browsers and other tools is fairly good and mature implementations of the standar are available.
+XPath is a standard language which allows the user to specify selections of certain parts in a XML document. XPath grants a set of operations and basic functions that can be applied to path expressions to match parts of the XML document. XPath alone cannot be used as a lifting and lowering mechanism, but it is a basic building block for different transformation languages like XSLT. The current support for XPath in browsers and other tools is fairly good and mature implementations of the standard are available.
 
 \begin{itemize}
 \item \bf{XQuery}
 \end{itemize}
 
-XQuery is a full programming language, embeddable in XML documents, that allows the retrieval of parts of a document, its transformation, and the creation of new XML documents based on the processed data. XQuery overlaps to a certain degree with XSLT, but while XSLT is a stylesheet language XQuery was conceived as a more general language for retrieving and processing information from other sources than XML documents, like SQL databases. There are numerous implementations of XQuery, but the complexity of the language currently prevents its implementation in many applications like commercial browsers. XQuery can be used alone to specify any kind of transformation in the lifting and lowering operations of a web service.
+XQuery is a full programming language, embeddable in XML documents, that allows the retrieval of parts of a document, its transformation, and the creation of new XML documents based on the processed data. XQuery overlaps to a certain degree with XSLT, but while XSLT is a style sheet language XQuery was conceived as a more general language for retrieving and processing information from other sources than XML documents, like SQL databases. There are numerous implementations of XQuery, but the complexity of the language currently prevents its implementation in many applications like commercial browsers. XQuery can be used alone to specify any kind of transformation in the lifting and lowering operations of a web service.
 
 \begin{itemize}
 \item \bf{SPARQL}
 \end{itemize}
 
-SPARQL is the standard way of retrieving triplets from RDF graphs. It offers a query language similar to SQL where variables are declared along with query modifiers. As a result, a set of bindings for those variables is obtained from the RDF repository or graph when the query is processed. SPARQL also offers constructs to build new graphs from SPARQL queries. SPARQL can be used in combination with a tranformation language to offer a complete lifting and lowering mechanism.
+SPARQL is the standard way of retrieving triplets from RDF graphs. It offers a query language similar to SQL where variables are declared along with query modifiers. As a result, a set of bindings for those variables is obtained from the RDF repository or graph when the query is processed. SPARQL also offers constructs to build new graphs from SPARQL queries. SPARQL can be used in combination with a transformation language to offer a complete lifting and lowering mechanism.
 
 \begin{itemize}
 \item \bf{XSPARQL}
 \end{itemize}
 
-XSPARQL is a recent proposal for a transofmation mechanism specifically conceived to ease the tranformation between RDF and different XML formats. It has been conceived  with lowering and lifting operations necessities in mind. XSPARQL can be described as a mixture of SPARQL query capabilities with the XQuery syntax. The flexibility of SPARQL allows a easier retrieval of information from RDF graphs that can be later processed with XQuery constructs. These features made up for a powerful lifting and lowering mechanism. Nevertheless, XSPARQL hast not been yet submitted as a recommendation proposal and its support by tools is almost non existent.
+XSPARQL is a recent proposal for a transformation mechanism specifically conceived to ease the transformation between RDF and different XML formats. It has been conceived  with lowering and lifting operations necessities in mind. XSPARQL can be described as a mixture of SPARQL query capabilities with the XQuery syntax. The flexibility of SPARQL allows a easier retrieval of information from RDF graphs that can be later processed with XQuery constructs. These features made up for a powerful lifting and lowering mechanism. Nevertheless, XSPARQL has not been yet submitted as a recommendation proposal and its support by tools is almost non existent.
 
 \begin{itemize}
 \item \bf{GRDDL}
 \end{itemize}
 
-GRDDL is not a transformation language per se, but a standardized way of linking the transofmations required for retrieving RDF metadata from a XML document. GRDDL can be used as a flexible lifting mechanism since it can be used in combination with any other transformation language.
+GRDDL is not a transformation language per se, but a standardized way of linking the transformations required for retrieving RDF meta data from a XML document. GRDDL can be used as a flexible lifting mechanism since it can be used in combination with any other transformation language.
 
 \section{Applicability to semantic RESTful web services}
 
-In the previous section we have reviewed the main existent transformation mechanisms for lowering and lifting operations. Most of these mechanisms have been conceived as generic transformation models and thus are directly reused by the grounding mechanisms of frameworks like WSMO Lite and OWL-S. These specifictions seek to enable the semantic description of any kind of web service but their application to the description of RESTful web services raise some issues that need to be solved.\\
+In the previous section we have reviewed the main existent transformation mechanisms for lowering and lifting operations. Most of these mechanisms have been conceived as generic transformation models and thus are directly reused by the grounding mechanisms of frameworks like WSMO Lite and OWL-S. These specifications seek to enable the semantic description of any kind of web service but their application to the description of RESTful web services raise some issues that need to be solved.\\
 
 \begin{itemize}
   \item lowering operations in RESTful web services does not generally involve generating XML documents as output but binding certain values from a RDF graph into parts of the URL or header of the HTTP request. This greatly renders XML transformation languages as XSLT unsuitable for this task.
- \item the semantic model in RESTful web services, involved in lifting and lowering operations, is not generally available for a REST client as XML encoded representation of the graph, but by some kind of abstract model stored in a RDF repository. It is easier for a client to access directly this RDF repository with a query language like SPARQL, that building an intermediary XML encoded representation of the graph that would be later transformed by a XSLT or XQuery transformation. It is possible to directly query the repository using XQuery but is not an easy task without the help of specific XQuery libraries \cite{xquery}. XSPARQL seems to simplify this particular task but its specification status is still far away from being standardised.
-\item RESTful web services often return as a result other representations different from XML. It is general practise the use of lightweight data representations like JSON \cite{json}, specially for those RESTful services intended to be consumed from javascript clients. This outputs cannot be processed, in the context of a lifting operation, by transformation languages of XML documents.
-\item Lightweight RESTful web services clients, for instance, javascript clients executing in a browser, have limited computational resources preventing them from executing runtimes for complex transformation mechanisms like XQuery.
+ \item the semantic model in RESTful web services, involved in lifting and lowering operations, is not generally available for a REST client as XML encoded representation of the graph, but by some kind of abstract model stored in a RDF repository. It is easier for a client to access directly this RDF repository with a query language like SPARQL, that building an intermediary XML encoded representation of the graph that would be later transformed by a XSLT or XQuery transformation. It is possible to directly query the repository using XQuery but is not an easy task without the help of specific XQuery libraries \cite{xquery}. XSPARQL seems to simplify this particular task but its specification status is still far away from being standardized.
+\item RESTful web services often return as a result other representations different from XML. It is general practice the use of lightweight data representations like JSON \cite{json}, specially for those RESTful services intended to be consumed from Javascript clients. This outputs cannot be processed, in the context of a lifting operation, by transformation languages of XML documents.
+\item Lightweight RESTful web services clients, for instance, Javascript clients executing in a browser, have limited computational resources preventing them from executing runtimes for complex transformation mechanisms like XQuery.
 \item Semantic web services frameworks like WSMO Lite and OWL-S choose WSDL as the final step of their grounding mechanisms. Despite the WSDL 2.0 capacity of binding its service model to the HTTP protocol, the use of WSDL with a SOAP binding is perceived as contrary to REST principles and cumbersome by many developers.
 \end{itemize}
 
@@ -255,7 +262,7 @@ All these limitations does not prevent the building of semantic RESTful web serv
 
 In the following sections a grounding mechanism for RESTful semantic web services will be described. This grounding mechanism tries to overcome the limitations of the currently available mechanisms. 
 
-\subsection{Desired features of a grounding mechanism for RESTful semantic web services}
+\subsection{Desirable features for a grounding mechanism for RESTful semantic web services}
 
 In order to specify a good grounding mechanism for RESTful web services, there exists a set of features that must be met by such an specification. 
 
@@ -339,7 +346,7 @@ After processing the whole set of input messages, the URL template must have bee
 
 Once the request has been sent and processed by the server, a response is generated and returned to the client. This response must go through the lifting process in order to be semantically interpreted by the client. The \emph{wsl:hasOutputMessage} from the service description points to the grounding mechanism to lift the returned information to the semantic level. In the same way as the \emph{hasInputMessage}, the output message defines a linked \emph{sawsdl:modelReference} with the kind of semantic model returned. The lifting operation must yield the RDF graph of such a model.\\
  There are three main possibilities for the lifting process.
-The response can be a RDF graph itself with the description of the semantic model. In this case no further transformation is required. If the returned response contains a GRDDL linked transformation, this transformation must be used to extract RDF data from the response. No other component from the service description must be used. If no GRDDL transformation is included in the response, the clietn should look for a linked \emph{sawsdl:liftingSchemaMapping} RDF property in the service description.\\
+The response can be a RDF graph itself with the description of the semantic model. In this case no further transformation is required. If the returned response contains a GRDDL linked transformation, this transformation must be used to extract RDF data from the response. No other component from the service description must be used. If no GRDDL transformation is included in the response, the client should look for a linked \emph{sawsdl:liftingSchemaMapping} RDF property in the service description.\\
 All the reviewed lifting mechanisms can be linked to produce the semantic data for the response, but the simpler one, like a XSLT transformation over a XML or XHTML with RDFa annotations or embedded microformat should be preferred.\\
 
 \subsection{Binary messages}
@@ -367,7 +374,7 @@ These optional properties allow the client to express optional encodings for the
 
 \subsection{Dealing with JSON responses}
 XML is the classical representation used in the world of big web services. However in the world of RESTful web services JSON is one of the most popular encoding formats to exchange information between clients and servers. Any useful semantic RESTful web services framework, must offer a way to deal with such a data representation.\\
-JSON is a lightweight codification consisting in the specification of the data as a literal in the javascript language containing a javascript object. 'application/json' is the media type used for this kind of representation. Provided some kind of information encoded as an XML document, it can be encoded in a fairly similar fashion into JSON, producing a document smaller in size. XML and JSON are not equivalent though. There are some important differences:
+JSON is a lightweight codification consisting in the specification of the data as a literal in the Javascript language containing a Javascript object. 'application/json' is the media type used for this kind of representation. Provided some kind of information encoded as an XML document, it can be encoded in a fairly similar fashion into JSON, producing a document smaller in size. XML and JSON are not equivalent though. There are some important differences:
 
 \begin{itemize}
   \item In JSON there is not a single element containing the whole document, equivalent to the root node in a XML document.
@@ -375,11 +382,11 @@ JSON is a lightweight codification consisting in the specification of the data a
   \item There is no way to express the difference XML makes between attributes and content.
 \end{itemize}
 
-Many different proposals have been made to transform JSON objects into XML documents, for instance badgerfish, rabbitfish and rayfis conventions. In order to solve the problem of lifting JSON encoded representations of service data, one of these conventions could be used as prior step to feeding the resulting XML document to a XML transformation mechanism. This attempt of solution has several drawbacks, no JSON to XML mapping is standardised or even generally accepted. Furthermore, extra components of the web services description framework must be included for specifying this information.\\
-As a possible solution for this problem, we propose the use of anonymous javascript functions, pointed by the \emph{sawsdl:liftingSchemaMapping} RDF property. The hRESTS client could retrieve the javascript script containing the lambda function, interpret the code binding it to a local reference and use the resulting function to parse the JSON response. The lambda function provided by the \emph{sawsdl:liftingSchemaMapping} should accept one argument with the JSON object and return the string with the equivalent RDF graph.
+Many different proposals have been made to transform JSON objects into XML documents, for instance badgerfish, rabbitfish and rayfish conventions. In order to solve the problem of lifting JSON encoded representations of service data, one of these conventions could be used as prior step to feeding the resulting XML document to a XML transformation mechanism. This attempt of solution has several drawbacks, no JSON to XML mapping is standardized or even generally accepted. Furthermore, extra components of the web services description framework must be included for specifying this information.\\
+As a possible solution for this problem, we propose the use of anonymous Javascript functions, pointed by the \emph{sawsdl:liftingSchemaMapping} RDF property. The hRESTS client could retrieve the Javascript script containing the lambda function, interpret the code binding it to a local reference and use the resulting function to parse the JSON response. The lambda function provided by the \emph{sawsdl:liftingSchemaMapping} should accept one argument with the JSON object and return the string with the equivalent RDF graph.
 
-\subsection{Extension mechanism for hRESTS: hRESTS for javascript}
-Many clients using JSON RESTful services consist in javascript clients executing in web browsers. A common limitation of this kind of applications is the inability to make HTTP requests to servers different from the original server where the script was retrieved from. As a way to overcome this limitation a common mechanism known as JSONP is used. The use of JSONP requires the specification by the client of a callback javascript function where the JSON request will be returned wrapped by the server. The name of the callback function must be passed as a URL parameter in the HTTP request as any other URL encoded parameter.  The name of this callback function can be expressed in the proposed version of hRESTS with a special component called \emph{hr:InputParameter}. An input parameter  is a parameter that will be added to the HTTP request made by the client that encodes some detail about the service retrieval mechanism. Such a detail can be a pagination limit in a listing of resources or the JSONP callback function. Input parameters provide thus a extension mechanism for hRESTS, a certain kind of RESTful web service can include its own parameters for certain behaviour no common for every RESTful services.\\
+\subsection{Extension mechanism for hRESTS: hRESTS for Javascript}
+Many clients using JSON RESTful services consist of Javascript clients being executed in web browsers. A common limitation of this kind of applications is the inability to make HTTP requests to servers different from the original server where the script was retrieved from. As a way to overcome this limitation a common mechanism known as JSONP is used. The use of JSONP requires the specification by the client of a callback Javascript function where the JSON request will be returned wrapped by the server. The name of the callback function must be passed as a URL parameter in the HTTP request as any other URL encoded parameter.  The name of this callback function can be expressed in the proposed version of hRESTS with a special component called \emph{hr:InputParameter}. An input parameter  is a parameter that will be added to the HTTP request made by the client that encodes some detail about the service retrieval mechanism. Such a detail can be a pagination limit in a listing of resources or the JSONP callback function. Input parameters provide thus a extension mechanism for hRESTS, a certain kind of RESTful web service can include its own parameters for certain behavior no common for every RESTful services.\\
 An input parameter has one RDF property call \emph{hr:parameterName}. This property gives a name to the parameter. If that name appears in the URL template as a variable part, the value provided by the client will replace the variable part of the template. If no variable part appears in the URL template, a new parameter with that name and the client provided value will be added to the request. 
 \vspace{5 mm}
 \begin{lstlisting}
@@ -401,7 +408,7 @@ hr:parameterName a rdf:Property;
 hrjs:JSONPCallback a hr:InputParameter.
 \end{lstlisting} \vspace{5 mm}
 
-The main point in the use of \emph{hr:InputParameter} is to allow the specification of services details particular to a certain kind of clients that can be safely ignored by others. The \emph{hr:JSONPCallback} input parameter defined before can be useful to any javascript client being executed inside a web browser as a mechanism to execute cross-domain requests but can be ignored by any client without the security constraints of the web browser security model. A set of this input parameters can be grouped to suit hREST to a certain kind of clients that other clients does not need to understand. One of these parameters clusters, describing common parameters for javascript clients can be identified with the name of 'hRESTS for javascript':
+The main point in the use of \emph{hr:InputParameter} is to allow the specification of services details particular to a certain kind of clients that can be safely ignored by others. The \emph{hr:JSONPCallback} input parameter defined before can be useful to any Javascript client being executed inside a web browser as a mechanism to execute cross-domain requests but can be ignored by any client without the security constraints of the web browser security model. A set of this input parameters can be grouped to suit hREST to a certain kind of clients that other clients does not need to understand. One of these parameters clusters, describing common parameters for Javascript clients can be identified with the name of 'hRESTS for Javascript':
 \vspace{5 mm}
 \begin{lstlisting}
 @prefix hr: <http://www.wsmo.org/ns/hrests#>. 
@@ -414,7 +421,7 @@ hrjs:currentPage a hr:InputParameter.
 hrjs:overloadedMethod a hr:InputParameter.
 \end{lstlisting} \vspace{5 mm}
 
-Theses input parameters give support for certain specific issues in the construction of javascript ajax clients for semantic RESTful web services:
+Theses input parameters give support for certain specific issues in the construction of Javascript ajax clients for semantic RESTful web services:
 
 \begin{itemize}
   \item \emph{hrjs:JSONPCallabck} identifies the callback function for the JSONP cross domain request technique.
@@ -568,33 +575,33 @@ will render a query URL \emph{http://twitter.com/statuses/1611409723.json}.
 
 \subsection{service lifting}
 
-Once the request is sent to the server and it is processed. A response is generated and returned to the client. Since this is a JSONP request, the response will consist in JSON object literal passed as an argument to the javascript function passed as an argument according to the specified in the service description. The JSON object could have the following syntax.
+Once the request is sent to the server and it is processed. A response is generated and returned to the client. Since this is a JSONP request, the response will consist in JSON object literal passed as an argument to the Javascript function passed as an argument according to the specified in the service description. The JSON object could have the following syntax.
 \vspace{5 mm}
 \begin{lstlisting}
 {"truncated":false,"user":{"profile_sidebar_fill_color":"e0ff92","followers_count":65,"description":"mozo de la tecla","utc_offset":3600,"notifications":false,"friends_count":60,"profile_sidebar_border_color":"87bc44","following":false,"url":"http:\/\/blep.blogspot.com","name":"luisperez","favourites_count":1,"profile_background_color":"9ae4e8","protected":false,"profile_image_url":"http:\/\/s3.amazonaws.com\/twitter_production\/profile_images\/57635124\/luis-perez-programador_normal.jpg","statuses_count":2608,"profile_text_color":"000000","screen_name":"luisperez","profile_background_tile":false,"profile_background_image_url":"http:\/\/static.twitter.com\/images\/themes\/theme1\/bg.gif","profile_link_color":"0000ff","location":"Valladolid","id":16742706,"time_zone":"Madrid","created_at":"Sat Aug 02 17:02:36 +0000 2008"},"in_reply_to_status_id":null,"text":"http:\/\/code.google.com\/intl\/es-ES\/apis\/o3d\/ te gustar\u00e1 @antoniogarrote","in_reply_to_user_id":null,"favorited":false,"in_reply_to_screen_name":null,"id":1611409723,"source":"<a href=\"http:\/\/twitterfox.net\/\">TwitterFox<\/a>","created_at":"Sat Apr 25 07:37:19 +0000 2009"}
 \end{lstlisting} \vspace{5 mm}
 
-This representation of the service must be lifted to the semantic level using the transformation described in the javascript script linked into the lifting schema mapping element of the service description.
+This representation of the service must be lifted to the semantic level using the transformation described in the Javascript script linked into the lifting schema mapping element of the service description.
 \vspace{5 mm}
 \begin{lstlisting}
 function(status) {
  var resp = 
   '<http://twitter.com/statuses/' + status.id + '> [ '+
     'owl:instanceOf twitterhr:Status ;'+
-    'twitterhr:id' + status.id ;' +
-    'twitterhr:createdAt' + status.createdAt ;' +
-    'twitterhr:favorited' + status.favorited ;' +
-    'twitterhr:text' + status.text +
-  '].';
+    'twitterhr:id ' + status.id + ' ;' +
+    'twitterhr:createdAt ' + status.createdAt + '  ;' +
+    'twitterhr:favorited ' + status.favorited + ' ;' +
+    'twitterhr:text ' + status.text +
+  ' ].';
   return resp;
 }
 \end{lstlisting} \vspace{5 mm}
 
-Once the text with the lifting function is retrieved from the URL linked in the lifting schema mapping of the service description it can be used from the JSONP callback function with a single lined of code:
+Once the text with the lifting function is retrieved from the URL linked in the lifting schema mapping of the service description it can be used from the JSONP callback function with few lines of code:
 \vspace{5 mm}
 \begin{lstlisting}
 function callback(json) {
-  var liftingFn = eval(liftingTxt);
+  eval('var liftingFn = ' + liftingTxt);
   var rdf = liftingFn(json);
   return rdf;
 }
@@ -602,8 +609,8 @@ function callback(json) {
 \vspace{5 mm}
 
 \section{Conclusions}
-In this chapter  we have reviewed the hRESTS semantic RESTful web services description framework. We have seen how it is necessary to offer a description language and mechanism if we want to annotate existing or new RESTful web services with semantic information. hRESTS is introduced as a good alternative to solve this necessity based on exisiting semantic web services proposals as WSMO-Lite.\\
-We have described the main components of a semantic web service description, given special attention to the lifting and lowering mechanisms between model representations and exchange syntaxes. We have seen how hRESTS offers an extensible mechanism for expressing the lifting and lowering tranformations of data.\\
-In this way, the encoding of hRESTS RDF graphs as annotated HTML documents with a microformat or RDFa annotations, offers an intelligent alternative for the encoding of services descriptions that can serve as a bridge between the RESTful web services community and the WS-* service description practises.\\
-This focus on the ease of use, pragmatism and simplicity is followed by this specification, allowing a plain description of hRESTS services description in YAML files tha will be transformed into the equivalent annotated HTML documents.\\
-The strong focus in RDF and XML derived technologies suppose a problem in the domain of RESTful webservices where encodings as JSON have great popularity and must be taken into account in the description and tranformation steps. As it has been shown, there currently exists a plethora of lowering and lifting technologies that can be used in the description of a grounding mechanism for web services and semantic web services. Most of these mechanisms were thought for big web services dealing with XML representation of the services. This fact make them unsuitable for the description of semantic RESTful web services due to the special characteristics of this kind of architectures. An alternative grounding mechanism for semantic RESTful web services, meant to be used with the hRESTS semantic RESTful web services has been introduced. Special attention has been given to the support for other representations of the data besides XML, as it can be JSON or other binary data. The minimality of the grounding mechanism has been the other big aim of the specification, in order to make its implementation practical for RESTful clients with restricted computational resources.\\
+In this chapter we have reviewed the hRESTS semantic RESTful web services description framework. We have seen how it is necessary to offer a description language and grounding mechanism if we want to annotate existent or new RESTful web services with semantic information. hRESTS is introduced as a good alternative to solve this need based on existent semantic web services proposals such as WSMO-Lite.\\
+We have described the main components of a semantic web service description, given special attention to the lifting and lowering mechanisms between model representations and exchange syntaxes. We have seen how hRESTS offers an extensible mechanism for expressing the lifting and lowering transformation of data.\\
+In this way, the encoding of hRESTS RDF graphs as annotated HTML documents with a microformat or RDFa annotations, offers a smart alternative to the encoding of services descriptions that can also serve as a bridge between the RESTful web services developers community and the WS-* service description practices.\\
+The focus on easiness of use, pragmatism and simplicity followed by this specification, allows a plain description of hRESTS services description in YAML files that will be transformed into the equivalent annotated HTML documents.\\
+The strong focus in RDF and XML derived technologies supposes a problem in the field of RESTful web services where encodings as JSON have great popularity and must be taken into account in the description and transformation steps. As it has been shown, there currently exists a plethora of lowering and lifting technologies that can be used in the description of a grounding mechanism for web services and semantic web services. Most of these mechanisms were thought for big web services dealing with XML representation of the services. This fact makes them unsuitable for the description of semantic RESTful web services due to the special characteristics of this kind of architectures. An alternative grounding mechanism for semantic RESTful web services, meant to be used with the hRESTS semantic RESTful web services has been introduced. Special attention has been given to the support of other representations of the data besides XML, as it can be JSON or other binary data. The minimality of the grounding mechanism has been the other big aim of the specification, in order to make its implementation practical for RESTful clients with restricted computational resources.\\

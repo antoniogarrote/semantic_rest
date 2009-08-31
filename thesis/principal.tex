@@ -8,6 +8,10 @@
 \usepackage{graphicx}
 \usepackage{latexsym}
 
+% tables
+\usepackage{tabularx}
+\usepackage{blindtext}
+
 % symbols
 \usepackage{amssymb,amsmath}
 
@@ -33,6 +37,22 @@
 
 \usepackage{longtable}
 \usepackage{url}
+
+\usepackage{float}
+ 
+\newfloat{program}{thp}{lop}
+\floatname{program}{Program}
+
+% Insert images EXACTLY wher I want
+% y cambiar el parámetro h por H (mayuscula) entonces cuando importes una figura sela estructura debería de ser de esta manera:
+%  \begin{figure}[H]
+%  \begin{center}
+%   \includegraphics[height=0.5in,width=2.0in]{requisitos.eps}
+% \caption{Flujos }
+% \label{fig:flujos}
+%  \end{center}
+% \end{figure} 
+\usepackage{float}
 
 %\input{spain.tex}
 
@@ -109,8 +129,6 @@
 \newpage \pagestyle{empty}\mbox{}
 \newpage
 \pagestyle{plain}
-\include{agradecimientos}
-\include{resumen}
 \include{abstract}
 
 %\newpage
@@ -128,7 +146,7 @@
 %\renewcommand{\thepage}{\roman{page}}
 
 %para que en las tablas aparezca "tabla" y no "cuadro"
-\renewcommand\listtablename{Índice de tablas}
+\renewcommand\listtablename{List of tables}
 \renewcommand{\tablename}{{\bf Tabla}:} \pagestyle{plain}
 
 \tableofcontents
@@ -153,9 +171,9 @@
 \include{objetivos}
 \include{capitulo2}
 \include{capitulo3}
-%%\include{capitulo4}
-%%\include{capitulo5}
-%%\include{conclusiones}
+\include{capitulo4}
+\include{capitulo5}
+\include{conclusiones}
 %%\appendix
 %%\include{apendice1}
 
@@ -172,6 +190,6 @@
 
 
 \bibliographystyle{plain}
-\bibliography{bibliografia1,bibliografia2}
+\bibliography{bibliografia1}
 
 \end{document}

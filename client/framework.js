@@ -1933,7 +1933,13 @@ Siesta.Framework.classBuilder(Siesta.Services.RestfulOperation, {
                 theAddress = theAddress + "?_method=" + this.method().toLowerCase();
             }
             Siesta.Network.jsonpRequestForFunction(theAddress,"callback",function(resp) {
-
+                //TO ADD HERE
+                    if(that.outputMessage().liftingSchemaMappingContent) {
+                        //TODO format should be evaluated here, for now let's assume javascript
+                        var func = eval(that.outputMessage().liftingSchemaMappingContent);
+                        resp = func(resp);
+                    }
+                //END TO ADD HERE
                 var notifyWhenParsed = function(resp) {
                     // It is necessary to return the parsed object
                     Siesta.Events.publish(that.EVENT_CONSUMED,resp.parsedGraph);
